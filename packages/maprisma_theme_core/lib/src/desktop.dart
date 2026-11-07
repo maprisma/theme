@@ -65,7 +65,7 @@ final class CosmicDesktop implements Desktop {
     final override = environment['MAPRISMA_THEME_HELPER'];
     if (override != null && override.startsWith('/')) return override;
     final dir = File(Platform.resolvedExecutable).parent.path;
-    for (final c in ['$dir/maprisma-theme-helper', '$dir/../bin/maprisma-theme-helper', '$dir/lib/maprisma-theme-helper']) {
+    for (final c in ['$dir/maprisma-theme-helper', '$dir/bin/maprisma-theme-helper']) {
       if (File(c).existsSync()) return File(c).absolute.path;
     }
     return which('maprisma-theme-helper', environment);

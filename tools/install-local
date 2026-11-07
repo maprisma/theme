@@ -1,0 +1,73 @@
+#!/bin/bash
+# Build and install Maprisma Theme for this user (no sudo):
+#
+#   tools/install-local [--no-build]
+#
+# ~/.local/lib/maprisma-theme      the Flutter bundle + bin/ (core CLI, helper, applet) + share/ (themes, templates)
+# ~/.local/bin/maprisma-theme{,-core,-helper}, cosmic-maprisma-theme-applet   links
+# ~/.local/share/applications      the app's and the applet's desktop entries; icons under hicolor
+#
+# A running Flutter app maps its code from the bundle: never copy over it. The running copies are
+# stopped (by their real program path), a fresh folder is swapped in, and the app is not restarted.
+# The panel applet is restarted by COSMIC's panel when its binary changed (kill it; the panel respawns it).
+set -euo pipefail
+root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+lib="$HOME/.local/lib/maprisma-theme"
+bin="$HOME/.local/bin"
+data="${XDG_DATA_HOME:-$HOME/.local/share}"
+build=1
+[[ ${1:-} == --no-build ]] && build=0
+export PATH="${FLUTTER:-/mnt/Data/flutter/bin}:$PATH"
+bundle="$root/flutter_app/build/linux/x64/release/bundle"
+
+if (( build )); then
+  (cd "$root/flutter_app" && flutter build linux --release >/dev/null)
+  (cd "$root/cosmic" && cargo build --release --offline -q)
+  mkdir -p "$bundle/bin"
+  (cd "$root/packages/maprisma_theme_core" && dart compile exe bin/maprisma_theme_core.dart -o "$bundle/bin/maprisma-theme-core" >/dev/null)
+  install -m755 "$root/cosmic/target/release/maprisma-theme-helper" "$root/cosmic/target/release/cosmic-maprisma-theme-applet" "$bundle/bin/"
+  rm -rf "$bundle/share" && mkdir -p "$bundle/share/maprisma-theme"
+  cp -a "$root/themes" "$root/templates" "$bundle/share/maprisma-theme/"
+fi
+for f in maprisma-theme bin/maprisma-theme-core bin/maprisma-theme-helper bin/cosmic-maprisma-theme-applet share/maprisma-theme/themes; do
+  [[ -e $bundle/$f ]] || { echo "missing in the build: $f" >&2; exit 1; }
+done
+
+running() {
+  local p exe
+  for p in /proc/[0-9]*; do
+    exe=$(readlink "$p/exe" 2>/dev/null) || continue
+    exe=${exe% (deleted)}
+    [[ $exe == "$lib/"* || $exe == "$lib".*/* ]] && echo "${p#/proc/}"
+  done
+  return 0
+}
+
+new=$(mktemp -d "$lib.new.XXXXXX")
+trap 'rm -rf -- "$new"' EXIT
+cp -a "$bundle/." "$new/"
+chmod 755 "$new"
+pids=$(running)
+if [[ -n $pids ]]; then
+  echo "Stopping: $(echo $pids)"
+  kill -TERM $pids 2>/dev/null || true
+  for _ in $(seq 1 50); do [[ -z $(running) ]] && break; sleep 0.1; done
+  left=$(running); [[ -n $left ]] && { kill -KILL $left 2>/dev/null || true; sleep 0.3; }
+fi
+old=""
+if [[ -e $lib ]]; then old=$(mktemp -d "$lib.old.XXXXXX"); rmdir "$old"; mv "$lib" "$old"; fi
+mv "$new" "$lib"
+trap - EXIT
+[[ -n $old ]] && rm -rf -- "$old"
+
+mkdir -p "$bin" "$data/applications" "$data/icons/hicolor/scalable/apps"
+ln -sfn "$lib/maprisma-theme" "$bin/maprisma-theme"
+for b in maprisma-theme-core maprisma-theme-helper cosmic-maprisma-theme-applet; do ln -sfn "$lib/bin/$b" "$bin/$b"; done
+install -m644 "$root/packaging/com.maprisma.Theme.desktop" "$data/applications/"
+install -m644 "$root/packaging/com.maprisma.Theme.svg" "$data/icons/hicolor/scalable/apps/"
+id=io.github.ubruckhaus.CosmicMaprismaTheme
+sed "s|^Exec=.*|Exec=$bin/cosmic-maprisma-theme-applet|" "$root/cosmic/applet/data/$id.desktop" > "$data/applications/$id.desktop"
+install -m644 "$root/cosmic/applet/data/icons/$id-symbolic.svg" "$data/icons/hicolor/scalable/apps/"
+command -v gtk-update-icon-cache >/dev/null && gtk-update-icon-cache -f -t "$data/icons/hicolor" >/dev/null 2>&1 || true
+command -v update-desktop-database >/dev/null && update-desktop-database "$data/applications" >/dev/null 2>&1 || true
+echo "Installed Maprisma Theme into $lib"

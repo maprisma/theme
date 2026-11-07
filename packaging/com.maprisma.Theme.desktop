@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Maprisma Theme
+Comment=Every theme in one place: apply, make and share themes, wallpapers per workspace
+Exec=maprisma-theme
+Icon=com.maprisma.Theme
+Terminal=false
+Categories=Settings;DesktopSettings;
+Keywords=theme;wallpaper;colors;appearance;COSMIC;
+StartupWMClass=com.maprisma.Theme
