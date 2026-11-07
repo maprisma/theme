@@ -490,6 +490,24 @@ class _AskPageState extends State<AskPage> {
       card.wallNote = note ?? (results.isEmpty ? 'No wallpapers found for “$query”.' : null);
       if (results.isNotEmpty) card.c['wallpaper_id'] = '${results[card.wall]['id'] ?? ''}';
     });
+    _loadThumb(card);
+  }
+
+  /// The core downloads and header-checks the shown result's thumbnail;
+  /// the path is kept on the result as `thumb_path`.
+  Future<void> _loadThumb(_Card card) async {
+    if (card.walls.isEmpty) return;
+    final item = card.walls[card.wall];
+    if (_thumb(item) != null) return;
+    try {
+      final r = await app.call('wallhaven.thumb', {
+        'item': {for (final e in item.entries) if (e.key != 'added' && e.key != 'thumb_path') '${e.key}': e.value},
+      });
+      final path = r['path'];
+      if (path is String && mounted) setState(() => item['thumb_path'] = path);
+    } catch (_) {
+      // no picture: the card shows the colors only
+    }
   }
 
   void _stepWall(_Card card, int by) {
@@ -498,6 +516,7 @@ class _AskPageState extends State<AskPage> {
       card.wall = (card.wall + by) % card.walls.length;
       card.c['wallpaper_id'] = '${card.walls[card.wall]['id'] ?? ''}';
     });
+    _loadThumb(card);
   }
 
   void _ownSearch(_Card card) {
