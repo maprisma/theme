@@ -69,6 +69,10 @@ void main() {
             ],
           };
         }
+        // No network in tests: the web routes answer empty.
+        if (m == 'wallhaven.search') return {'results': <Map>[], 'page': 1, 'last_page': 1};
+        if (m == 'wallhaven.thumb') return {'path': null};
+        if (m == 'import.omarchy_list') return {'themes': <Map>[]};
         return core.call(m, p);
       }
 
