@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'backend.dart' show ServiceError;
 import 'core_call.dart';
 import 'pages/themes_page.dart';
 import 'screenshots.dart';
@@ -151,6 +152,7 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> {
 
 /// A readable message for a failed core call.
 String errorText(Object e) {
+  if (e is ServiceError && (e.reason ?? '').isNotEmpty) return e.reason!;
   final s = e.toString();
   final m = RegExp(r'Service operation failed: (\w+)').firstMatch(s);
   if (m != null) {

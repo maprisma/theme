@@ -1,0 +1,171 @@
+{
+ "generatedAt": "2026-11-07T22:21:42.782Z",
+ "plugins": [
+  {
+   "id": "lacuna.shell-suite",
+   "name": "Lacuna",
+   "description": "A complete visual shell for Omarchy with a custom bar, attached utility sidebar, system controls, expressive widgets, and optional desktop ambience.",
+   "version": "0.1.0-beta",
+   "repo": "https://github.com/OldJobobo/lacuna-shell",
+   "verificationStatus": "unverified",
+   "author": "OldJobobo"
+  },
+  {
+   "id": "omni",
+   "name": "Omni",
+   "description": "A standalone Omarchy shell command palette for apps, files, themes, GitHub search, tldr, and local Ollama prompts.",
+   "version": "0.1.0",
+   "repo": "https://github.com/bjarneo/omarchy-shell-plugins",
+   "verificationStatus": "unverified",
+   "author": "bjarneo"
+  },
+  {
+   "id": "ubruckhaus.simple-launcher-for-fools",
+   "name": "App Manager",
+   "description": "Launch \u00b7 Group \u00b7 Bind \u00b7 Inspect, now with a dock: all your apps and plugins in one theme-aware popup. Type to launch; pull it wide for folders or cards and drag apps between groups; pin apps to an optional dock (any free edge, auto-hide, grow on hover); see updates and newly installed apps at a glance and update plugins in one click; give any app a global shortcut on a key map that shows who owns every key; open App info. Eight languages.",
+   "version": "2.4.2",
+   "repo": "https://github.com/uBruckhaus/omarchy-simple-launcher-for-fools",
+   "verificationStatus": "unverified",
+   "author": "Uwe Bruckhaus"
+  },
+  {
+   "id": "ubruckhaus.simple-tile",
+   "name": "Workspace Presets",
+   "description": "Presets and App Presets for every workspace. Presets set a window limit and tiling layout; App Presets save your apps and their arrangement and restore them with one click or at login.",
+   "version": "0.6.2",
+   "repo": "https://github.com/uBruckhaus/omarchy-simple-tile",
+   "verificationStatus": "unverified",
+   "author": "Uwe Bruckhaus"
+  },
+  {
+   "id": "ubruckhaus.video-trans",
+   "name": "Video Trans",
+   "description": "Live translated captions over any video, call or microphone: local Whisper, llama.cpp, Ollama or online translation. Guided setup, shortcut actions, auto-contrast text.",
+   "version": "0.5.5",
+   "repo": "https://github.com/uBruckhaus/omarchy-video-trans",
+   "verificationStatus": "verified",
+   "author": "uBruckhaus"
+  },
+  {
+   "id": "ubruckhaus.simple-reader",
+   "name": "Screen Narrator",
+   "description": "Read any window, PDF or Kindle page aloud in 51 languages, optionally translated first (offline or via llama.cpp, LM Studio, Ollama). Local OCR and voices.",
+   "version": "0.6.1",
+   "repo": "https://github.com/uBruckhaus/omarchy-simple-reader",
+   "verificationStatus": "verified",
+   "author": "Uwe Bruckhaus"
+  },
+  {
+   "id": "ubruckhaus.simple-recipes",
+   "name": "Simple Recipes",
+   "description": "Your recipe collection, one chef-hat click away: import, translate, organise and cook in a native Omarchy window.",
+   "version": "0.8.0",
+   "repo": "https://github.com/uBruckhaus/omarchy-simple-recipes",
+   "verificationStatus": "verified",
+   "author": "uBruckhaus"
+  },
+  {
+   "id": "ubruckhaus.llm-usage",
+   "name": "LLM Monitor",
+   "description": "Local LLM monitor for the bar: shows when llama.cpp, Ollama, LM Studio or vLLM holds a model on the GPU, how full its context and output buffers are (green to red), the GPU memory split, load, CPU, RAM and clients per runtime.",
+   "version": "0.5.4",
+   "repo": "https://github.com/uBruckhaus/omarchy-llm-usage",
+   "verificationStatus": "unverified",
+   "author": "uBruckhaus"
+  },
+  {
+   "id": "ubruckhaus.theme-manager",
+   "name": "Theme Manager",
+   "description": "Every Omarchy theme in one place: apply, favorite, hide or delete with undo, and give any theme its own key. Make your own themes from any theme or wallpaper: pick colors and a font with a live preview. Manage wallpapers: drop, paste, choose or search the web, preview them on the desktop, give each workspace its own or let them rotate. Day and night themes, next wallpaper by scrolling the bar icon, favorites on right-click, themes from omarchy.org.",
+   "version": "1.8.1",
+   "repo": "https://github.com/uBruckhaus/omarchy-theme-manager",
+   "verificationStatus": "unverified",
+   "author": "Uwe Bruckhaus"
+  },
+  {
+   "id": "ubruckhaus.wlan-monitor",
+   "name": "WLAN Monitor",
+   "description": "See who is on your Wi-Fi from the bar: every device with a type icon and plain-language status, your own names, new-device alerts, groups by platform, type or Wi-Fi band, a network map, FRITZ!Box mesh details and VPN detection that explains when a VPN blocks your home network. Automatic subnet sweeps only on networks you trust (or when you click Rescan).",
+   "version": "0.8.5",
+   "repo": "https://github.com/uBruckhaus/omarchy-wlan-monitor",
+   "verificationStatus": "unverified",
+   "author": "uBruckhaus"
+  },
+  {
+   "id": "ubruckhaus.hue-lights",
+   "name": "Hue Lights",
+   "description": "Control your Philips Hue lights from the bar: rooms and single lights on/off, brightness and scenes, straight over your local Hue bridge (no cloud, pinned HTTPS).",
+   "version": "0.4.3",
+   "repo": "https://github.com/uBruckhaus/omarchy-hue-lights",
+   "verificationStatus": "unverified",
+   "author": "uBruckhaus"
+  },
+  {
+   "id": "ubruckhaus.my-plugins",
+   "name": "My Plugins",
+   "description": "Monitor your Omarchy marketplace plugins: publication status, views, downloads, hearts and stars with daily, weekly and monthly history charts.",
+   "version": "1.5.4",
+   "repo": "https://github.com/uBruckhaus/omarchy-my-plugins",
+   "verificationStatus": "unverified",
+   "author": "uBruckhaus"
+  },
+  {
+   "id": "ubruckhaus.bluetooth-monitor",
+   "name": "Bluetooth Monitor",
+   "description": "Every wireless mouse, keyboard, trackpad, earphone and controller at a glance: battery levels and how each one is connected (Bluetooth or USB dongle) in one picture, plus a Bluetooth page that scans, pairs, connects and forgets devices and switches Bluetooth on or off, so it can replace Omarchy's Bluetooth widget. The bar icon turns orange or red and shows which device runs low. Logitech Unifying and Bolt devices also get DPI, SmartShift, scrolling and Fn-key settings, no Solaar needed.",
+   "version": "1.4.3",
+   "repo": "https://github.com/uBruckhaus/omarchy-bluetooth-monitor",
+   "verificationStatus": "unverified",
+   "author": "uBruckhaus"
+  },
+  {
+   "id": "ubruckhaus.ai-agents-map",
+   "name": "AI Agents Map",
+   "description": "Your AI setup on one map: coding agents with plan, limits and usage, local LLMs (llama.cpp, Ollama, LM Studio, vLLM, Jan, KoboldCpp) and their models, MCP servers and skills. Setup installs, updates and signs in everything; connect by drawing a line, with preview and Undo. Batteries show limits, local LLMs get a stop button. New: subagents on their own map, arrows when one agent starts another, API cost in $ or \u20ac with a day's limit, and Goose. 8 languages.",
+   "version": "0.26.1",
+   "repo": "https://github.com/uBruckhaus/omarchy-ai-agents-map",
+   "verificationStatus": "verified",
+   "author": "Uwe Bruckhaus"
+  },
+  {
+   "id": "ubruckhaus.maprisma-launcher",
+   "name": "Maprisma Launcher",
+   "description": "App launcher, AI package advisor and shortcut manager for Omarchy, part of Maprisma: launch apps in folders, cards, icons or a 3D cube, control windows, set global Hyprland shortcuts on a live owner-coloured key map, and Ask AI (Claude Code, Codex, Antigravity, Hermes, pi or local LLMs) to find, install, update or hide apps. Checks pacman, AUR, Flatpak and AppImage updates; Settings with Find; optional dock. A bar click installs the checked AppImage when the app is missing.",
+   "version": "0.2.8",
+   "repo": "https://github.com/maprisma/omarchy-maprisma-launcher",
+   "verificationStatus": "verified",
+   "author": "Uwe Bruckhaus"
+  },
+  {
+   "id": "evil.one",
+   "name": "Evil",
+   "description": "x",
+   "repo": "https://github.com.evil.org/ubruckhaus/x"
+  },
+  {
+   "id": "Bad Id!",
+   "name": "Bad",
+   "repo": "https://github.com/ubruckhaus/bad"
+  },
+  {
+   "id": "ubruckhaus.noname",
+   "name": "   ",
+   "repo": "https://github.com/ubruckhaus/noname"
+  },
+  {
+   "id": "evil.two",
+   "name": "Two",
+   "repo": "http://github.com/ubruckhaus/two"
+  },
+  "not an object",
+  {
+   "id": "quickapps-hud",
+   "name": "QuickApps HUD",
+   "description": "A fast Iron Man-style Omarchy shell quick-app launcher overlay.",
+   "version": "0.1.0",
+   "repo": "https://github.com/bjarneo/omarchy-shell-plugins",
+   "verificationStatus": "unverified",
+   "author": "bjarneo"
+  }
+ ]
+}

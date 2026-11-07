@@ -104,7 +104,7 @@ class _ThemesPageState extends State<ThemesPage> {
     final r = await app.run('themes.delete', {'slug': t['slug']});
     if (r == null) return;
     app.changed();
-    app.notify('${t['name']} deleted', undo: () async {
+    app.notify('${t['name']} deleted', undo: r['receipt'] == null ? null : () async {
       await app.run('themes.undo_delete', {'receipt': r['receipt']});
       app.changed();
     });
