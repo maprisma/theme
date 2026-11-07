@@ -6,8 +6,14 @@ import 'posix.dart';
 
 /// Only installed desktop entries are launchable; saved command lines are ignored.
 class Launcher {
-  Launcher(this.id, this.path, this.startupClass);
-  final String id, path, startupClass;
+  Launcher(
+    this.id,
+    this.path,
+    this.startupClass, {
+    this.name = '',
+    this.icon = '',
+  });
+  final String id, path, startupClass, name, icon;
 }
 
 List<Launcher> scanLaunchers(Ctx ctx) {
@@ -51,7 +57,26 @@ List<Launcher> scanLaunchers(Ctx ctx) {
             values['Exec'] == null) {
           continue;
         }
-        result.add(Launcher(id, f.path, values['StartupWMClass'] ?? ''));
+        if (id.length > 255 || id.contains(RegExp(r'[\x00-\x1f\x7f]'))) {
+          continue;
+        }
+        String bounded(String? value) {
+          final clean = (value ?? '').replaceAll(
+            RegExp(r'[\x00-\x1f\x7f]'),
+            '',
+          );
+          return clean.substring(0, clean.length.clamp(0, 255));
+        }
+
+        result.add(
+          Launcher(
+            id,
+            f.path,
+            bounded(values['StartupWMClass']),
+            name: bounded(values['Name'] ?? id),
+            icon: bounded(values['Icon']),
+          ),
+        );
       }
     } on FileSystemException {
       continue;
@@ -88,4 +113,12 @@ Future<bool> launchApp(Ctx ctx, Launcher launcher) async {
         environment: ctx.environment,
       ) !=
       null;
+}
+
+/// Desktop IDs saved by the chooser also match compositor application IDs.
+bool launcherMatchesApp(List<Launcher> launchers, String saved, Object? appId) {
+  if (appId is! String) return false;
+  if (saved == appId) return true;
+  final launcher = findLauncher(launchers, saved);
+  return launcher != null && findLauncher([launcher], appId) != null;
 }

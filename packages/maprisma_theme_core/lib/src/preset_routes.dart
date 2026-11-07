@@ -1,6 +1,7 @@
 import 'auto.dart';
 import 'context.dart';
 import 'presets.dart';
+import 'launchers.dart';
 import 'workspace_state.dart';
 
 Map<String, Handler> presetRoutes(Ctx ctx) {
@@ -57,6 +58,30 @@ Map<String, Handler> presetRoutes(Ctx ctx) {
       await undo.captureDesktop(ctx, receipt);
       await applyTiling(ctx);
       return {'applied': true, 'receipt': receipt};
+    },
+    'apppresets.launchers': (_) async => {
+      'launchers': [
+        for (final l in (scanLaunchers(
+          ctx,
+        )..sort((a, b) => a.name.compareTo(b.name))))
+          {'desktop_id': l.id, 'name': l.name, 'icon': l.icon},
+      ],
+    },
+    'apppresets.add': (p) async {
+      final ws = workspace(p);
+      final id = str(p, 'desktop_id');
+      if (!scanLaunchers(ctx).any((l) => l.id == id)) {
+        throw RouteError('not_found', 'Installed launcher not found');
+      }
+      return change((s) {
+        final layout = s['workspaceLayouts']['$ws'] ??= {
+          'apps': <String>[],
+          'autostart': false,
+        };
+        final apps = layout['apps'] as List;
+        if (apps.length >= 64) throw RouteError('limit', 'Too many apps');
+        apps.add(id);
+      });
     },
     'apppresets.list': (_) async => {
       'layouts': loadWorkspaces(ctx)['workspaceLayouts'],

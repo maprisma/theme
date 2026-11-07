@@ -92,7 +92,7 @@ final class Settings {
         (v['night_at'] == null || (v['night_at'] is String && _time.hasMatch(v['night_at']))),
     'screenshot_dir' => v == null || (v is String && v.startsWith('/') && v.length < 1024),
     'ask_ai_helper' => v == null || (v is String && v.length < 200),
-    'ask_prompts' => v == null || (v is List && v.length <= 12 && v.every((e) => e is String && e.length <= 300)),
+    'ask_prompts' => v == null || (v is List && v.length <= 12 && v.every((e) => e is String && e.length <= 600)),
     'header_order' => v is List && v.every((e) => e is String) && v.toSet().length == v.length,
     'own_font' => v == null || (v is String && v.length < 100),
     'apps' => v == null || (v is List && v.every((e) => e is String)),

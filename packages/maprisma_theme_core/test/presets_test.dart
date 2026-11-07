@@ -33,6 +33,160 @@ void main() {
     };
   }
 
+  test(
+    'launcher chooser saves installed apps only, supports duplicates and undo',
+    () async {
+      final d = Directory('${e.paths.data}/applications')
+        ..createSync(recursive: true);
+      File('${d.path}/browser.desktop').writeAsStringSync(
+        '[Desktop Entry]\nType=Application\nName=Browser\nIcon=web-browser\nExec=browser\nStartupWMClass=Browser\n',
+      );
+      e.core.ctx.environment['XDG_DATA_DIRS'] = '${e.root.path}/empty';
+      expect((await call('apppresets.launchers'))['launchers'], [
+        {
+          'desktop_id': 'browser.desktop',
+          'name': 'Browser',
+          'icon': 'web-browser',
+        },
+      ]);
+      final r = await call('apppresets.add', {
+        'workspace': 2,
+        'desktop_id': 'browser.desktop',
+      });
+      await call('apppresets.add', {
+        'workspace': 2,
+        'desktop_id': 'browser.desktop',
+      });
+      expect(loadWorkspaces(e.core.ctx)['workspaceLayouts']['2']['apps'], [
+        'browser.desktop',
+        'browser.desktop',
+      ]);
+      expect(
+        e.desktop.calls.where((c) => c.startsWith('helper move')),
+        isEmpty,
+      );
+      await expectLater(
+        call('apppresets.add', {'workspace': 2, 'desktop_id': '../bad'}),
+        throwsA(isA<RouteError>()),
+      );
+      await call('presets.undo', {'receipt': r['receipt']});
+      expect(loadWorkspaces(e.core.ctx)['workspaceLayouts'], isEmpty);
+    },
+  );
+
+  test('launcher metadata and saved app counts are bounded', () async {
+    final d = Directory('${e.paths.data}/applications')
+      ..createSync(recursive: true);
+    File('${d.path}/bounded.desktop').writeAsStringSync(
+      '[Desktop Entry]\nType=Application\nExec=bounded\nName=${'n' * 300}\nIcon=${'i' * 300}\nStartupWMClass=BoundedApp\n',
+    );
+    e.core.ctx.environment['XDG_DATA_DIRS'] = '${e.root.path}/empty';
+    final listed =
+        ((await call('apppresets.launchers'))['launchers'] as List).single;
+    expect((listed['name'] as String).length, 255);
+    expect((listed['icon'] as String).length, 255);
+    saveWorkspaces(e.core.ctx, {
+      'workspaceLayouts': {
+        '1': {'apps': List.filled(64, 'bounded.desktop')},
+      },
+    });
+    await expectLater(
+      call('apppresets.add', {'workspace': 1, 'desktop_id': 'bounded.desktop'}),
+      throwsA(isA<RouteError>()),
+    );
+    expect(
+      loadWorkspaces(e.core.ctx)['workspaceLayouts']['1']['apps'],
+      hasLength(64),
+    );
+    saveWorkspaces(e.core.ctx, {
+      'workspaceLayouts': {
+        '1': {
+          'apps': ['bounded.desktop'],
+        },
+      },
+    });
+    e.desktop.windows = {
+      'windows': [
+        {'id': 'bounded', 'app_id': 'BoundedApp', 'workspace': 1},
+      ],
+    };
+    final restored = await call('apppresets.restore', {'workspace': 1});
+    expect(restored['status'], 'restored');
+    expect(restored['launched'], isEmpty);
+  });
+
+  for (final autostart in [false, true]) {
+    test(
+      'whole restore reserves windows across workspaces (autostart=$autostart)',
+      () async {
+        windows();
+        e.core.ctx.environment['XDG_DATA_DIRS'] = '${e.root.path}/empty';
+        final d = Directory('${e.paths.data}/applications')
+          ..createSync(recursive: true);
+        File('${d.path}/browser.desktop').writeAsStringSync(
+          '[Desktop Entry]\nType=Application\nExec=browser\n',
+        );
+        final bin = Directory('${e.root.path}/bin')..createSync();
+        final out = '${e.root.path}/launch-count';
+        final gtk = File('${bin.path}/gtk-launch')
+          ..writeAsStringSync('#!/bin/sh\nprintf "%s\\n" "\$1" >> "$out"\n');
+        chmodPath(gtk.path, 448);
+        e.core.ctx.environment['PATH'] = bin.path;
+        final timer = Timer.periodic(const Duration(milliseconds: 20), (t) {
+          if (File(out).existsSync()) {
+            (e.desktop.windows['windows'] as List).add({
+              'id': 'new',
+              'app_id': 'browser',
+              'workspace': 3,
+            });
+            t.cancel();
+          }
+        });
+        addTearDown(timer.cancel);
+        saveWorkspaces(e.core.ctx, {
+          'workspaceLayouts': {
+            '1': {
+              'apps': ['browser'],
+              'autostart': autostart,
+            },
+            '2': {
+              'apps': ['browser'],
+              'autostart': autostart,
+            },
+          },
+        });
+        Map results;
+        if (autostart) {
+          e.core.ctx.environment['XDG_SESSION_ID'] = 'multi';
+          results = (await call('presets.autostart'))['results'] as Map;
+          expect(results['1']['failed'], isEmpty);
+          expect(results['2']['failed'], isEmpty);
+        } else {
+          final dir = e.addTheme('one');
+          e.core.ctx.current.save(
+            slug: 'one',
+            wallpaper: '$dir/backgrounds/1.png',
+          );
+          await call('presets.save', {
+            'name': 'Multi',
+            'includeWorkspaces': true,
+          });
+          results = await call('presets.apply', {
+            'name': 'Multi',
+            'confirmed': true,
+          });
+          expect(results['failed'], isEmpty);
+        }
+        expect(File(out).readAsLinesSync(), ['browser.desktop']);
+        expect(e.desktop.calls, contains('helper move new 1'));
+        expect(
+          e.desktop.calls.where((c) => c.startsWith('helper move b ')),
+          isEmpty,
+        );
+      },
+    );
+  }
+
   test('workspace automation and undo', () async {
     final r = await call('workspaces.set', {
       'active': true,

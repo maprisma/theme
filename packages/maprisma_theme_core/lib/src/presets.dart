@@ -81,12 +81,68 @@ String? presetWallpaper(Ctx ctx, Map p) {
   throw RouteError('not_found', 'Preset wallpaper is unavailable');
 }
 
+// Reserve the entire snapshot before any window is moved or app launched.
+Future<Map<String, dynamic>> restoreAppLayouts(
+  Ctx ctx,
+  Map layouts, {
+  DateTime? until,
+}) async {
+  final windows = await desktopWindows(ctx);
+  final launchers = scanLaunchers(ctx);
+  final used = <String>{};
+  final plans = <int, List<Map<String, dynamic>?>>{};
+  for (final e in layouts.entries) {
+    final ws = int.parse(e.key as String);
+    plans[ws] = List.filled((e.value['apps'] as List).length, null);
+  }
+  // Keep windows already on their requested workspace before borrowing others.
+  for (final localOnly in [true, false]) {
+    for (final ws in plans.keys) {
+      final apps = layouts['$ws']['apps'] as List;
+      for (var i = 0; i < apps.length; i++) {
+        if (plans[ws]![i] != null) continue;
+        final matches = windows.where(
+          (w) =>
+              w['id'] is String &&
+              !used.contains(w['id']) &&
+              launcherMatchesApp(launchers, apps[i] as String, w['app_id']) &&
+              (!localOnly || w['workspace'] == ws),
+        );
+        if (matches.isNotEmpty) {
+          plans[ws]![i] = matches.first;
+          used.add(matches.first['id'] as String);
+        }
+      }
+    }
+  }
+  final results = <String, dynamic>{};
+  final deadline = until ?? DateTime.now().add(const Duration(seconds: 35));
+  for (final ws in plans.keys) {
+    results['$ws'] = await restoreApps(
+      ctx,
+      ws,
+      action: 'move',
+      layout: layouts['$ws'] as Map,
+      until: deadline,
+      reserved: used,
+      planned: plans[ws],
+      initialWindows: windows,
+      targetWorkspaces: plans.keys.toSet(),
+    );
+  }
+  return results;
+}
+
 Future<Map<String, dynamic>> restoreApps(
   Ctx ctx,
   int ws, {
   String action = 'ask',
   Map? layout,
   DateTime? until,
+  Set<String>? reserved,
+  List<Map<String, dynamic>?>? planned,
+  List<Map<String, dynamic>>? initialWindows,
+  Set<int> targetWorkspaces = const {},
 }) async {
   if (!['ask', 'move', 'close', 'keep'].contains(action)) {
     throw RouteError('bad_params', 'action');
@@ -103,16 +159,27 @@ Future<Map<String, dynamic>> restoreApps(
       'launched': <String>[],
     };
   }
-  final windows = await desktopWindows(ctx);
-  final used = <String>{};
+  final launchers = scanLaunchers(ctx);
+  final windows = initialWindows ?? await desktopWindows(ctx);
+  final used = reserved ?? <String>{};
   final pairs = <Map<String, dynamic>>[];
   final missing = <String>[];
-  for (final app in apps) {
+  for (var i = 0; i < apps.length; i++) {
+    final app = apps[i];
+    if (planned != null) {
+      final window = planned[i];
+      if (window == null) {
+        missing.add(app);
+      } else {
+        pairs.add(window);
+      }
+      continue;
+    }
     final matches =
         windows
             .where(
               (w) =>
-                  w['app_id'] == app &&
+                  launcherMatchesApp(launchers, app, w['app_id']) &&
                   w['id'] is String &&
                   !used.contains(w['id']),
             )
@@ -144,6 +211,7 @@ Future<Map<String, dynamic>> restoreApps(
       final index = w['index'];
       if (index is int &&
           index != ws &&
+          !targetWorkspaces.contains(index) &&
           !windows.any((v) => v['workspace'] == index)) {
         target = index;
         break;
@@ -169,7 +237,6 @@ Future<Map<String, dynamic>> restoreApps(
       }
     }
   }
-  final launchers = missing.isEmpty ? <Launcher>[] : scanLaunchers(ctx);
   final failed = <String>[];
   final launched = <String>[];
   final restoreDeadline =
@@ -192,7 +259,7 @@ Future<Map<String, dynamic>> restoreApps(
       final now = await desktopWindows(ctx);
       final matches = now.where(
         (w) =>
-            w['app_id'] == app &&
+            launcherMatchesApp(launchers, app, w['app_id']) &&
             w['id'] is String &&
             !used.contains(w['id']) &&
             !windows.any((old) => old['id'] == w['id']),
@@ -249,13 +316,12 @@ Future<Map<String, dynamic>> applySavedPreset(
     saveWorkspaces(ctx, clean);
     await applyTiling(ctx);
     final deadline = DateTime.now().add(const Duration(seconds: 35));
-    for (final ws in (clean['workspaceLayouts'] as Map).keys) {
-      final result = await restoreApps(
-        ctx,
-        int.parse(ws as String),
-        action: 'move',
-        until: deadline,
-      );
+    final results = await restoreAppLayouts(
+      ctx,
+      clean['workspaceLayouts'] as Map,
+      until: deadline,
+    );
+    for (final result in results.values) {
       moves.addAll(result['moves'] as List);
       failed.addAll(result['failed'] as List);
     }
@@ -392,18 +458,9 @@ Future<Map<String, dynamic>> autostartPresets(Ctx ctx) async {
       cleanWorkspaceState({'workspaceLayouts': snapshot})['workspaceLayouts']
           as Map;
   final current = loadWorkspaces(ctx)['workspaceLayouts'] as Map;
-  final results = <String, dynamic>{};
-  final deadline = DateTime.now().add(const Duration(seconds: 35));
-  for (final e in approved.entries) {
-    if (current[e.key]?['autostart'] == true) {
-      results[e.key as String] = await restoreApps(
-        ctx,
-        int.parse(e.key as String),
-        action: 'move',
-        layout: e.value as Map,
-        until: deadline,
-      );
-    }
-  }
-  return {'results': results};
+  final layouts = {
+    for (final e in approved.entries)
+      if (current[e.key]?['autostart'] == true) e.key: e.value,
+  };
+  return {'results': await restoreAppLayouts(ctx, layouts)};
 }

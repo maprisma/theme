@@ -263,6 +263,70 @@ class _PresetsPageState extends State<PresetsPage> {
     );
   }
 
+  Future<void> addApp() async {
+    final target = workspace;
+    final result = await app!.run('apppresets.launchers');
+    if (result == null || !mounted) return;
+    final launchers = (result['launchers'] as List).cast<Map>();
+    var query = '';
+    final id = await showDialog<String>(
+      context: context,
+      builder: (c) => StatefulBuilder(
+        builder: (c, update) {
+          final matches = launchers
+              .where(
+                (l) => '${l['name']} ${l['desktop_id']}'.toLowerCase().contains(
+                  query,
+                ),
+              )
+              .toList();
+          return AlertDialog(
+            title: const Text('Add app…'),
+            content: SizedBox(
+              width: 480,
+              height: 420,
+              child: Column(
+                children: [
+                  TextField(
+                    autofocus: true,
+                    decoration: const InputDecoration(labelText: 'Search apps'),
+                    onChanged: (v) => update(() => query = v.toLowerCase()),
+                  ),
+                  Expanded(
+                    child: matches.isEmpty
+                        ? const Center(child: Text('No installed apps found.'))
+                        : ListView.builder(
+                            itemCount: matches.length,
+                            itemBuilder: (c, i) {
+                              final l = matches[i];
+                              return ListTile(
+                                leading: const Icon(Icons.apps),
+                                title: Text('${l['name']}'),
+                                subtitle: Text('${l['desktop_id']}'),
+                                onTap: () =>
+                                    Navigator.pop(c, l['desktop_id'] as String),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(c),
+                child: const Text('Cancel'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    if (id != null && mounted) {
+      await perform('apppresets.add', {'workspace': target, 'desktop_id': id});
+    }
+  }
+
   Widget appsTab() {
     final layout = layouts['$workspace'] as Map?;
     final apps = layout?['apps'] as List? ?? [];
@@ -285,6 +349,11 @@ class _PresetsPageState extends State<PresetsPage> {
                   perform('apppresets.save', {'workspace': workspace}),
               child: const Text('Save open apps'),
             ),
+            OutlinedButton.icon(
+              onPressed: addApp,
+              icon: const Icon(Icons.add),
+              label: const Text('Add app…'),
+            ),
             OutlinedButton(
               onPressed: layout == null ? null : restore,
               child: const Text('Restore'),
@@ -299,7 +368,7 @@ class _PresetsPageState extends State<PresetsPage> {
           ],
         ),
         const Text(
-          'Apps reopen from their installed launchers; documents and window sizes are not saved.',
+          'Added apps are saved only; Restore starts them. Documents and window sizes are not saved.',
         ),
         SwitchListTile(
           title: const Text('Auto-move on restore'),
