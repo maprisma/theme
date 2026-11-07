@@ -54,7 +54,7 @@ void writeAtomic(String path, List<int> bytes, {int mode = 384 /* 0600 */}) {
     dir.createSync(recursive: true);
     if (mode == 384) _chmod(dir.path, 448 /* 0700 */);
   }
-  final tmp = File('${dir.path}/.${file.uri.pathSegments.last}.${pid}.${_random.nextInt(1 << 32)}.tmp');
+  final tmp = File('${dir.path}/.${file.uri.pathSegments.last}.$pid.${_random.nextInt(1 << 32)}.tmp');
   try {
     tmp.writeAsBytesSync(bytes, flush: true);
     _chmod(tmp.path, mode);

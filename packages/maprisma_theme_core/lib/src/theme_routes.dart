@@ -2,6 +2,7 @@ import 'apply.dart';
 import 'auto.dart';
 import 'colors.dart';
 import 'context.dart';
+import 'images.dart';
 import 'themes.dart';
 
 const maxFavorites = 50;
@@ -36,7 +37,7 @@ Map<String, dynamic> themeJson(Ctx ctx, ThemeInfo t, {required String current, r
   'hidden': hidden.contains(t.slug),
   'favorite': favorites.contains(t.slug),
   'last_used': recent[t.slug],
-  'preview': t.preview,
+  'preview': t.preview != null && imageSizeProblem(t.preview!) == null ? t.preview : null,
   'custom': t.custom,
   'git': t.fromGit,
   'cosmic': t.cosmicNative,
@@ -70,9 +71,12 @@ Map<String, Handler> themeRoutes(Ctx ctx) => {
     };
   },
   'themes.apply': (p) async {
-    final r = await applyTheme(ctx, str(p, 'slug'));
-    rememberBaseTheme(ctx, r['applied'] as String); // a manual pick is the base for workspace themes
-    return r;
+    // One apply at a time, also against the applet's automation (CLI) runs.
+    return autoLocked(ctx, () async {
+      final r = await applyTheme(ctx, str(p, 'slug'));
+      rememberBaseTheme(ctx, r['applied'] as String); // a manual pick is the base for workspace themes
+      return r;
+    });
   },
   // After a delete's Undo expired: favorites, keys, workspace and day/night entries go too.
   'themes.forget': (p) async {

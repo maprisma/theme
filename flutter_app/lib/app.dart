@@ -33,7 +33,7 @@ class MaprismaThemeApp extends StatefulWidget {
   State<MaprismaThemeApp> createState() => MaprismaThemeAppState();
 }
 
-class MaprismaThemeAppState extends State<MaprismaThemeApp> {
+class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingObserver {
   final navigator = GlobalKey<NavigatorState>();
   final messenger = GlobalKey<ScaffoldMessengerState>();
   final shotKey = GlobalKey();
@@ -51,12 +51,41 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> {
   @override
   void initState() {
     super.initState();
-    refreshLook();
+    WidgetsBinding.instance.addObserver(this);
+    refreshLook().then((_) {
+      final size = settings['size'];
+      if (size is List && size.length == 2) AppWindow.instance.resize(size[0] as int, size[1] as int);
+      _sizeRestored = true;
+    });
     _subs.add(AppWindow.instance.shown.stream.listen((_) => refreshLook()));
+  }
+
+  Timer? _sizeTimer;
+  bool _sizeRestored = false;
+
+  /// The window's size is remembered (settings `size`), not while maximized.
+  @override
+  void didChangeMetrics() {
+    if (!_sizeRestored) return;
+    _sizeTimer?.cancel();
+    _sizeTimer = Timer(const Duration(seconds: 1), () async {
+      final view = WidgetsBinding.instance.platformDispatcher.views.firstOrNull;
+      if (view == null || await AppWindow.instance.maximized()) return;
+      final size = view.physicalSize / view.devicePixelRatio;
+      final w = size.width.round(), h = size.height.round();
+      if (w < 420 || h < 320) return;
+      try {
+        await call('settings.set', {'key': 'size', 'value': [w, h]});
+      } catch (_) {
+        // not saved
+      }
+    });
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _sizeTimer?.cancel();
     for (final s in _subs) {
       s.cancel();
     }
@@ -88,7 +117,9 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> {
 
   /// A short message at the bottom; [undo] adds an Undo button (also Ctrl+Z).
   void notify(String text, {VoidCallback? undo, Duration? duration}) {
+    final token = Object();
     _undo = undo;
+    _undoToken = token;
     messenger.currentState
       ?..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(
@@ -100,10 +131,14 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> {
                 _undo = null;
                 undo();
               }),
-      )).closed.then((_) => _undo = null);
+      )).closed.then((_) {
+        // Only this message's Undo: a newer message keeps its own.
+        if (identical(_undoToken, token)) _undo = null;
+      });
   }
 
   VoidCallback? _undo;
+  Object? _undoToken;
   bool undoLast() {
     final u = _undo;
     if (u == null) return false;

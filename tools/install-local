@@ -43,6 +43,7 @@ running() {
   return 0
 }
 
+mkdir -p "$(dirname "$lib")"
 new=$(mktemp -d "$lib.new.XXXXXX")
 trap 'rm -rf -- "$new"' EXIT
 cp -a "$bundle/." "$new/"

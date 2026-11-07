@@ -28,7 +28,7 @@ Map<String, Handler> wallpaperRoutes(Ctx ctx, {Fetch? fetch}) {
   final receipts = ReceiptBook();
   final web = Wallhaven(ctx, fetch: fetch);
   var previewing = false;
-  String? beforePreview;
+  Object? beforePreview;
 
   ThemeInfo themeOf(Map<String, dynamic> p) => ctx.theme(validSlug(str(p, 'slug')));
 
@@ -149,7 +149,7 @@ Map<String, Handler> wallpaperRoutes(Ctx ctx, {Fetch? fetch}) {
       if (!path.startsWith('/') || !imageExts.contains(extOf(path))) throw RouteError('bad_params', 'path');
       final problem = imageSizeProblem(path);
       if (problem != null) throw RouteError('bad_image', problem);
-      if (!previewing) beforePreview = ctx.desktop.wallpaper();
+      if (!previewing) beforePreview = ctx.desktop.snapshotBackground();
       previewing = true;
       // Shown only: Current and the remembered wallpaper stay as they are.
       return {'shown': await ctx.desktop.setWallpaper(path)};
@@ -157,10 +157,10 @@ Map<String, Handler> wallpaperRoutes(Ctx ctx, {Fetch? fetch}) {
     'wallpapers.preview_end': (p) async {
       if (!previewing) return {'restored': false};
       previewing = false;
-      final back = ctx.current.wallpaper ?? beforePreview;
+      // The whole background config as it was (per-monitor setups included).
+      final snapshot = beforePreview;
       beforePreview = null;
-      if (back == null || !File(back).existsSync()) return {'restored': false};
-      return {'restored': await ctx.desktop.setWallpaper(back)};
+      return {'restored': await ctx.desktop.restoreBackground(snapshot)};
     },
     'themes.delete': (p) async {
       final slug = validSlug(str(p, 'slug'));

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'bounded.dart';
+import 'images.dart';
 import 'paths.dart';
 import 'posix.dart';
 import 'store.dart';
@@ -27,6 +28,10 @@ abstract interface class Desktop {
 
   /// The background shown now (cosmic-bg's config), or null.
   String? wallpaper();
+
+  /// Everything a background change touches, to put back after a preview.
+  Object? snapshotBackground();
+  Future<bool> restoreBackground(Object? snapshot);
 
   /// The COSMIC Terminal color scheme [name] from [colors].
   Future<bool> setTerminal(Map<String, String> colors, String name);
@@ -146,6 +151,8 @@ final class CosmicDesktop implements Desktop {
   @override
   Future<bool> setWallpaper(String path) async {
     if (!path.startsWith('/') || !File(path).existsSync()) return false;
+    // Every way a background reaches COSMIC (apply, presets, automation) is checked here.
+    if (imageSizeProblem(path) != null) return false;
     final old = readSmall('$_bgDir/all', limit: 64 * 1024);
     String text;
     final source = 'source: Path(${ronString(path)}),';
@@ -158,6 +165,42 @@ final class CosmicDesktop implements Desktop {
     try {
       writeText('$_bgDir/all', text, mode: 420);
       if (readSmall('$_bgDir/same-on-all')?.trim() != 'true') writeText('$_bgDir/same-on-all', 'true', mode: 420);
+      return true;
+    } on FileSystemException {
+      return false;
+    }
+  }
+
+  /// The raw text of every file in cosmic-bg's config folder (null: missing).
+  @override
+  Object? snapshotBackground() {
+    final out = <String, String?>{};
+    try {
+      for (final e in Directory(_bgDir).listSync(followLinks: false)) {
+        if (e is File) out[e.path.substring(e.path.lastIndexOf('/') + 1)] = readSmall(e.path, limit: 256 * 1024);
+      }
+    } on FileSystemException {
+      // no config yet
+    }
+    for (final n in ['all', 'same-on-all']) {
+      out.putIfAbsent(n, () => null);
+    }
+    return out;
+  }
+
+  @override
+  Future<bool> restoreBackground(Object? snapshot) async {
+    if (snapshot is! Map<String, String?>) return false;
+    try {
+      for (final e in snapshot.entries) {
+        if (e.key.contains('/') || e.key.startsWith('.')) continue;
+        final path = '$_bgDir/${e.key}';
+        if (e.value == null) {
+          if (File(path).existsSync()) File(path).deleteSync();
+        } else {
+          writeText(path, e.value!, mode: 420);
+        }
+      }
       return true;
     } on FileSystemException {
       return false;
@@ -282,6 +325,17 @@ final class FakeDesktop implements Desktop {
 
   @override
   String? wallpaper() => _wallpaper;
+
+  @override
+  Object? snapshotBackground() => _wallpaper ?? '';
+
+  @override
+  Future<bool> restoreBackground(Object? snapshot) async {
+    if (snapshot is! String) return false;
+    calls.add('restore background');
+    _wallpaper = snapshot.isEmpty ? null : snapshot;
+    return true;
+  }
 
   @override
   Future<bool> setTerminal(Map<String, String> colors, String name) async {
