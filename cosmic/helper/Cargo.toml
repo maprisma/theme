@@ -1,0 +1,18 @@
+[package]
+name = "maprisma-theme-helper"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+ron.workspace = true
+cosmic-theme.workspace = true
+cosmic-config.workspace = true
+palette = "0.7"
+cosmic-client-toolkit = { git = "https://github.com/pop-os/cosmic-protocols", rev = "c0cff4d" }
+sctk = { package = "smithay-client-toolkit", version = "0.20" }
+wayland-client = "0.31"
+wayland-protocols = { version = "0.32", features = ["client", "staging"] }
+libc = "0.2"

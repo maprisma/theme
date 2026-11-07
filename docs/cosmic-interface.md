@@ -72,3 +72,41 @@ App id `io.github.ubruckhaus.CosmicMaprismaTheme`, icon: a paint brush (symbolic
 
 `apply <slug>`, `bg next|prev`, `theme next|prev` (favorites), `workspace <n>`, `tick`, `menu`,
 `autostart`, `status`. JSON on stdout.
+
+## COSMIC 1.11 implementation notes
+
+- The pinned `cosmic-theme` uses **v2** for both `CosmicTheme.{Dark,Light}.Builder`
+  and built `CosmicTheme.{Dark,Light}` entries; mode remains v1. Import writes all
+  three through the typed API. A null/missing JSON corner preserves the current
+  mode's radii even when changing modes. Native RON retains its own radii.
+- Terminal's schema was verified against `cosmic-term` **epoch-1.11.0**, `src/config.rs`
+  and `src/main.rs`: `color_schemes_dark/light` is a map from transparent u64 IDs
+  to schemes, hex colors are bare strings, and **`syntax_theme_dark/light` selects
+  by scheme name**, not ID. One `Maprisma: ` scheme per mode is replaced; unrelated
+  schemes remain. Explicit per-profile syntax theme overrides remain effective.
+  See https://github.com/pop-os/cosmic-term/blob/epoch-1.11.0/src/config.rs .
+- Workspace ordering is by protocol coordinates within the focused window's
+  output group. If no window is focused, the output with the lexicographically
+  first name is the deterministic fallback (there is no generic focused-output
+  event in these protocols). Windows on other independent output groups have
+  `workspace: null`; overflow automation leaves those windows alone. Spanned
+  workspace groups share the same numbering. Indices can change as COSMIC adds
+  or removes workspaces.
+- Stable window IDs use `ext_foreign_toplevel_handle_v1.identifier`, never proxy
+  IDs. COSMIC batches initial extended properties on a refresh timer; initialization
+  waits up to 500 ms for that batch after roundtrips. `move` requires management
+  v4 and its `move_to_ext_workspace` capability. Requests may still be ignored by
+  the compositor; `done` means the supported request was sent and synchronized.
+- `watch` emits an initial active-workspace event, but does not emit `window_new`
+  for preexisting windows. It exits on stdin EOF, reconnects through the applet,
+  and reports only windows that become mapped after the initial snapshot as new.
+- Automation is reread once a second. Overflow searches existing workspaces
+  forward then wraps once; if all are full the window stays. A new window moved
+  by the user before its queued overflow check is left alone. Limits are clamped
+  to 1–4. The applet serializes core/helper action calls and bounds the action
+  queue; the long-lived read-only watch runs separately. Autostart is claimed
+  atomically in the runtime directory with the login session ID.
+- Every short subprocess has a 60-second deadline and at most 1 MiB stdout.
+  Theme/automation/terminal-scheme file reads are bounded to 1 MiB. The GUI toggle
+  starts a normal long-lived GUI process; it is reaped without killing it after
+  60 seconds. No subprocess uses a shell.

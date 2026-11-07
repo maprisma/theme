@@ -1,0 +1,13 @@
+[Desktop Entry]
+Name=Maprisma Theme
+Comment=Themes, wallpapers and workspace automation
+Type=Application
+Exec=cosmic-maprisma-theme-applet
+Terminal=false
+Categories=COSMIC;
+Keywords=COSMIC;Applet;Theme;Wallpaper;Maprisma;
+Icon=io.github.ubruckhaus.CosmicMaprismaTheme-symbolic
+NoDisplay=true
+X-CosmicApplet=true
+X-HostWaylandDisplay=true
+X-OverflowPriority=10

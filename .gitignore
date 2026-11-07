@@ -3,3 +3,4 @@ target/
 dist/
 .dart_tool/
 *.pyc
+target/

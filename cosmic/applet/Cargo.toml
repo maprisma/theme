@@ -1,0 +1,12 @@
+[package]
+name = "cosmic-maprisma-theme-applet"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+maprisma-theme-helper = { path = "../helper" }
+serde.workspace = true
+serde_json.workspace = true
+tokio = { version = "1", features = ["process", "io-util", "time", "macros", "rt", "sync"] }
+libcosmic = { git = "https://github.com/pop-os/libcosmic", rev = "95236a944bfd51c63a2fc65fe50a592c47168d40", default-features = false, features = ["applet", "applet-token", "dbus-config", "multi-window", "tokio", "wayland", "winit"] }
