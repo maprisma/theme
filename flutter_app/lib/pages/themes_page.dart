@@ -108,6 +108,12 @@ class _ThemesPageState extends State<ThemesPage> {
       await app.run('themes.undo_delete', {'receipt': r['receipt']});
       app.changed();
     });
+    // Once Undo is gone, the theme's favorites, key and assignments go too.
+    Future.delayed(const Duration(seconds: 10), () async {
+      try {
+        await app.call('themes.forget', {'slug': t['slug']});
+      } catch (_) {}
+    });
   }
 
   Future<void> dayNight(Map t, String which) async {

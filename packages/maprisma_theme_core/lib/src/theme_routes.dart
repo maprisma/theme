@@ -1,4 +1,5 @@
 import 'apply.dart';
+import 'auto.dart';
 import 'colors.dart';
 import 'context.dart';
 import 'themes.dart';
@@ -68,7 +69,20 @@ Map<String, Handler> themeRoutes(Ctx ctx) => {
       'dir': t.dir,
     };
   },
-  'themes.apply': (p) async => applyTheme(ctx, str(p, 'slug')),
+  'themes.apply': (p) async {
+    final r = await applyTheme(ctx, str(p, 'slug'));
+    rememberBaseTheme(ctx, r['applied'] as String); // a manual pick is the base for workspace themes
+    return r;
+  },
+  // After a delete's Undo expired: favorites, keys, workspace and day/night entries go too.
+  'themes.forget': (p) async {
+    final slug = str(p, 'slug');
+    if (!slugRe.hasMatch(slug)) throw RouteError('bad_params', 'slug');
+    if (findTheme(ctx.paths, slug) != null) return {'forgotten': false};
+    forgetThemeState(ctx, slug);
+    ctx.automationChanged();
+    return {'forgotten': true};
+  },
   'themes.hide': (p) async {
     final slug = ctx.theme(str(p, 'slug')).slug;
     final hidden = ctx.lists.hidden;

@@ -31,6 +31,14 @@ Future<int> runCli(List<String> args, {CoreService? service}) async {
     stdout.writeln(jsonEncode(await core.call(method, params)));
     return 0;
   } on RouteError catch (e) {
+    // A theme's key whose theme was deleted outside the app: say so and drop the key.
+    if (method == 'themes.apply' && e.code == 'not_found') {
+      try {
+        await core.call('themes.forget', params);
+      } on RouteError {
+        // nothing to drop
+      }
+    }
     stdout.writeln(jsonEncode({'error': e.code, 'message': e.message}));
     return 1;
   }
