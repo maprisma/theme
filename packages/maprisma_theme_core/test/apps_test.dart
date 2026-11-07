@@ -102,4 +102,49 @@ void main() {
     expect(File('$cfg/nvim/lua/plugins/maprisma-theme.lua').existsSync(), isFalse);
     expect(read('nvim/lua/plugins/example.lua'), 'return {}\n');
   });
+
+  test('files of the user in the apps\' own folders are never overwritten or deleted', () async {
+    write('helix/config.toml', 'theme = "onedark"\n');
+    write('helix/themes/maprisma.toml', '# my own\n');
+    write('btop/btop.conf', 'color_theme = "Default"\n');
+    write('mine.theme', 'theme[main_bg]="#000000"\n');
+    Directory('$cfg/btop/themes').createSync(recursive: true);
+    Link('$cfg/btop/themes/maprisma.theme').createSync('$cfg/mine.theme');
+    write('nvim/lua/plugins/maprisma-theme.lua', 'return { "mine" }\n');
+    final nvimCtx = Ctx(paths: env.paths, desktop: env.desktop, environment: {'HOME': env.paths.home, 'PATH': '/nonexistent'});
+    await applyAppTemplates(ctx, findTheme(env.paths, 'nord')!, colors);
+    for (final id in ['helix', 'btop', 'neovim']) {
+      expect(ensureInclude(nvimCtx, appSpec(id)!), 'manual', reason: id);
+    }
+    expect(read('helix/themes/maprisma.toml'), '# my own\n');
+    expect(read('helix/config.toml'), 'theme = "onedark"\n');
+    expect(FileSystemEntity.isLinkSync('$cfg/btop/themes/maprisma.theme'), isTrue);
+    expect(read('mine.theme'), 'theme[main_bg]="#000000"\n');
+    expect(read('btop/btop.conf'), 'color_theme = "Default"\n');
+    removeAppIncludes(nvimCtx);
+    expect(read('helix/themes/maprisma.toml'), '# my own\n');
+    expect(FileSystemEntity.isLinkSync('$cfg/btop/themes/maprisma.theme'), isTrue);
+    expect(read('nvim/lua/plugins/maprisma-theme.lua'), 'return { "mine" }\n');
+
+    // our own (marked) files are updated, and go when the app is switched off
+    File('$cfg/helix/themes/maprisma.toml').deleteSync();
+    expect(ensureInclude(ctx, appSpec('helix')!), 'ok');
+    expect(read('helix/themes/maprisma.toml'), startsWith('# $appMarker\n'));
+    expect(ensureInclude(ctx, appSpec('helix')!), 'ok');
+    setAppEnabled(ctx, 'helix', false, colors);
+    expect(File('$cfg/helix/themes/maprisma.toml').existsSync(), isFalse);
+    expect(read('helix/config.toml'), 'theme = "onedark"\n');
+  });
+
+  test('VS Code is listed as not supported and cannot be switched on', () async {
+    Directory('$cfg/Code').createSync(recursive: true);
+    final vscode = appsList(ctx).firstWhere((a) => a['id'] == 'vscode');
+    expect(vscode['installed'], isTrue);
+    expect(vscode['supported'], isFalse);
+    expect(vscode['enabled'], isFalse);
+    expect(vscode['note'], startsWith('Not supported'));
+    expect(() => setAppEnabled(ctx, 'vscode', true, colors), throwsA(isA<RouteError>()));
+    setAppEnabled(ctx, 'kitty', true, colors);
+    expect(ctx.settings.get('apps'), isNot(contains('vscode')));
+  });
 }

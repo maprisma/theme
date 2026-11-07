@@ -6,6 +6,9 @@ import 'context.dart';
 import 'store.dart';
 import 'themes.dart';
 
+/// `own_font` when the user had COSMIC's default monospace font.
+const defaultFontMark = '(default)';
+
 /// The wallpaper last chosen per theme (Omarchy's theme-backgrounds state).
 Map<String, String> chosenWallpapers(Ctx ctx) => {
   for (final e in readJsonMap('${ctx.paths.state}/theme-backgrounds.json').entries)
@@ -81,11 +84,12 @@ Future<bool> _applyFont(Ctx ctx, ThemeInfo theme) async {
     final now = ctx.desktop.monospaceFont();
     if (now == themed) return false;
     if (!await ctx.desktop.setMonospaceFont(themed)) return false;
-    if (own == null && now != null) ctx.settings.set('own_font', now);
+    // The font to go back to; COSMIC's default when none was set.
+    if (own == null) ctx.settings.set('own_font', now ?? defaultFontMark);
     return true;
   }
   if (own != null) {
-    final ok = await ctx.desktop.setMonospaceFont(own);
+    final ok = own == defaultFontMark ? await ctx.desktop.resetMonospaceFont() : await ctx.desktop.setMonospaceFont(own);
     ctx.settings.set('own_font', null);
     return ok;
   }

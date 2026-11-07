@@ -41,5 +41,9 @@ Future<int> runCli(List<String> args, {CoreService? service}) async {
     }
     stdout.writeln(jsonEncode({'error': e.code, 'message': e.message}));
     return 1;
+  } catch (e) {
+    // Always JSON for the applet, never a bare stack trace.
+    stdout.writeln(jsonEncode({'error': 'internal', 'message': '$e'}));
+    return 1;
   }
 }

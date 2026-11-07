@@ -202,6 +202,7 @@ pub fn write_at(v: &Value, name: &str, config: &Config, dir: &Path) -> Result<()
             ..Default::default()
         },
     );
+    remember(dir)?;
     config.set(key, schemes).map_err(|e| e.to_string())?;
     config
         .set(
@@ -213,4 +214,97 @@ pub fn write_at(v: &Value, name: &str, config: &Config, dir: &Path) -> Result<()
             name,
         )
         .map_err(|e| e.to_string())
+}
+
+fn config_dir() -> std::path::PathBuf {
+    std::env::var_os("XDG_CONFIG_HOME")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| {
+            std::path::PathBuf::from(std::env::var_os("HOME").unwrap_or_default()).join(".config")
+        })
+        .join("cosmic/com.system76.CosmicTerm/v1")
+}
+fn previous_path() -> std::path::PathBuf {
+    std::env::var_os("XDG_STATE_HOME")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| {
+            std::path::PathBuf::from(std::env::var_os("HOME").unwrap_or_default())
+                .join(".local/state")
+        })
+        .join("maprisma-theme/terminal-previous.json")
+}
+const SELECTIONS: [&str; 2] = ["syntax_theme_dark", "syntax_theme_light"];
+fn remember(dir: &Path) -> Result<()> {
+    use std::io::Write;
+    use std::os::unix::fs::OpenOptionsExt;
+    let path = previous_path();
+    if path.exists() {
+        return Ok(());
+    }
+    let mut previous = BTreeMap::<String, Option<String>>::new();
+    for key in SELECTIONS {
+        let p = dir.join(key);
+        previous.insert(
+            key.into(),
+            if p.exists() {
+                Some(ron::from_str::<String>(&read_bounded(&p)?).map_err(|e| e.to_string())?)
+            } else {
+                None
+            },
+        );
+    }
+    std::fs::create_dir_all(path.parent().unwrap()).map_err(|e| e.to_string())?;
+    match std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(0o600)
+        .open(&path)
+    {
+        Ok(mut file) => {
+            if let Err(e) =
+                file.write_all(&serde_json::to_vec(&previous).map_err(|e| e.to_string())?)
+            {
+                let _ = std::fs::remove_file(&path);
+                return Err(e.to_string());
+            }
+            Ok(())
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => Ok(()),
+        Err(e) => Err(e.to_string()),
+    }
+}
+pub fn restore() -> Result<()> {
+    let path = previous_path();
+    if !path.exists() {
+        return Ok(());
+    }
+    let previous: BTreeMap<String, Option<String>> =
+        serde_json::from_str(&read_bounded(&path)?).map_err(|e| e.to_string())?;
+    let config = Config::new("com.system76.CosmicTerm", 1).map_err(|e| e.to_string())?;
+    let dir = config_dir();
+    for key in SELECTIONS {
+        match previous.get(key).ok_or("incomplete terminal backup")? {
+            Some(name) => config.set(key, name).map_err(|e| e.to_string())?,
+            None => {
+                if dir.join(key).exists() {
+                    std::fs::remove_file(dir.join(key)).map_err(|e| e.to_string())?;
+                }
+            }
+        }
+    }
+    for key in ["color_schemes_dark", "color_schemes_light"] {
+        let p = dir.join(key);
+        if !p.exists() {
+            continue;
+        }
+        let options = ron::Options::default()
+            .with_default_extension(ron::extensions::Extensions::IMPLICIT_SOME)
+            .with_default_extension(ron::extensions::Extensions::UNWRAP_NEWTYPES);
+        let mut schemes: BTreeMap<u64, Scheme> = options
+            .from_str(&read_bounded(&p)?)
+            .map_err(|e| e.to_string())?;
+        schemes.retain(|_, s| !s.name.starts_with("Maprisma: "));
+        config.set(key, schemes).map_err(|e| e.to_string())?;
+    }
+    std::fs::remove_file(path).map_err(|e| e.to_string())
 }

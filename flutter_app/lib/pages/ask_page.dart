@@ -537,8 +537,10 @@ class _AskPageState extends State<AskPage> {
     final slug = c['theme'] as String;
     switch (c['kind']) {
       case 'installed':
+        final wall = _chosenWall(card);
         final r = await app.run('themes.apply', {'slug': slug});
         if (r != null) {
+          if (wall != null) await _addWall(slug, wall);
           app.notify('Applied ${c['name']}');
           app.changed();
         }
@@ -563,13 +565,32 @@ class _AskPageState extends State<AskPage> {
           if (c['font'] is String) 'font': c['font'] as String,
           for (final e in ((c['changes'] as Map?) ?? const {}).entries) '${e.key}': '${e.value}',
         };
+        final wall = _chosenWall(card);
         // Nothing is saved until you save; a system theme is never changed: a copy.
-        await Navigator.of(context).push(
+        // The editor gives back the saved theme's slug (null: not saved).
+        final saved = await Navigator.of(context).push<Object?>(
           MaterialPageRoute(
             builder: (_) => EditorPage(base: edit ? null : slug, edit: edit ? slug : null, initial: initial),
           ),
         );
+        if (saved is String && saved.isNotEmpty && wall != null) {
+          await _addWall(saved, wall);
+          app.changed();
+        }
     }
+  }
+
+  /// The wallhaven result shown on the card (null: none), as the core takes it.
+  Map<String, dynamic>? _chosenWall(_Card card) {
+    if (card.walls.isEmpty || card.wall < 0 || card.wall >= card.walls.length) return null;
+    final item = card.walls[card.wall];
+    return {for (final e in item.entries) if (e.key != 'added' && e.key != 'thumb_path') '${e.key}': e.value};
+  }
+
+  /// Adds the card's wallpaper to [slug]; shown right away when [slug] is the
+  /// theme in use (the core only sets it then).
+  Future<void> _addWall(String slug, Map<String, dynamic> wall) async {
+    await app.run('wallhaven.add', {'slug': slug, 'item': wall, 'set': true}, 'Could not add the wallpaper');
   }
 
   Future<void> _install(String slug, bool apply) async {

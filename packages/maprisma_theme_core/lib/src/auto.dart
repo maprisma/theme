@@ -408,6 +408,13 @@ Future<String?> stepBackground(Ctx ctx, int direction) async {
   final current = currentBackground(ctx);
   final index = walls.indexWhere((p) => _same(p, current));
   final target = index >= 0 || direction > 0 ? walls[(index + direction) % walls.length] : walls.last;
+  return await showChosenBackground(ctx, theme, target) ? target : null;
+}
+
+/// Shows [target] as the user's pick for the current [theme]: on a workspace
+/// with its own wallpaper that workspace gets it, else it becomes the base the
+/// workspace switches return to (and the theme's remembered wallpaper).
+Future<bool> showChosenBackground(Ctx ctx, ThemeInfo theme, String target) async {
   var own = false;
   if (workspaceWallpapersEnabled(ctx)) {
     final ws = await activeWorkspace(ctx);
@@ -423,8 +430,7 @@ Future<String?> stepBackground(Ctx ctx, int direction) async {
       }
     }
   }
-  await _show(ctx, target, remember: !own);
-  return target;
+  return _show(ctx, target, remember: !own);
 }
 
 // --- slideshow and day/night ---------------------------------------------------------------
@@ -464,6 +470,12 @@ Future<Map<String, dynamic>> tick(Ctx ctx) async {
           done['theme'] = wanted;
         } on RouteError catch (e) {
           done['theme_error'] = e.code;
+          if (e.code == 'apply_failed') {
+            // COSMIC did not take it (helper missing, a glitch): try again next minute
+            // instead of waiting for the next boundary.
+            final retry = _state(ctx)..remove('period');
+            _saveState(ctx, retry);
+          }
         }
         state = _state(ctx);
       }

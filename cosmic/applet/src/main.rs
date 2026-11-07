@@ -17,7 +17,7 @@ use maprisma_theme_helper::{
 };
 use serde_json::Value;
 use std::{
-    collections::{BTreeMap, VecDeque},
+    collections::{BTreeMap, BTreeSet, VecDeque},
     path::PathBuf,
     process::Stdio,
     sync::LazyLock,
@@ -61,7 +61,7 @@ struct Applet {
     last_tick: Instant,
     last_tiling: Instant,
     last_scroll: Instant,
-    autostart_claimed: bool,
+    pending_windows: BTreeSet<String>,
 }
 fn config_path() -> PathBuf {
     std::env::var_os("XDG_CONFIG_HOME")
@@ -131,12 +131,6 @@ impl Applet {
             Err(e) => self.error = Some(format!("Automation settings: {e}")),
             _ => {}
         }
-        if self.automation.autostart && !self.autostart_claimed {
-            self.autostart_claimed = true;
-            if claim_autostart() {
-                self.enqueue(Job::Core(vec!["autostart".into()]));
-            }
-        }
     }
 }
 impl cosmic::Application for Applet {
@@ -164,9 +158,13 @@ impl cosmic::Application for Applet {
             last_tick: now,
             last_tiling: now,
             last_scroll: now - Duration::from_secs(1),
-            autostart_claimed: false,
+            pending_windows: BTreeSet::new(),
         };
         app.reload();
+        // Consume the session even when disabled, so enabling later waits for login.
+        if startup_autostart(app.automation.autostart, claim_autostart) {
+            app.enqueue(Job::Core(vec!["autostart".into()]));
+        }
         let task = app.next();
         (app, task)
     }
@@ -249,25 +247,24 @@ impl cosmic::Application for Applet {
                     self.enqueue(Job::Core(vec!["tick".into()]));
                 }
             }
-            Message::Event(v) => match v["event"].as_str() {
-                Some("window_moved" | "window_closed") => {
+            Message::Event(v) => {
+                if matches!(v["event"].as_str(), Some("window_moved" | "window_closed")) {
                     if let Some(id) = v["id"].as_str() {
                         self.queue
                             .retain(|j| !matches!(j, Job::Overflow(queued, _) if queued == id));
                     }
                 }
-                Some("workspace") if self.automation.workspace_events => {
+                if let Some((id, workspace)) =
+                    overflow_event(&mut self.pending_windows, &v, self.automation.tiling.active)
+                {
+                    self.enqueue(Job::Overflow(id, workspace));
+                }
+                if v["event"] == "workspace" && self.automation.workspace_events {
                     if let Some(i) = v["index"].as_u64() {
                         self.enqueue(Job::Core(vec!["workspace".into(), i.to_string()]));
                     }
                 }
-                Some("window_new") if self.automation.tiling.active => {
-                    if let (Some(id), Some(i)) = (v["id"].as_str(), v["workspace"].as_u64()) {
-                        self.enqueue(Job::Overflow(id.into(), i as usize));
-                    }
-                }
-                _ => {}
-            },
+            }
             Message::WatchError(e) => {
                 self.error = Some(e);
             }
@@ -386,7 +383,22 @@ fn claim_autostart() -> bool {
     if std::fs::create_dir_all(&dir).is_err() {
         return false;
     } // Runtime directories are cleared at logout. Include session ID for concurrent sessions.
-    let session = std::env::var("XDG_SESSION_ID").unwrap_or_else(|_| "session".into());
+    let session = std::env::var("XDG_SESSION_ID")
+        .ok()
+        .filter(|s| !s.is_empty())
+        .or_else(|| {
+            std::fs::read_to_string("/proc/sys/kernel/random/boot_id")
+                .ok()
+                .and_then(|boot| {
+                    Some(format!("{}-{}", boot.trim(), {
+                        use std::os::unix::fs::MetadataExt;
+                        std::fs::metadata("/proc/self").ok()?.uid()
+                    }))
+                })
+        });
+    let Some(session) = session else {
+        return false;
+    };
     let safe: String = session
         .chars()
         .filter(|c| c.is_ascii_alphanumeric() || *c == '-')
@@ -532,5 +544,94 @@ async fn watch(out: &mut mpsc::Sender<Message>) {
             }
         }
         tokio::time::sleep(Duration::from_secs(5)).await;
+    }
+}
+
+// Called only at initialization; always consume the marker, including disabled sessions.
+fn startup_autostart(enabled: bool, claim: impl FnOnce() -> bool) -> bool {
+    claim() && enabled
+}
+fn overflow_event(
+    pending: &mut BTreeSet<String>,
+    v: &Value,
+    active: bool,
+) -> Option<(String, usize)> {
+    let id = v["id"].as_str()?;
+    match v["event"].as_str()? {
+        "window_closed" => {
+            pending.remove(id);
+        }
+        "window_new" if active => {
+            if let Some(i) = v["workspace"].as_u64() {
+                return Some((id.into(), i as usize));
+            }
+            pending.insert(id.into());
+        }
+        "window_moved" => {
+            if let Some(i) = v["workspace"].as_u64() {
+                if pending.remove(id) && active {
+                    return Some((id.into(), i as usize));
+                }
+            }
+        }
+        _ => {}
+    }
+    None
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+    #[test]
+    fn disabled_start_consumes_session() {
+        let mut claimed = false;
+        assert!(!startup_autostart(false, || {
+            claimed = true;
+            true
+        }));
+        assert!(claimed);
+        assert!(!startup_autostart(true, || false));
+        assert!(startup_autostart(true, || true));
+    }
+    #[test]
+    fn overflow_waits_for_first_workspace_only() {
+        let mut pending = BTreeSet::new();
+        assert_eq!(
+            overflow_event(
+                &mut pending,
+                &json!({"event":"window_new","id":"a","workspace":null}),
+                true
+            ),
+            None
+        );
+        assert_eq!(
+            overflow_event(
+                &mut pending,
+                &json!({"event":"window_moved","id":"a","workspace":null}),
+                true
+            ),
+            None
+        );
+        let moved = json!({"event":"window_moved","id":"a","workspace":2});
+        assert_eq!(
+            overflow_event(&mut pending, &moved, true),
+            Some(("a".into(), 2))
+        );
+        assert_eq!(overflow_event(&mut pending, &moved, true), None);
+        overflow_event(&mut pending, &json!({"event":"window_new","id":"a"}), true);
+        overflow_event(
+            &mut pending,
+            &json!({"event":"window_closed","id":"a"}),
+            true,
+        );
+        assert!(pending.is_empty());
+        assert_eq!(
+            overflow_event(
+                &mut pending,
+                &json!({"event":"window_new","id":"b","workspace":1}),
+                true
+            ),
+            Some(("b".into(), 1))
+        );
     }
 }

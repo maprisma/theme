@@ -97,6 +97,27 @@ void main() {
     parseCosmicShortcuts(text());
   });
 
+  test('when COSMIC\'s file cannot be written, a shadowed key of the user is not lost', () async {
+    await call('shortcuts.set', {'target': 'open', 'mods': ['SUPER', 'CTRL'], 'combo_key': 'b'});
+    final shadow = env.paths.file('cosmic-shadowed.json');
+    final stateBefore = File(env.paths.file('shortcuts.json')).readAsStringSync();
+    final shadowBefore = File(shadow).readAsStringSync();
+    expect(shadowBefore, contains('firefox'));
+    final folder = File(custom).parent.path;
+    chmodPath(folder, 320 /* 0500: no new files */);
+    try {
+      await expectLater(call('shortcuts.remove', {'target': 'open'}), throwsA(anything));
+    } finally {
+      chmodPath(folder, 448);
+    }
+    expect(File(env.paths.file('shortcuts.json')).readAsStringSync(), stateBefore);
+    expect(File(shadow).readAsStringSync(), shadowBefore);
+    expect(text(), isNot(contains('Spawn("firefox")')));
+    // the next try gives it back
+    expect((await call('shortcuts.remove', {'target': 'open'}))['removed'], isTrue);
+    expect(text(), contains('(modifiers: [Super, Ctrl], key: "b"): Spawn("firefox")'));
+  });
+
   test('a deleted theme gives its key back; a renamed one keeps it', () async {
     await call('shortcuts.set', {'target': 'apply:nord', 'mods': ['SUPER', 'ALT'], 'combo_key': 'N'});
     await call('shortcuts.set', {'target': 'apply:gruvbox', 'mods': ['SUPER', 'ALT'], 'combo_key': 'G'});

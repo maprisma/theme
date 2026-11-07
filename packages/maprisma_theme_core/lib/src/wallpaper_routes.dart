@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'apply.dart';
+import 'auto.dart' show showChosenBackground;
 import 'context.dart';
 import 'images.dart';
 import 'posix.dart';
@@ -139,7 +140,8 @@ Map<String, Handler> wallpaperRoutes(Ctx ctx, {Fetch? fetch}) {
         rememberWallpaper(ctx, theme.slug, w.name);
         return {'set': false, 'remembered': true};
       }
-      if (!await setBackground(ctx, path)) throw RouteError('set_failed', 'Could not set the background');
+      // As the applet's scroll: a workspace with its own wallpaper gets it, else it is the new base.
+      if (!await showChosenBackground(ctx, theme, path)) throw RouteError('set_failed', 'Could not set the background');
       previewing = false;
       beforePreview = null;
       return {'set': true, 'remembered': true};

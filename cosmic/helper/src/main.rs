@@ -43,6 +43,10 @@ fn run(a: &[String]) -> Result<Value> {
             terminal::write(&theme::colors_file(Path::new(arg(2)?))?, arg(4)?)?;
             Ok(json!({"written":true}))
         }
+        "terminal-restore" if a.len() == 1 => {
+            terminal::restore()?;
+            Ok(json!({"restored":true}))
+        }
         "workspaces" | "windows" | "set-tiling" | "move" | "close" | "activate" | "watch" => {
             compositor::run(a)
         }

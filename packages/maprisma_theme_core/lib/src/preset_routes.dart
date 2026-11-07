@@ -6,7 +6,6 @@ import 'workspace_state.dart';
 
 Map<String, Handler> presetRoutes(Ctx ctx) {
   tilingAutomationHook = tilingAutomation;
-  ctx.automationChanged();
   final undo = PresetUndo();
   int workspace(Map<String, dynamic> p) =>
       intParam(p, 'workspace', min: 1, max: 10);

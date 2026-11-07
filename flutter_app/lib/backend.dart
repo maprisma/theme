@@ -86,7 +86,8 @@ final class Backend {
     return pending.future.timeout(
       switch (method) {
         'ask.run' => const Duration(minutes: 7),
-        'import.install' || 'presets.apply' || 'presets.restore' => const Duration(minutes: 5),
+        'import.omarchy_install' || 'import.cosmic_install' || 'presets.apply' || 'apppresets.restore' ||
+        'custom.save' => const Duration(minutes: 5),
         _ => const Duration(seconds: 90),
       },
       onTimeout: () {

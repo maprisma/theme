@@ -424,13 +424,44 @@ final class ThemeShortcuts {
     }
     final text = head + entries.map((e) => '${e['gap']}${e['raw']},').join() + tail;
     parseCosmicShortcuts(text); // never hand COSMIC a file that cannot be read back
-    writeJson(stateFile, {
-      for (final e in state.entries) e.key: {'mods': e.value['mods'], 'key': e.value['key'], if (e.value['replaces'] != null) 'replaces': e.value['replaces']},
-    });
-    writeJson(shadowFile, shadowed);
-    if (text != original) {
-      final mode = _modeOf(customFile) ?? 420;
-      writeText(customFile, text, mode: mode);
+    // COSMIC's file first: while it is not written, shortcuts.json and
+    // cosmic-shadowed.json still describe it (a shadowed key of the user's
+    // is never lost); when ours fail afterwards, all three go back.
+    final mode = _modeOf(customFile) ?? 420;
+    if (text != original) writeText(customFile, text, mode: mode);
+    final oldState = _raw(stateFile), oldShadow = _raw(shadowFile);
+    try {
+      writeJson(stateFile, {
+        for (final e in state.entries) e.key: {'mods': e.value['mods'], 'key': e.value['key'], if (e.value['replaces'] != null) 'replaces': e.value['replaces']},
+      });
+      writeJson(shadowFile, shadowed);
+    } catch (_) {
+      _restore(stateFile, oldState);
+      _restore(shadowFile, oldShadow);
+      if (text != original) _restore(customFile, utf8.encode(original), mode: mode);
+      rethrow;
+    }
+  }
+
+  /// A small file's bytes as they are now (null: none).
+  static List<int>? _raw(String path) {
+    try {
+      return File(path).existsSync() ? File(path).readAsBytesSync() : null;
+    } on FileSystemException {
+      return null;
+    }
+  }
+
+  /// Best effort: [path] as it was ([bytes] null: it did not exist).
+  static void _restore(String path, List<int>? bytes, {int mode = 384}) {
+    try {
+      if (bytes == null) {
+        if (File(path).existsSync()) File(path).deleteSync();
+      } else {
+        writeAtomic(path, bytes, mode: mode);
+      }
+    } on Object {
+      // nothing more can be done
     }
   }
 

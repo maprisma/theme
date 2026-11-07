@@ -13,7 +13,7 @@ Map<String, Handler> autoRoutes(Ctx ctx) {
       // never break the change that asked for it
     }
   };
-  ctx.automationChanged();
+  // automation.json is written once by CoreService, after every module set its hooks.
 
   int direction(Map<String, dynamic> p) {
     final d = p['direction'];

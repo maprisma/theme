@@ -33,6 +33,81 @@ void main() {
     };
   }
 
+  test('launcher ignores inherited output and checks exit status', () async {
+    final bin = Directory('${e.root.path}/bin')..createSync();
+    final gtk = File('${bin.path}/gtk-launch');
+    e.core.ctx.environment['PATH'] = bin.path;
+    final launcher = Launcher('editor.desktop', '/unused', '');
+    gtk.writeAsStringSync('#!/bin/sh\n/bin/sleep 3 &\nexit 0\n');
+    chmodPath(gtk.path, 448);
+    final watch = Stopwatch()..start();
+    expect(await launchApp(e.core.ctx, launcher), isTrue);
+    expect(watch.elapsed, lessThan(const Duration(seconds: 2)));
+    gtk.writeAsStringSync('#!/bin/sh\nexit 7\n');
+    expect(await launchApp(e.core.ctx, launcher), isFalse);
+    gtk.deleteSync();
+    final gio = File('${bin.path}/gio')
+      ..writeAsStringSync('#!/bin/sh\n/bin/sleep 3 &\nexit 0\n');
+    chmodPath(gio.path, 448);
+    watch.reset();
+    expect(await launchApp(e.core.ctx, launcher), isTrue);
+    expect(watch.elapsed, lessThan(const Duration(seconds: 2)));
+  });
+
+  test(
+    'preset keeps approval only for unchanged apps on the same workspace',
+    () async {
+      windows();
+      final dir = e.addTheme('one');
+      e.core.ctx.current.save(slug: 'one', wallpaper: '$dir/backgrounds/1.png');
+      saveWorkspaces(e.core.ctx, {
+        'workspaceLayouts': {
+          '1': {
+            'apps': ['editor'],
+            'autostart': true,
+          },
+          '2': {
+            'apps': ['browser'],
+            'autostart': true,
+          },
+        },
+      });
+      await call('presets.save', {'name': 'Keep', 'includeWorkspaces': true});
+      await call('presets.apply', {'name': 'Keep', 'confirmed': true});
+      expect(
+        readJsonMap('${e.paths.state}/autostart.json').keys,
+        containsAll(['1', '2']),
+      );
+      final preset = namedPreset(e.core.ctx, 'Keep');
+      preset['workspaces']['workspaceLayouts']['2']['apps'] = <String>[];
+      preset['workspaces']['workspaceLayouts']['3'] = {
+        'apps': <String>[],
+        'autostart': true,
+      };
+      await applySavedPreset(e.core.ctx, preset, confirmed: true);
+      expect(
+        loadWorkspaces(e.core.ctx)['workspaceLayouts']['1']['autostart'],
+        isTrue,
+      );
+      expect(
+        loadWorkspaces(e.core.ctx)['workspaceLayouts']['2']['autostart'],
+        isFalse,
+      );
+      expect(
+        loadWorkspaces(e.core.ctx)['workspaceLayouts']['3']['autostart'],
+        isFalse,
+      );
+      expect(readJsonMap('${e.paths.state}/autostart.json').keys, ['1']);
+    },
+  );
+
+  test('autostart without session ID uses boot and uid once', () async {
+    e.core.ctx.environment.remove('XDG_SESSION_ID');
+    saveWorkspaces(e.core.ctx, {'workspaceLayouts': <String, dynamic>{}});
+    expect((await autostartPresets(e.core.ctx))['results'], isEmpty);
+    expect((await autostartPresets(e.core.ctx))['status'], 'already_started');
+  });
+
   test(
     'launcher chooser saves installed apps only, supports duplicates and undo',
     () async {

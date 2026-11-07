@@ -38,6 +38,9 @@ abstract interface class Desktop {
 
   String? monospaceFont();
   Future<bool> setMonospaceFont(String family);
+
+  /// Back to COSMIC's default monospace font (its config entry removed).
+  Future<bool> resetMonospaceFont();
   Future<List<String>> monospaceFonts();
 
   String? iconTheme();
@@ -49,6 +52,41 @@ abstract interface class Desktop {
 }
 
 String ronString(String s) => '"${s.replaceAll(r'\', r'\\').replaceAll('"', r'\"')}"';
+
+/// [text] with the value of the first top-level-ish `key:` replaced by
+/// [value]: the old value ends at the `,` or closing bracket at its own
+/// depth (strings and nested brackets skipped), so `Color(Single((..)))`
+/// and gradients are replaced whole. Null when the value has no clean end.
+String? replaceRonValue(String text, String key, String value) {
+  final m = RegExp('(^|[\\s(,])$key\\s*:\\s*').firstMatch(text);
+  if (m == null) return null;
+  final start = m.end;
+  var depth = 0, i = start;
+  var inString = false;
+  for (; i < text.length; i++) {
+    final c = text[i];
+    if (inString) {
+      if (c == r'\') {
+        i++;
+      } else if (c == '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (c == '"') {
+      inString = true;
+    } else if (c == '(' || c == '[' || c == '{') {
+      depth++;
+    } else if (c == ')' || c == ']' || c == '}') {
+      if (depth == 0) break;
+      depth--;
+    } else if (c == ',' && depth == 0) {
+      break;
+    }
+  }
+  if (i >= text.length || inString || depth != 0) return null;
+  return '${text.substring(0, start)}$value${text.substring(i)}';
+}
 
 /// The first `key: "value"` / `key: Path("value")` string in a RON text.
 String? ronField(String text, String key) {
@@ -157,7 +195,9 @@ final class CosmicDesktop implements Desktop {
     String text;
     final source = 'source: Path(${ronString(path)}),';
     if (old != null && RegExp(r'source\s*:').hasMatch(old)) {
-      text = old.replaceFirst(RegExp(r'source\s*:\s*(?:Path|Color)\((?:"(?:[^"\\]|\\.)*"|[^)]*\)?)\)\s*,?'), source);
+      final replaced = replaceRonValue(old, 'source', 'Path(${ronString(path)})');
+      if (replaced == null) return false;
+      text = replaced;
     } else {
       text = '(\n    output: "all",\n    $source\n    filter_by_theme: false,\n    rotation_frequency: 300,\n'
           '    filter_method: Lanczos,\n    scaling_mode: Zoom,\n    sampling_method: Alphanumeric,\n)';
@@ -224,6 +264,17 @@ final class CosmicDesktop implements Desktop {
         : '(\n    family: ${ronString(family)},\n    weight: Normal,\n    stretch: Normal,\n    style: Normal,\n)';
     writeText('$_tkDir/monospace_font', text, mode: 420);
     return true;
+  }
+
+  @override
+  Future<bool> resetMonospaceFont() async {
+    final f = File('$_tkDir/monospace_font');
+    try {
+      if (f.existsSync()) f.deleteSync();
+      return true;
+    } on FileSystemException {
+      return false;
+    }
   }
 
   @override
@@ -356,6 +407,13 @@ final class FakeDesktop implements Desktop {
 
   @override
   Future<List<String>> monospaceFonts() async => fonts;
+
+  @override
+  Future<bool> resetMonospaceFont() async {
+    calls.add('font reset');
+    _font = null;
+    return true;
+  }
 
   @override
   String? iconTheme() => _icons;

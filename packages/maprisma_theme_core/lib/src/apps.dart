@@ -45,7 +45,12 @@ String _appsStateFile(Ctx ctx) => ctx.paths.file('apps-state.json');
 bool appInstalled(Ctx ctx, AppSpec a) =>
     a.programs.any((p) => which(p, ctx.environment) != null) || Directory('${configHome(ctx)}/${a.configDir}').existsSync();
 
+/// Apps whose colors are only rendered: nothing of theirs can be switched
+/// on (VS Code needs an extension, which Maprisma Theme does not install).
+bool appSupported(AppSpec a) => a.id != 'vscode';
+
 bool appEnabled(Ctx ctx, AppSpec a) {
+  if (!appSupported(a)) return false;
   final apps = ctx.settings.get('apps');
   return apps is List ? apps.contains(a.id) : appInstalled(ctx, a);
 }
@@ -194,13 +199,47 @@ bool _resetValue(Ctx ctx, AppSpec a, String path, String key, String value, {boo
   return _writeConfig(path, lines.join('\n'), existed: true);
 }
 
-/// Copies our rendered file into an app's own themes folder.
-bool _copyInto(String source, String target) {
+/// Who a file we would write in an app's own folder belongs to: 'free'
+/// (nothing there), 'ours' (a regular file whose first line is our marker, or,
+/// from before the marker, exactly [legacy]) or 'foreign' (the user's own file,
+/// a link, anything else: never overwritten or deleted).
+String _ownership(String path, String comment, {List<int>? legacy}) {
+  final type = FileSystemEntity.typeSync(path, followLinks: false);
+  if (type == FileSystemEntityType.notFound) return 'free';
+  if (type != FileSystemEntityType.file) return 'foreign';
+  final bytes = Posix.instance.readRegular(path, 1024 * 1024);
+  if (bytes == null) return 'foreign';
+  final text = utf8.decode(bytes, allowMalformed: true);
+  if (text.split('\n').first.trim() == '$comment $appMarker') return 'ours';
+  if (legacy != null && bytes.length == legacy.length) {
+    var same = true;
+    for (var i = 0; i < bytes.length && same; i++) {
+      same = bytes[i] == legacy[i];
+    }
+    if (same) return 'ours';
+  }
+  return 'foreign';
+}
+
+/// Copies our rendered file, marked, into an app's own themes folder: 'ok',
+/// 'manual' (a file of the user's is there) or 'failed'.
+String _copyInto(String source, String target, String comment) {
   final bytes = Posix.instance.readRegular(source, 1024 * 1024);
-  if (bytes == null) return false;
+  if (bytes == null) return 'failed';
+  if (_ownership(target, comment, legacy: bytes) == 'foreign') return 'manual';
   try {
-    if (FileSystemEntity.isLinkSync(target)) File(target).deleteSync();
-    writeAtomic(target, bytes, mode: 420);
+    writeAtomic(target, utf8.encode('$comment $appMarker\n${utf8.decode(bytes, allowMalformed: true)}'), mode: 420);
+    return 'ok';
+  } on FileSystemException {
+    return 'failed';
+  }
+}
+
+/// Deletes a file of ours in an app's own folder; true when it did.
+bool _deleteOwned(String path, String comment) {
+  if (_ownership(path, comment) != 'ours') return false;
+  try {
+    File(path).deleteSync();
     return true;
   } on FileSystemException {
     return false;
@@ -230,10 +269,12 @@ String ensureInclude(Ctx ctx, AppSpec a) {
       if (RegExp(r'^\s*((general\.)?import\s*=|\[\s*general\b)', multiLine: true).hasMatch(text)) return 'manual';
       return _addLines(path, a, line, top: true) ? 'ok' : 'failed';
     case 'btop':
-      if (!_copyInto(out, '$cfg/btop/themes/maprisma.theme')) return 'failed';
+      final copied = _copyInto(out, '$cfg/btop/themes/maprisma.theme', '#');
+      if (copied != 'ok') return copied;
       return _setValue(ctx, a, '$cfg/btop/btop.conf', 'color_theme', 'maprisma', tables: false) ? 'ok' : 'failed';
     case 'helix':
-      if (!_copyInto(out, '$cfg/helix/themes/maprisma.toml')) return 'failed';
+      final copied = _copyInto(out, '$cfg/helix/themes/maprisma.toml', '#');
+      if (copied != 'ok') return copied;
       return _setValue(ctx, a, '$cfg/helix/config.toml', 'theme', 'maprisma') ? 'ok' : 'failed';
     case 'neovim':
       // Only a lazy.nvim config (LazyVim, Omarchy's): a plugin spec of our own.
@@ -241,6 +282,8 @@ String ensureInclude(Ctx ctx, AppSpec a) {
       if (!Directory(plugins).existsSync()) return 'manual';
       final text = readSmall(out, limit: 1024 * 1024);
       if (text == null) return 'failed';
+      // a file of that name the user made is theirs
+      if (_ownership('$plugins/maprisma-theme.lua', '--') == 'foreign') return 'manual';
       try {
         writeText('$plugins/maprisma-theme.lua', '-- $appMarker\n$text', mode: 420);
         return 'ok';
@@ -266,15 +309,13 @@ bool removeInclude(Ctx ctx, AppSpec a) {
     case 'alacritty':
       return _removeLines('$cfg/alacritty/alacritty.toml', a, (l) => l.trim() == 'general.import = ["$out"]');
     case 'btop':
-      return _resetValue(ctx, a, '$cfg/btop/btop.conf', 'color_theme', 'maprisma', tables: false);
+      final reset = _resetValue(ctx, a, '$cfg/btop/btop.conf', 'color_theme', 'maprisma', tables: false);
+      return _deleteOwned('$cfg/btop/themes/maprisma.theme', '#') || reset;
     case 'helix':
-      return _resetValue(ctx, a, '$cfg/helix/config.toml', 'theme', 'maprisma');
+      final reset = _resetValue(ctx, a, '$cfg/helix/config.toml', 'theme', 'maprisma');
+      return _deleteOwned('$cfg/helix/themes/maprisma.toml', '#') || reset;
     case 'neovim':
-      final f = File('$cfg/nvim/lua/plugins/maprisma-theme.lua');
-      final text = readSmall(f.path, limit: 1024 * 1024);
-      if (text == null || !text.startsWith('-- $appMarker')) return false;
-      f.deleteSync();
-      return true;
+      return _deleteOwned('$cfg/nvim/lua/plugins/maprisma-theme.lua', '--');
     default:
       return false;
   }
@@ -331,6 +372,9 @@ List<String> removeAppIncludes(Ctx ctx, [Iterable<String>? ids]) => [
       if (removeInclude(ctx, a)) a.id,
 ];
 
+String _vscodeNote(Ctx ctx, AppSpec a) =>
+    'colors are written to ${currentAppsDir(ctx)}/${a.output}; VS Code needs them installed as an extension, which Maprisma Theme does not do';
+
 /// The Themes section of Settings: every app, installed or not.
 List<Map<String, dynamic>> appsList(Ctx ctx) => [
   for (final a in appSpecs)
@@ -340,10 +384,11 @@ List<Map<String, dynamic>> appsList(Ctx ctx) => [
         'id': a.id,
         'label': a.label,
         'installed': installed,
+        'supported': appSupported(a),
         'enabled': appEnabled(ctx, a),
         'included': includeActive(ctx, a),
         'note': switch (a.id) {
-          'vscode' => 'Colors are written to ${currentAppsDir(ctx)}/${a.output}; VS Code needs them installed as an extension, which Maprisma Theme does not do',
+          'vscode' => 'Not supported: ${_vscodeNote(ctx, a)}',
           'neovim' => 'Needs a lazy.nvim config (~/.config/nvim/lua/plugins/)',
           'alacritty' => 'Adds general.import to alacritty.toml',
           'btop' => 'Sets color_theme in btop.conf (restart btop)',
@@ -359,13 +404,14 @@ List<Map<String, dynamic>> appsList(Ctx ctx) => [
 Map<String, dynamic> setAppEnabled(Ctx ctx, String id, bool on, Map<String, String>? resolved) {
   final a = appSpec(id);
   if (a == null) throw RouteError('bad_params', 'id');
+  if (on && !appSupported(a)) throw RouteError('unsupported', '${a.label} cannot be switched on: ${_vscodeNote(ctx, a)}');
   final raw = ctx.settings.get('apps');
   final list = raw is List
       ? [for (final x in raw) if (x is String) x]
-      : [for (final s in appSpecs) if (appInstalled(ctx, s)) s.id];
+      : [for (final s in appSpecs) if (appInstalled(ctx, s) && appSupported(s)) s.id];
   list.remove(id);
   if (on) list.add(id);
-  ctx.settings.set('apps', [for (final s in appSpecs) if (list.contains(s.id)) s.id]);
+  ctx.settings.set('apps', [for (final s in appSpecs) if (list.contains(s.id) && appSupported(s)) s.id]);
   var result = 'off';
   if (on) {
     if (resolved != null) renderApp(ctx, a, resolved);

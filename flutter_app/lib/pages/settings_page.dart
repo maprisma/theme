@@ -308,10 +308,14 @@ class _SettingsPageState extends State<SettingsPage> {
         _Row(
           'themes',
           'App colors: ${a['label']}',
-          a['installed'] == true
-              ? '${a['note']}${a['enabled'] == true && a['included'] != true && a['id'] != 'vscode' ? ' · not set up yet (applied with the next theme)' : ''}'
-              : 'Not installed',
-          _switch(a['enabled'] == true, a['installed'] == true ? (on) => setApp(a, on) : null, key: ValueKey('app-${a['id']}')),
+          a['supported'] == false
+              ? '${a['note']}'
+              : a['installed'] == true
+                  ? '${a['note']}${a['enabled'] == true && a['included'] != true ? ' · not set up yet (applied with the next theme)' : ''}'
+                  : 'Not installed',
+          _switch(a['enabled'] == true && a['supported'] != false,
+              a['installed'] == true && a['supported'] != false ? (on) => setApp(a, on) : null,
+              key: ValueKey('app-${a['id']}')),
         ),
       _Row('day-night', 'Switch themes by time of day', 'At the times below. A theme you pick by hand stays until the next switch.',
           _switch(plan['enabled'] == true, (on) => setSchedule({'enabled': on}))),

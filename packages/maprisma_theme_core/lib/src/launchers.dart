@@ -1,6 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'bounded.dart';
 import 'context.dart';
 import 'posix.dart';
 
@@ -106,13 +106,20 @@ Future<bool> launchApp(Ctx ctx, Launcher launcher) async {
       ? [gio, 'launch', launcher.path]
       : <String>[];
   if (argv.isEmpty) return false;
-  return await readBoundedText(
-        argv,
-        maxBytes: 8192,
-        timeout: const Duration(seconds: 5),
-        environment: ctx.environment,
-      ) !=
-      null;
+  try {
+    // Redirect before exec: applications must never inherit our capture pipes.
+    final process = await Process.start('/bin/sh', [
+      '-c',
+      r'exec "$@" </dev/null >/dev/null 2>&1',
+      'launch',
+      ...argv,
+    ], environment: ctx.environment);
+    return await process.exitCode.timeout(const Duration(seconds: 5)) == 0;
+  } on ProcessException {
+    return false;
+  } on TimeoutException {
+    return false;
+  }
 }
 
 /// Desktop IDs saved by the chooser also match compositor application IDs.

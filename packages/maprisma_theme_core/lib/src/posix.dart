@@ -88,12 +88,25 @@ final class Posix {
     try {
       buffer.asTypedList(bytes.length).setAll(0, bytes);
       var done = 0;
+      var ok = true;
       while (done < bytes.length) {
         final n = _write(fd, buffer + done, bytes.length - done);
-        if (n <= 0) return false;
+        if (n <= 0) {
+          ok = false;
+          break;
+        }
         done += n;
       }
-      return _fsync(fd) == 0;
+      ok = ok && _fsync(fd) == 0;
+      // This call created the file (O_EXCL): a failed write leaves nothing behind.
+      if (!ok) {
+        try {
+          File(path).deleteSync();
+        } on FileSystemException {
+          // gone
+        }
+      }
+      return ok;
     } finally {
       calloc.free(buffer);
       _close(fd);

@@ -1,4 +1,5 @@
 import 'apply.dart';
+import 'auto.dart';
 import 'catalog_cosmic.dart';
 import 'catalog_omarchy.dart';
 import 'context.dart';
@@ -10,7 +11,10 @@ import 'plugin_catalog.dart';
 Future<Map<String, dynamic>> _maybeApply(Ctx ctx, String slug, bool apply) async {
   if (!apply) return {'slug': slug, 'applied': false};
   try {
-    await applyTheme(ctx, slug);
+    await autoLocked(ctx, () async {
+      await applyTheme(ctx, slug);
+      rememberBaseTheme(ctx, slug);
+    });
     return {'slug': slug, 'applied': true};
   } on RouteError catch (e) {
     return {'slug': slug, 'applied': false, 'apply_error': e.message ?? e.code};

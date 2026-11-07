@@ -124,6 +124,32 @@ void main() {
     expect(findTheme(env.paths, slug)!.cosmicNative, isTrue);
   });
 
+  test('an edited cosmic-themes.org import is applied from colors.toml and keeps its source', () async {
+    final slug = await createThemeFolder(env.core.ctx, name: 'Imported', colors: {
+      'background': '#101820', 'foreground': '#e0e0e0', 'accent': '#ff0066',
+    }, cosmicRon: '(palette: Dark(()))');
+    final dir = '${env.paths.userThemes}/$slug';
+    writeJson('$dir/theme-manager.json', {
+      'name': 'Imported', 'source': 'cosmic-themes.org', 'id': 42, 'author': 'Someone', 'homepage': 'https://example.org',
+    }, mode: 420);
+    env.core.ctx.current.save(slug: slug);
+    final changed = colorsOf(await call('custom.editor', {'edit': slug}))..['foreground'] = '#ffffff';
+    env.desktop.calls.clear();
+    final r = await call('custom.save', {'name': 'Imported', 'colors': changed, 'edit': slug});
+    expect(r['applied'], isTrue);
+    expect(env.desktop.calls, contains('applyColors'));
+    expect(env.desktop.calls.where((c) => c.startsWith('applyRon')), isEmpty);
+    expect(File('$dir/cosmic.ron').existsSync(), isFalse);
+    expect(File('$dir/cosmic.ron.orig').readAsStringSync(), '(palette: Dark(()))');
+    expect(findTheme(env.paths, slug)!.cosmicNative, isFalse);
+    final meta = readJsonMap('$dir/theme-manager.json');
+    expect(meta['source'], 'cosmic-themes.org');
+    expect(meta['id'], 42);
+    expect(meta['author'], 'Someone');
+    expect(meta['homepage'], 'https://example.org');
+    expect(File('$dir/colors.toml').readAsStringSync(), contains('foreground = "#ffffff"'));
+  });
+
   test('edit and rename a custom theme; the state follows; re-applied when in use', () async {
     addNord();
     final colors = colorsOf(await call('custom.editor', {'base': 'nord'}));

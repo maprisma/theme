@@ -5,6 +5,7 @@ import 'desktop.dart';
 import 'paths.dart';
 import 'protocol.dart';
 import 'routes.dart';
+import 'trash.dart';
 
 const coreVersion = '0.1.0';
 
@@ -17,6 +18,7 @@ final class CoreService {
       'core.hello': (_) async => {'version': coreVersion, 'protocol': protocolVersion, 'desktop': 'cosmic'},
       ...allRoutes(ctx),
     };
+    ctx.automationChanged(); // once, with every module's part (tiling from presets)
   }
 
   late final Ctx ctx;
@@ -25,7 +27,11 @@ final class CoreService {
   Future<Map<String, dynamic>> call(String method, [Map<String, dynamic> params = const {}]) async {
     final handler = routes[method];
     if (handler == null) throw RouteError('unknown_route', method);
-    return handler(params);
+    try {
+      return await handler(params);
+    } on TrashUnavailable catch (e) {
+      throw RouteError('no_trash', '$e');
+    }
   }
 
   Future<String> handleAsync(String frame) async {

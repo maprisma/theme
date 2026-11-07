@@ -15,6 +15,7 @@ fn temp() -> std::path::PathBuf {
 fn run(root: &std::path::Path, args: &[&str]) -> Value {
     let output = Command::new(env!("CARGO_BIN_EXE_maprisma-theme-helper"))
         .env("XDG_CONFIG_HOME", root)
+        .env("XDG_STATE_HOME", root.join("state"))
         .args(args)
         .output()
         .unwrap();
@@ -42,6 +43,7 @@ fn terminal_scheme_temp_config() {
         r##"{7:(name:"User",foreground:"#ffffff")}"##,
     )
     .unwrap();
+    fs::write(dir.join("syntax_theme_dark"), "\"User\"").unwrap();
     run(
         &root,
         &[
@@ -100,6 +102,30 @@ fn terminal_scheme_temp_config() {
         fs::read_to_string(dir.join("syntax_theme_light")).unwrap(),
         "\"Maprisma: Day\""
     );
+    run(&root, &["terminal-restore"]);
+    assert_eq!(
+        fs::read_to_string(dir.join("syntax_theme_dark")).unwrap(),
+        "\"User\""
+    );
+    assert!(!dir.join("syntax_theme_light").exists());
+    for key in ["color_schemes_dark", "color_schemes_light"] {
+        assert!(
+            !fs::read_to_string(dir.join(key))
+                .unwrap()
+                .contains("Maprisma: ")
+        );
+    }
+    assert!(
+        fs::read_to_string(dir.join("color_schemes_dark"))
+            .unwrap()
+            .contains("User")
+    );
+    assert!(
+        !root
+            .join("state/maprisma-theme/terminal-previous.json")
+            .exists()
+    );
+    run(&root, &["terminal-restore"]);
     fs::remove_dir_all(root).unwrap();
 }
 #[test]

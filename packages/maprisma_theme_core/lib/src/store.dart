@@ -48,6 +48,14 @@ final _random = Random();
 /// Writes [bytes] atomically (a temporary file in the same folder, then
 /// rename), creating the folder (0700 for private files). [mode] is octal.
 void writeAtomic(String path, List<int> bytes, {int mode = 384 /* 0600 */}) {
+  // A dotfiles link stays a link: the file it points at is replaced.
+  if (FileSystemEntity.isLinkSync(path)) {
+    try {
+      path = File(path).resolveSymbolicLinksSync();
+    } on FileSystemException {
+      // a dangling link: replaced by the file
+    }
+  }
   final file = File(path);
   final dir = file.parent;
   if (!dir.existsSync()) {

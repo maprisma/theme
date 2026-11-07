@@ -69,14 +69,9 @@ String addBackgroundBytes(Ctx ctx, String slug, Uint8List data, String name) {
   final ext = imageExtension(bytes);
   if (ext == null) throw RouteError('bad_image', unsupportedImage);
   final dest = _uniqueDest(ctx, slug, name);
-  if (!Posix.instance.writeNewPrivate(dest, bytes)) {
-    try {
-      File(dest).deleteSync();
-    } on FileSystemException {
-      // never created
-    }
-    throw RouteError('write_failed', 'could not store ${baseName(dest)}');
-  }
+  // Never delete after a failure: when the exclusive create lost a race, the
+  // file there is someone else's (writeNewPrivate cannot tell us apart).
+  if (!Posix.instance.writeNewPrivate(dest, bytes)) throw RouteError('write_failed', 'could not store ${baseName(dest)}');
   chmodPath(dest, 420 /* 0644 */);
   return dest;
 }

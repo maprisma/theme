@@ -426,8 +426,24 @@ void _copyIcons(ThemeInfo base, String dir) {
   }
 }
 
-void _writeMarker(String dir, String base, String? font, num created) =>
-    writeJson('$dir/$markerName', {'base': base, 'font': font, 'created': created}, mode: 420);
+/// Where a theme came from (cosmic-themes.org imports): kept on every save.
+const _importKeys = ['source', 'id', 'author', 'homepage'];
+
+void _writeMarker(String dir, String base, String? font, num created, [Map<String, dynamic> keep = const {}]) =>
+    writeJson('$dir/$markerName', {...keep, 'base': base, 'font': font, 'created': created}, mode: 420);
+
+/// An edited theme's colors are colors.toml's from now on: its cosmic.ron
+/// (a cosmic-themes.org import) is kept as cosmic.ron.orig, so applying it
+/// gives COSMIC the same colors as the terminals and apps.
+void _setRonAside(String dir) {
+  final ron = '$dir/cosmic.ron';
+  if (FileSystemEntity.typeSync(ron, followLinks: false) == FileSystemEntityType.notFound) return;
+  var dest = '$ron.orig';
+  for (var n = 2; FileSystemEntity.typeSync(dest, followLinks: false) != FileSystemEntityType.notFound; n++) {
+    dest = '$ron.orig-$n';
+  }
+  File(ron).renameSync(dest);
+}
 
 /// The first picture of a theme's folder, else of its added wallpapers.
 String? _firstPicture(Ctx ctx, String dir, String slug) {
@@ -529,7 +545,10 @@ Future<void> updateTheme(Ctx ctx, ThemeInfo theme, Palette palette, String? font
   final baseLabel = base.isEmpty ? 'scratch' : displayName(base);
   writeText('${theme.dir}/colors.toml', renderColors(palette, theme.name, baseLabel), mode: 420);
   final created = marker['created'] is num ? marker['created'] as num : ctx.clock().millisecondsSinceEpoch / 1000;
-  _writeMarker(theme.dir, base, font, created);
+  _setRonAside(theme.dir);
+  _writeMarker(theme.dir, base, font, created, {
+    for (final k in _importKeys) if (marker[k] != null) k: marker[k],
+  });
   await makePreview(ctx, theme.dir, palette);
 }
 

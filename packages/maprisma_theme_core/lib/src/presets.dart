@@ -310,8 +310,13 @@ Future<Map<String, dynamic>> applySavedPreset(
     final current = loadWorkspaces(ctx);
     clean['active'] = current['active'];
     clean['autoMoveOnRestore'] = current['autoMoveOnRestore'];
-    for (final layout in (clean['workspaceLayouts'] as Map).values) {
-      layout['autostart'] = false;
+    final previous = current['workspaceLayouts'] as Map;
+    for (final entry in (clean['workspaceLayouts'] as Map).entries) {
+      final old = previous[entry.key];
+      entry.value['autostart'] =
+          old is Map &&
+          old['autostart'] == true &&
+          jsonEncode(old['apps']) == jsonEncode(entry.value['apps']);
     }
     saveWorkspaces(ctx, clean);
     await applyTiling(ctx);
@@ -426,9 +431,12 @@ void savePresetList(Ctx ctx, List<Map<String, dynamic>> list) {
 }
 
 Future<Map<String, dynamic>> autostartPresets(Ctx ctx) async {
-  final session = ctx.environment['XDG_SESSION_ID'];
+  var session = ctx.environment['XDG_SESSION_ID'];
   if (session == null || session.isEmpty) {
-    throw RouteError('no_session', 'No login session ID');
+    final boot = File(
+      '/proc/sys/kernel/random/boot_id',
+    ).readAsStringSync().trim();
+    session = '$boot-${Posix.instance.uid}';
   }
   final marker =
       '${ctx.paths.runtime}/presets-autostart-${base64Url.encode(utf8.encode(session))}';

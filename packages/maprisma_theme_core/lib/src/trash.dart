@@ -133,8 +133,8 @@ void _remove(String path) {
   }
 }
 
-/// Trashes [target] (a receipt for Undo), or deletes it when the trash is
-/// on another filesystem (null then). A symlink is always just unlinked.
+/// Trashes [target] (a receipt for Undo); throws [TrashUnavailable] when the
+/// trash is on another filesystem. A symlink is just unlinked (null then).
 TrashReceipt? discard(String trash, String target) {
   final type = FileSystemEntity.typeSync(target, followLinks: false);
   if (type == FileSystemEntityType.link) {
@@ -145,13 +145,16 @@ TrashReceipt? discard(String trash, String target) {
     return moveToTrash(trash, target);
   } on FileSystemException catch (e) {
     if (e.osError?.errorCode != 18) rethrow;
+    // The trash is on another disk: never delete for good behind a dialog
+    // that promised the trash.
+    throw TrashUnavailable();
   }
-  if (type == FileSystemEntityType.directory) {
-    Directory(target).deleteSync(recursive: true);
-  } else {
-    File(target).deleteSync();
-  }
-  return null;
+}
+
+/// [discard] could not use the trash (it is on another filesystem).
+final class TrashUnavailable implements Exception {
+  @override
+  String toString() => 'The trash is on another disk, so this cannot be moved there. Nothing was deleted.';
 }
 
 /// Receipts handed to the GUI as opaque ids, kept for the life of the core.
