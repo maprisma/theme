@@ -13,6 +13,7 @@ import 'dart:io';
 import 'apply.dart';
 import 'context.dart';
 import 'images.dart';
+import 'presets.dart' show renamePresetTheme;
 import 'settings.dart';
 import 'shortcuts.dart';
 import 'store.dart';
@@ -601,6 +602,7 @@ void forgetAutoState(Ctx ctx, String slug) {
 void renameThemeState(Ctx ctx, String old, String renamed) {
   if (!validSlug(old) || !validSlug(renamed) || old == renamed) return;
   renameAutoState(ctx, old, renamed);
+  renamePresetTheme(ctx, old, renamed);
   try {
     ThemeShortcuts(ctx).renameTheme(old, renamed);
   } on RouteError {
