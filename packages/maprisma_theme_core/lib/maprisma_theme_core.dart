@@ -14,3 +14,5 @@ export 'src/settings.dart';
 export 'src/store.dart';
 export 'src/themes.dart';
 export 'src/cli.dart';
+export 'src/custom.dart'
+    show derivedColors, mainKeys, paletteKeys, terminalKeys, moreKeys, baseColorKeys, colorLabel, isDarkBackground, createThemeFolder, maxNameLength;
