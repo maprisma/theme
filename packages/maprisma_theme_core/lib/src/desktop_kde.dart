@@ -105,6 +105,10 @@ final class KdeDesktop extends DesktopBase {
     if (on || wasEnabled) {
       await _run(['kwriteconfig6', '--file', 'kwinrc', '--group', 'Plugins', '--key', 'krohnkiteEnabled', 'true']);
     }
+    // The focus-border KWin script (maprisma-kwin-scripts) frames the active
+    // window only where Krohnkite tiles; a script reads just its own group.
+    await _run(['kwriteconfig6', '--file', 'kwinrc', '--group', 'Script-maprisma-focus-border', '--key', 'tilingOn', '${on || wasEnabled}']);
+    await _run(['kwriteconfig6', '--file', 'kwinrc', '--group', 'Script-maprisma-focus-border', '--key', 'ignoreVDesktop', ignored.join(',')]);
     await _run(['qdbus6', 'org.kde.KWin', '/KWin', 'reconfigure']);
     return {'done': true};
   }
