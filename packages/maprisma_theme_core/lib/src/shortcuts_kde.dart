@@ -15,6 +15,8 @@ import 'dart:io';
 import 'package:dbus/dbus.dart';
 
 import 'paths.dart';
+import 'posix.dart';
+import 'bounded.dart';
 import 'shortcuts.dart';
 import 'store.dart';
 
@@ -330,11 +332,25 @@ Future<bool> _sync(Paths paths, Map<String, String> environment, DBusClient? cli
       await c('setForeignShortcutKeys', [id(other.$1, other.$2), _keys(withoutSeq(keys, seq))]);
     }
 
-    // 3. Ours bound (a changed key frees the old one here).
+    // 3. Ours bound (a changed key frees the old one here). KDE's shortcut
+    // service sees a new desktop file only after its service cache is updated
+    // and it looks again (a moment later): a key it dropped is read back and
+    // registered again after a pause (seen live in Maprisma Launcher).
+    final sycoca = which('kbuildsycoca6', environment);
+    var dropped = false;
     for (final e in wanted.entries) {
       final aid = id(e.key, '_launch', 'Maprisma Theme', e.value.$3);
-      await c('doRegister', [aid]);
-      await c('setForeignShortcutKeys', [aid, _keys([_single(e.value.$1)])]);
+      for (var attempt = 0; ; attempt++) {
+        if (sycoca != null) await runBounded([sycoca], timeout: const Duration(seconds: 30));
+        await c('doRegister', [aid]);
+        await c('setForeignShortcutKeys', [aid, _keys([_single(e.value.$1)])]);
+        if ((await keysOf(e.key, '_launch')).any((q) => _sameSeq(q, _single(e.value.$1)))) break;
+        if (attempt >= 3) {
+          dropped = true;
+          break;
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 1500));
+      }
     }
 
     // 4. Recorded keys ours no longer uses: given back; the record goes only
@@ -357,7 +373,7 @@ Future<bool> _sync(Paths paths, Map<String, String> environment, DBusClient? cli
       }
     }
     writeJson(shadowFile, shadow);
-    return allBack;
+    return allBack && !dropped;
   } on DBusMethodResponseException {
     return false;
   } on FileSystemException {
