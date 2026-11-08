@@ -247,5 +247,22 @@ void main() {
   test('the selector picks KDE for a Plasma session', () {
     expect(selectDesktop(paths, {'HOME': '${root.path}/home', 'XDG_CURRENT_DESKTOP': 'KDE'}), isA<KdeDesktop>());
   });
-}
 
+  test('colors: the frame colour is the accent, and KWin reloads it', () async {
+    expect(await kde.applyColors(colors), isTrue);
+    final text = logText();
+    expect(text, contains('kwriteconfig6 --file kwinrc --group Script-maprisma-active-frame --key borderColor #81a1c1'));
+    expect(text.indexOf('org.kde.KWin /KWin reconfigure'), greaterThan(text.indexOf('borderColor')));
+  });
+
+  test('tile style: a rejected request writes nothing', () async {
+    Directory('${root.path}/home/.local/share/kwin/scripts/krohnkite').createSync(recursive: true);
+    File('${root.path}/home/.local/share/kwin/scripts/krohnkite/metadata.json').writeAsStringSync('{}');
+    KdeDesktop.krohnkiteRestartPause = Duration.zero;
+    expect((await kde.wm(['set-tile-style', '{"top":20,"radius":33}']))?['error'], 'bad_args');
+    expect(logText(), isNot(contains('kwriteconfig6')));
+    expect((await kde.wm(['set-tile-style', '{"top":20,"radius":12}']))?['done'], isTrue);
+    expect(logText(), contains('--key screenGapTop 20'));
+    expect(logText(), contains('--key cornerRadius 12'));
+  });
+}

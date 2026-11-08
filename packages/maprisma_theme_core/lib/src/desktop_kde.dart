@@ -124,11 +124,15 @@ final class KdeDesktop extends DesktopBase {
     if (v is! Map) return {'error': 'bad_args'};
     final old = tileStyle();
     var krohnkite = false;
+    // Every value checked first: a rejected request changes nothing.
     for (final e in tileStyleKeys.entries) {
       final n = v[e.key];
       if (n == null) continue;
       if (n is! int || n < 0 || n > (switch (e.key) { 'border' => 16, 'radius' => 32, _ => 200 })) return {'error': 'bad_args', 'message': e.key};
-      if (n == old[e.key]) continue;
+    }
+    for (final e in tileStyleKeys.entries) {
+      final n = v[e.key];
+      if (n == null || n == old[e.key]) continue;
       if (!await _run(['kwriteconfig6', '--file', 'kwinrc', '--group', e.value.$1, '--key', e.value.$2, '$n'])) {
         return {'error': 'unavailable', 'message': 'kwinrc could not be written'};
       }
@@ -286,6 +290,8 @@ final class KdeDesktop extends DesktopBase {
     final focus = kdeRgbHex(iniValue(text, 'Colors:View', 'DecorationFocus'));
     if (focus != null) {
       await _run(['kwriteconfig6', '--file', 'kwinrc', '--group', 'Script-maprisma-active-frame', '--key', 'borderColor', focus]);
+      // The script reads its settings when KWin reconfigures.
+      await _run(['qdbus6', 'org.kde.KWin', '/KWin', 'reconfigure']);
     }
     return true;
   }
