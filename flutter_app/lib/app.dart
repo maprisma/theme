@@ -465,10 +465,10 @@ class _MainHeaderState extends State<MainHeader> {
         icon = Icon(app.showHidden ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 16, color: look.fg);
         onTap = () => app.setShowHidden(!app.showHidden);
       case 'import':
-        icon = Icon(Icons.download_for_offline_outlined, size: 16, color: look.fg);
+        icon = Icon(Icons.download_outlined, size: 16, color: look.fg);
         onTap = () => app.openPage('import');
       case 'presets':
-        icon = Icon(Icons.bookmark_add_outlined, size: 16, color: look.fg);
+        icon = Icon(Icons.bookmarks_outlined, size: 16, color: look.fg);
         onTap = () => app.openPage('presets');
       case 'info':
         icon = Icon(Icons.info_outline, size: 16, color: look.fg);
