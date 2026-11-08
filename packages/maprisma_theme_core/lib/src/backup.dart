@@ -122,11 +122,16 @@ Object? _validateValue(Ctx ctx, String name, Object? value) {
     case 'hidden.json':
       final list = value as List;
       if (list.any((s) => !_slug(s))) throw const FormatException('invalid hidden themes');
-      return [for (final s in list) if (s != ctx.current.slug) s];
+      return [
+        for (final s in list)
+          if (s != ctx.current.slug) s,
+      ];
     case 'hidden-wallpapers.json':
       final m = value as Map;
       for (final e in m.entries) {
-        if (!_slug(e.key) || e.value is! List || (e.value as List).any((w) => !validWallpaperName(w) || !imageExts.contains(extOf(w as String)))) {
+        if (!_slug(e.key) ||
+            e.value is! List ||
+            (e.value as List).any((w) => !validWallpaperName(w) || !imageExts.contains(extOf(w as String)))) {
           throw const FormatException('invalid hidden wallpapers');
         }
       }
@@ -168,7 +173,10 @@ Object? _validateValue(Ctx ctx, String name, Object? value) {
       };
     case 'presets.json':
       final list = value as List;
-      final names = [for (final p in list) if (p is Map && p['name'] is String) (p['name'] as String).toLowerCase()];
+      final names = [
+        for (final p in list)
+          if (p is Map && p['name'] is String) (p['name'] as String).toLowerCase(),
+      ];
       if (list.length > 200 || names.length != list.length || names.toSet().length != names.length) {
         throw const FormatException('invalid presets');
       }
@@ -219,7 +227,11 @@ Map<String, dynamic> previewBackup(Ctx ctx, String path) {
     if (files is! Map || files.keys.any((k) => !backupFiles.containsKey(k))) throw const FormatException('invalid backup files');
     final checked = {for (final e in files.entries) e.key as String: _validateValue(ctx, e.key as String, e.value)};
     for (final e in checked.entries) {
-      final limit = e.key == 'presets.json' ? 1024 * 1024 : e.key == 'workspaces.json' ? 512 * 1024 : maxBackup;
+      final limit = e.key == 'presets.json'
+          ? 1024 * 1024
+          : e.key == 'workspaces.json'
+          ? 512 * 1024
+          : maxBackup;
       if (utf8.encode(_encode(e.value)).length > limit) throw FormatException('backup file too large: ${e.key}');
     }
     return checked;
@@ -237,11 +249,14 @@ String safetyCopyPath(Ctx ctx, DateTime now) {
     chmodPath(folder, 448);
   }
   final stat = FileStat.statSync(folder);
-  if (FileSystemEntity.isLinkSync(folder) || stat.type != FileSystemEntityType.directory ||
-      Posix.instance.ownerOf(folder) != Posix.instance.uid || stat.mode & 0x12 != 0) {
+  if (FileSystemEntity.isLinkSync(folder) ||
+      stat.type != FileSystemEntityType.directory ||
+      Posix.instance.ownerOf(folder) != Posix.instance.uid ||
+      stat.mode & 0x12 != 0) {
     throw RouteError('unsafe', 'unsafe backup folder');
   }
-  final stem = 'maprisma-theme.before-restore-${now.year}-${_two(now.month)}-${_two(now.day)}-'
+  final stem =
+      'maprisma-theme.before-restore-${now.year}-${_two(now.month)}-${_two(now.day)}-'
       '${_two(now.hour)}-${_two(now.minute)}-${_two(now.second)}';
   var path = '$folder/$stem.json';
   for (var n = 2; FileSystemEntity.typeSync(path, followLinks: false) != FileSystemEntityType.notFound; n++) {
@@ -312,8 +327,9 @@ Future<Map<String, dynamic>> health(Ctx ctx) async {
   }
 
   final local = '${ctx.paths.home}/.local/bin';
-  String? find(String name) =>
-      Posix.instance.executable('$local/$name') && FileSystemEntity.isFileSync('$local/$name') ? '$local/$name' : which(name, ctx.environment);
+  String? find(String name) => Posix.instance.executable('$local/$name') && FileSystemEntity.isFileSync('$local/$name')
+      ? '$local/$name'
+      : which(name, ctx.environment);
   final applet = find('maprisma-theme-applet');
   final desktopFile = [
     '${ctx.paths.data}/applications/$appletId.desktop',

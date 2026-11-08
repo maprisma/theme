@@ -85,22 +85,45 @@ Combo? makeCombo(Object? mods, Object? key) {
   final clean = cleanKey(key);
   if (clean == null) return null;
   final names = mods is List ? mods.whereType<String>().toSet() : <String>{};
-  return {'mods': [for (final m in modOrder) if (names.contains(m)) m], 'key': clean};
+  return {
+    'mods': [
+      for (final m in modOrder)
+        if (names.contains(m)) m,
+    ],
+    'key': clean,
+  };
 }
 
 int modmask(Map combo) => (combo['mods'] as List).fold(0, (a, m) => a + modBits[m]!);
 String comboId(Map combo) => '${modmask(combo)}|${(combo['key'] as String).toLowerCase()}';
 
 const _pretty = {
-  'RETURN': 'Enter', 'SPACE': 'Space', 'ESCAPE': 'Esc', 'BACKSPACE': 'Backspace', 'TAB': 'Tab', 'COMMA': ',',
-  'PERIOD': '.', 'SLASH': '/', 'MINUS': '-', 'EQUAL': '=', 'SEMICOLON': ';', 'APOSTROPHE': "'", 'GRAVE': '`',
-  'BRACKETLEFT': '[', 'BRACKETRIGHT': ']', 'BACKSLASH': r'\', 'PAGE_UP': 'Page Up', 'PAGE_DOWN': 'Page Down',
-  'DELETE': 'Delete', 'INSERT': 'Insert', 'HOME': 'Home', 'END': 'End',
+  'RETURN': 'Enter',
+  'SPACE': 'Space',
+  'ESCAPE': 'Esc',
+  'BACKSPACE': 'Backspace',
+  'TAB': 'Tab',
+  'COMMA': ',',
+  'PERIOD': '.',
+  'SLASH': '/',
+  'MINUS': '-',
+  'EQUAL': '=',
+  'SEMICOLON': ';',
+  'APOSTROPHE': "'",
+  'GRAVE': '`',
+  'BRACKETLEFT': '[',
+  'BRACKETRIGHT': ']',
+  'BACKSLASH': r'\',
+  'PAGE_UP': 'Page Up',
+  'PAGE_DOWN': 'Page Down',
+  'DELETE': 'Delete',
+  'INSERT': 'Insert',
+  'HOME': 'Home',
+  'END': 'End',
 };
 
 String keyLabel(String key) => _pretty[key.toUpperCase()] ?? (key.length > 1 ? key : key.toUpperCase());
-String comboLabel(Map combo) =>
-    [for (final m in combo['mods'] as List) modLabels[m]!, keyLabel(combo['key'] as String)].join(' + ');
+String comboLabel(Map combo) => [for (final m in combo['mods'] as List) modLabels[m]!, keyLabel(combo['key'] as String)].join(' + ');
 
 // --- COSMIC's shortcut file (Maprisma Launcher's shortcuts.dart) ------------------
 
@@ -162,13 +185,7 @@ Map<String, dynamic> cosmicEntry(String gap, String raw) {
     final names = {for (final m in RegExp('[A-Za-z]+').allMatches(mods[1]!)) m[0]!.toUpperCase()};
     combo = makeCombo(names.toList(), ronUnquote(key[1]!));
   }
-  return {
-    'gap': gap,
-    'raw': raw,
-    'combo': combo,
-    'action': action,
-    'description': description != null ? ronUnquote(description[1]!) : '',
-  };
+  return {'gap': gap, 'raw': raw, 'combo': combo, 'action': action, 'description': description != null ? ronUnquote(description[1]!) : ''};
 }
 
 /// (text before the entries, entries, text after); FormatException when it
@@ -307,10 +324,7 @@ final class ThemeShortcuts {
       }
       final description = e['description'] as String;
       final command = spawned(e);
-      found[slug] = (
-        levelCustom,
-        description.isNotEmpty ? description : command ?? cosmicActionLabel(e['action'] as String),
-      );
+      found[slug] = (levelCustom, description.isNotEmpty ? description : command ?? cosmicActionLabel(e['action'] as String));
     }
     // A key ours took from the user stays the user's.
     for (final e in _shadowed().entries) {
@@ -397,13 +411,20 @@ final class ThemeShortcuts {
 
     void add(String raw) => entries.add(cosmicEntry('\n    ', raw));
 
-    for (final e in [for (final e in entries) if (_isOwn(e)) e]) {
+    for (final e in [
+      for (final e in entries)
+        if (_isOwn(e)) e,
+    ]) {
       remove(e);
     }
     final wanted = <String, (Combo, String)>{};
     final order = [
-      for (final t in shortcutTargets.keys) if (state.containsKey(t)) t,
-      ...([for (final t in state.keys) if (themeOfTarget(t) != null) t]..sort()),
+      for (final t in shortcutTargets.keys)
+        if (state.containsKey(t)) t,
+      ...([
+        for (final t in state.keys)
+          if (themeOfTarget(t) != null) t,
+      ]..sort()),
     ];
     for (final target in order) {
       final slug = themeOfTarget(target);
@@ -419,7 +440,10 @@ final class ThemeShortcuts {
       final label = 'Maprisma Theme: ${_name(target)}';
       add('${bindingText(combo, _plain(label, 100) + ownTag)}: Spawn(${ronQuote(command(target))})');
     }
-    for (final slug in [for (final s in shadowed.keys) if (!wanted.containsKey(s)) s]) {
+    for (final slug in [
+      for (final s in shadowed.keys)
+        if (!wanted.containsKey(s)) s,
+    ]) {
       add(shadowed.remove(slug)!);
     }
     final text = head + entries.map((e) => '${e['gap']}${e['raw']},').join() + tail;
@@ -432,7 +456,8 @@ final class ThemeShortcuts {
     final oldState = _raw(stateFile), oldShadow = _raw(shadowFile);
     try {
       writeJson(stateFile, {
-        for (final e in state.entries) e.key: {'mods': e.value['mods'], 'key': e.value['key'], if (e.value['replaces'] != null) 'replaces': e.value['replaces']},
+        for (final e in state.entries)
+          e.key: {'mods': e.value['mods'], 'key': e.value['key'], if (e.value['replaces'] != null) 'replaces': e.value['replaces']},
       });
       writeJson(shadowFile, shadowed);
     } catch (_) {
@@ -536,7 +561,10 @@ final class ThemeShortcuts {
   List<String> pruneMissing() {
     final state = load();
     final installed = {for (final t in ctx.themes()) t.slug};
-    final gone = [for (final t in state.keys) if (themeOfTarget(t) case final s? when !installed.contains(s)) t];
+    final gone = [
+      for (final t in state.keys)
+        if (themeOfTarget(t) case final s? when !installed.contains(s)) t,
+    ];
     if (gone.isEmpty || !available) return const [];
     for (final t in gone) {
       state.remove(t);
@@ -583,5 +611,8 @@ final class ThemeShortcuts {
 /// Modifiers from a route's params (only the four, in order).
 List<String> modsParam(Object? value) {
   if (value is! List || value.any((m) => !modOrder.contains(m))) throw RouteError('bad_params', 'mods');
-  return [for (final m in modOrder) if (value.contains(m)) m];
+  return [
+    for (final m in modOrder)
+      if (value.contains(m)) m,
+  ];
 }

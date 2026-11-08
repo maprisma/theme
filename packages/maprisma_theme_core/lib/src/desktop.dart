@@ -159,7 +159,10 @@ final class CosmicDesktop implements Desktop {
   Future<Map<String, String>?> ronColors(String path) async {
     final r = await helperJson(['ron-colors', path]);
     if (r == null || r['error'] != null) return null;
-    return {for (final e in r.entries) if (e.value is String) e.key: e.value as String};
+    return {
+      for (final e in r.entries)
+        if (e.value is String) e.key: e.value as String,
+    };
   }
 
   @override
@@ -199,7 +202,8 @@ final class CosmicDesktop implements Desktop {
       if (replaced == null) return false;
       text = replaced;
     } else {
-      text = '(\n    output: "all",\n    $source\n    filter_by_theme: false,\n    rotation_frequency: 300,\n'
+      text =
+          '(\n    output: "all",\n    $source\n    filter_by_theme: false,\n    rotation_frequency: 300,\n'
           '    filter_method: Lanczos,\n    scaling_mode: Zoom,\n    sampling_method: Alphanumeric,\n)';
     }
     try {
@@ -357,7 +361,10 @@ final class FakeDesktop implements Desktop {
 
   @override
   Future<Map<String, String>?> ronColors(String path) async => {
-    'mode': 'dark', 'background': '#1e1e2e', 'foreground': '#cdd6f4', 'accent': '#b4befe',
+    'mode': 'dark',
+    'background': '#1e1e2e',
+    'foreground': '#cdd6f4',
+    'accent': '#b4befe',
   };
 
   @override
