@@ -29,7 +29,7 @@ Map<String, Handler> shortcutRoutes(Ctx ctx) {
       final state = shortcuts.load();
       return {
         'available': shortcuts.available,
-        'desktop': 'COSMIC',
+        'desktop': ctx.desktop.name,
         'globals': [
           for (final t in shortcutTargets.keys)
             state[t] == null ? {'target': t, 'title': shortcutTargets[t]} : shortcuts.shown(t, state[t]!),

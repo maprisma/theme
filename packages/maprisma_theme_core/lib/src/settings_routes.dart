@@ -20,7 +20,7 @@ Map<String, Handler> settingsRoutes(Ctx ctx) => {
   'desktop.look': (p) async {
     final cur = await ctx.desktop.current();
     return {
-      'desktop': 'cosmic',
+      'desktop': ctx.desktop.id,
       'colors': cur?['colors'] ?? const {},
       'is_dark': cur?['is_dark'] ?? true,
       'corner_radius': cur?['corner_radius'],

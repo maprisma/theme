@@ -11,20 +11,24 @@ final class TestEnv {
   final FakeDesktop desktop;
   final CoreService core;
 
-  static TestEnv create({DateTime Function()? clock}) {
+  static TestEnv create({DateTime Function()? clock, FakeDesktop? desktop}) {
     final root = Directory.systemTemp.createTempSync('maprisma-theme-test-');
     final share = '${root.path}/share';
     final env = {
       'HOME': '${root.path}/home',
       'XDG_RUNTIME_DIR': '${root.path}/run',
-      'PATH': Platform.environment['PATH'] ?? '/usr/bin',
+      // the system's programs, never the real user's (~/.local/bin has the installed Maprisma Theme)
+      'PATH': (Platform.environment['PATH'] ?? '/usr/bin')
+          .split(':')
+          .where((d) => Platform.environment['HOME'] == null || !d.startsWith('${Platform.environment['HOME']}/'))
+          .join(':'),
     };
     final paths = Paths.fromEnvironment(env, share: share);
     Directory(paths.systemThemes).createSync(recursive: true);
     Directory(paths.templates).createSync(recursive: true);
-    final desktop = FakeDesktop();
-    final core = CoreService(environment: env, paths: paths, desktop: desktop, clock: clock);
-    return TestEnv._(root, paths, desktop, core);
+    final fake = desktop ?? FakeDesktop();
+    final core = CoreService(environment: env, paths: paths, desktop: fake, clock: clock);
+    return TestEnv._(root, paths, fake, core);
   }
 
   /// A theme folder with a colors.toml and [wallpapers] (1×1 PNGs).

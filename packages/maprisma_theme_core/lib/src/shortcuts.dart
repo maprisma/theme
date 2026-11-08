@@ -8,7 +8,6 @@
 /// simply overridden by the custom entry, and works again when it goes.
 library;
 
-import 'dart:convert';
 import 'dart:io';
 
 import 'context.dart';
@@ -243,17 +242,49 @@ String bindingText(Map combo, [String description = '']) {
 final _safePath = RegExp(r'^/[A-Za-z0-9/._-]+$');
 final _safeWord = RegExp(r'^[A-Za-z0-9._+-]+$');
 
-/// Maprisma Theme's shortcuts and COSMIC's file, read fresh on every call.
+/// One key Maprisma Theme wants bound, in the order they are written. The
+/// label and command are worked out only when the binder writes the key
+/// (after it has read the desktop's file, so its errors come first).
+typedef Binding = ({Combo combo, String target, String Function() label, String Function() command});
+
+/// Where a desktop keeps global keys (docs/multi-desktop.md): COSMIC's custom
+/// shortcuts file (shortcuts_cosmic.dart); others later.
+abstract interface class ShortcutBinder {
+  /// The desktop's shortcut settings are there.
+  bool get available;
+
+  /// The id [owners] uses for a combo.
+  String keyId(Map combo);
+
+  /// {keyId: (level, description)} for keys the desktop or the user bind now
+  /// (ours left out).
+  Map<String, (String, String)> owners();
+
+  /// Writes [bindings] as the desktop's keys of Maprisma Theme and [state] to
+  /// [stateFile] together: when one fails, both stay as before.
+  void write(List<Binding> bindings, String stateFile, Map<String, dynamic> state);
+
+  /// {ok, written, note}: are the [expected] keys of ours written?
+  Map<String, dynamic> check(int expected);
+}
+
+/// [s] without control characters, at most [max] characters.
+String plainText(String s, int max) {
+  final flat = s.replaceAll(RegExp(r'[\x00-\x1f\x7f]'), ' ');
+  return flat.length <= max ? flat : flat.substring(0, max);
+}
+
+/// Maprisma Theme's shortcuts and the desktop's keys, read fresh on every call.
 final class ThemeShortcuts {
-  ThemeShortcuts(this.ctx);
+  ThemeShortcuts(this.ctx) : binder = ctx.desktop.shortcutBinder(ctx.paths);
   final Ctx ctx;
 
-  String get stateFile => ctx.paths.file('shortcuts.json');
-  String get shadowFile => ctx.paths.file('cosmic-shadowed.json');
-  String get customFile => '${ctx.paths.cosmicConfig}/com.system76.CosmicSettings.Shortcuts/v1/custom';
+  /// Null: the desktop has no keys Maprisma Theme can set.
+  final ShortcutBinder? binder;
 
-  /// COSMIC's shortcut settings are there (its defaults file).
-  bool get available => File(cosmicShortcutDefaults).existsSync();
+  String get stateFile => ctx.paths.file('shortcuts.json');
+
+  bool get available => binder?.available ?? false;
 
   /// {target: {mods, key, replaces?}} for valid targets; the plugin's names too.
   Map<String, Combo> load() => cleanShortcuts(readJson(stateFile));
@@ -275,69 +306,7 @@ final class ThemeShortcuts {
     return out;
   }
 
-  static String _plain(String s, int max) {
-    final flat = s.replaceAll(RegExp(r'[\x00-\x1f\x7f]'), ' ');
-    return flat.length <= max ? flat : flat.substring(0, max);
-  }
-
-  static String? _read(String path) {
-    if (FileSystemEntity.typeSync(path) == FileSystemEntityType.notFound) return null;
-    final bytes = Posix.instance.readRegular(path, 1024 * 1024);
-    if (bytes == null) throw RouteError('not_available', 'cannot read $path');
-    return utf8.decode(bytes, allowMalformed: true);
-  }
-
-  (String, List<Map<String, dynamic>>, String) _custom() {
-    try {
-      return parseCosmicShortcuts(_read(customFile) ?? '{\n}\n');
-    } on FormatException catch (e) {
-      throw RouteError('not_available', "COSMIC's custom shortcuts file cannot be read: ${e.message}");
-    }
-  }
-
-  bool _isOwn(Map e) => e['combo'] != null && (e['description'] as String).endsWith(ownTag);
-
-  Map<String, String> _shadowed() => {
-    for (final e in readJsonMap(shadowFile).entries)
-      if (e.value is String) e.key: e.value as String,
-  };
-
-  /// {cosmic slug: (level, description)} for keys COSMIC or the user bind now.
-  Map<String, (String, String)> owners() {
-    final found = <String, (String, String)>{};
-    try {
-      final text = _read(cosmicShortcutDefaults);
-      if (text != null) {
-        for (final e in parseCosmicShortcuts(text).$2) {
-          if (e['combo'] != null) found[cosmicSlug(e['combo'])] = (levelDesktop, cosmicActionLabel(e['action'] as String));
-        }
-      }
-    } on FormatException {
-      // unreadable defaults: nothing known
-    }
-    for (final e in _custom().$2) {
-      if (e['combo'] == null || _isOwn(e)) continue;
-      final slug = cosmicSlug(e['combo']);
-      if (e['action'] == 'Disable') {
-        found.remove(slug);
-        continue;
-      }
-      final description = e['description'] as String;
-      final command = spawned(e);
-      found[slug] = (levelCustom, description.isNotEmpty ? description : command ?? cosmicActionLabel(e['action'] as String));
-    }
-    // A key ours took from the user stays the user's.
-    for (final e in _shadowed().entries) {
-      try {
-        final entry = cosmicEntry('', e.value);
-        final description = entry['description'] as String;
-        found[e.key] = (levelCustom, description.isNotEmpty ? description : spawned(entry) ?? cosmicActionLabel(entry['action'] as String));
-      } on FormatException {
-        continue;
-      }
-    }
-    return found;
-  }
+  static String _plain(String s, int max) => plainText(s, max);
 
   String _name(String target) {
     final slug = themeOfTarget(target);
@@ -350,7 +319,8 @@ final class ThemeShortcuts {
     for (final e in (state ?? load()).entries) {
       if (comboId(e.value) == cid) return e.key == target ? (levelSame, _name(e.key)) : (levelOurs, _name(e.key));
     }
-    return (known ?? owners())[cosmicSlug(combo)] ?? (levelFree, '');
+    final b = binder;
+    return b == null ? (levelFree, '') : (known ?? owners())[b.keyId(combo)] ?? (levelFree, '');
   }
 
   /// The program a key starts: ~/.local/bin first, then PATH.
@@ -387,37 +357,22 @@ final class ThemeShortcuts {
     return argv.join(' ');
   }
 
-  /// Writes [state]: shortcuts.json and COSMIC's file in one atomic write.
+  /// {keyId: (level, description)} for keys the desktop or the user bind now.
+  Map<String, (String, String)> owners() => binder?.owners() ?? {};
+
+  /// Writes [state]: shortcuts.json and the desktop's keys together.
   /// Keys of themes that are gone are left out (they do nothing).
   void save(Map<String, Combo> state) {
+    final json = {
+      for (final e in state.entries)
+        e.key: {'mods': e.value['mods'], 'key': e.value['key'], if (e.value['replaces'] != null) 'replaces': e.value['replaces']},
+    };
+    final b = binder;
+    if (b == null) {
+      writeJson(stateFile, json);
+      return;
+    }
     final installed = {for (final t in ctx.themes()) t.slug};
-    final (head, entries, tail0) = _custom();
-    var tail = tail0;
-    final original = head + entries.map((e) => '${e['gap']}${e['raw']},').join() + tail;
-    final shadowed = _shadowed();
-
-    void remove(Map<String, dynamic> entry) {
-      final index = entries.indexOf(entry);
-      entries.removeAt(index);
-      final gap = entry['gap'] as String;
-      if (gap.trim().isNotEmpty) {
-        if (index < entries.length) {
-          entries[index]['gap'] = gap + (entries[index]['gap'] as String);
-        } else {
-          tail = gap + tail;
-        }
-      }
-    }
-
-    void add(String raw) => entries.add(cosmicEntry('\n    ', raw));
-
-    for (final e in [
-      for (final e in entries)
-        if (_isOwn(e)) e,
-    ]) {
-      remove(e);
-    }
-    final wanted = <String, (Combo, String)>{};
     final order = [
       for (final t in shortcutTargets.keys)
         if (state.containsKey(t)) t,
@@ -426,81 +381,17 @@ final class ThemeShortcuts {
           if (themeOfTarget(t) != null) t,
       ]..sort()),
     ];
+    final bindings = <Binding>[];
     for (final target in order) {
       final slug = themeOfTarget(target);
       if (slug != null && !installed.contains(slug)) continue;
-      wanted[cosmicSlug(state[target]!)] = (state[target]!, target);
+      bindings.add((combo: state[target]!, target: target, label: () => 'Maprisma Theme: ${_name(target)}', command: () => command(target)));
     }
-    for (final MapEntry(key: slug, value: (combo, target)) in wanted.entries) {
-      final other = entries.where((e) => e['combo'] != null && cosmicSlug(e['combo']) == slug && !_isOwn(e)).firstOrNull;
-      if (other != null) {
-        shadowed.putIfAbsent(slug, () => other['raw'] as String);
-        remove(other);
-      }
-      final label = 'Maprisma Theme: ${_name(target)}';
-      add('${bindingText(combo, _plain(label, 100) + ownTag)}: Spawn(${ronQuote(command(target))})');
-    }
-    for (final slug in [
-      for (final s in shadowed.keys)
-        if (!wanted.containsKey(s)) s,
-    ]) {
-      add(shadowed.remove(slug)!);
-    }
-    final text = head + entries.map((e) => '${e['gap']}${e['raw']},').join() + tail;
-    parseCosmicShortcuts(text); // never hand COSMIC a file that cannot be read back
-    // COSMIC's file first: while it is not written, shortcuts.json and
-    // cosmic-shadowed.json still describe it (a shadowed key of the user's
-    // is never lost); when ours fail afterwards, all three go back.
-    final mode = _modeOf(customFile) ?? 420;
-    if (text != original) writeText(customFile, text, mode: mode);
-    final oldState = _raw(stateFile), oldShadow = _raw(shadowFile);
-    try {
-      writeJson(stateFile, {
-        for (final e in state.entries)
-          e.key: {'mods': e.value['mods'], 'key': e.value['key'], if (e.value['replaces'] != null) 'replaces': e.value['replaces']},
-      });
-      writeJson(shadowFile, shadowed);
-    } catch (_) {
-      _restore(stateFile, oldState);
-      _restore(shadowFile, oldShadow);
-      if (text != original) _restore(customFile, utf8.encode(original), mode: mode);
-      rethrow;
-    }
-  }
-
-  /// A small file's bytes as they are now (null: none).
-  static List<int>? _raw(String path) {
-    try {
-      return File(path).existsSync() ? File(path).readAsBytesSync() : null;
-    } on FileSystemException {
-      return null;
-    }
-  }
-
-  /// Best effort: [path] as it was ([bytes] null: it did not exist).
-  static void _restore(String path, List<int>? bytes, {int mode = 384}) {
-    try {
-      if (bytes == null) {
-        if (File(path).existsSync()) File(path).deleteSync();
-      } else {
-        writeAtomic(path, bytes, mode: mode);
-      }
-    } on Object {
-      // nothing more can be done
-    }
-  }
-
-  static int? _modeOf(String path) {
-    try {
-      final s = File(path).statSync();
-      return s.type == FileSystemEntityType.file ? s.mode & 0x1ff : null;
-    } on FileSystemException {
-      return null;
-    }
+    b.write(bindings, stateFile, json);
   }
 
   void _writable() {
-    if (!available) throw RouteError('not_available', "COSMIC's keyboard settings were not found");
+    if (!available) throw RouteError('not_available', "${ctx.desktop.name}'s keyboard settings were not found");
   }
 
   /// Gives [combo] to [target]; a key of another Maprisma Theme target moves
@@ -586,7 +477,7 @@ final class ThemeShortcuts {
   /// with [mods] coloured by its owner.
   Map<String, dynamic> view(String target, List<String> mods) {
     if (!validTarget(target)) throw RouteError('bad_params', 'target');
-    final base = {'target': target, 'title': _name(target), 'desktop': 'COSMIC', 'default_mods': defaultShortcutMods};
+    final base = {'target': target, 'title': _name(target), 'desktop': ctx.desktop.name, 'default_mods': defaultShortcutMods};
     if (!available) return {...base, 'available': false};
     final state = load();
     final known = owners();

@@ -2,44 +2,89 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'bounded.dart';
-import 'images.dart';
+import 'desktop_cosmic.dart';
+import 'shortcuts_cosmic.dart';
 import 'paths.dart';
 import 'posix.dart';
+import 'shortcuts.dart';
 import 'store.dart';
 
-/// What Maprisma Theme asks of the desktop. [CosmicDesktop] is the real one
-/// (COSMIC config files + maprisma-theme-helper, docs/cosmic-interface.md);
-/// tests use [FakeDesktop].
+/// What a desktop backend can do (docs/multi-desktop.md). The UI hides what
+/// the active backend lacks; routes refuse it with `not_available`.
+enum Cap {
+  /// applyColors / current: the desktop's own theme follows the colors.
+  appearance,
+
+  /// applyRon: COSMIC ThemeBuilder files applied natively.
+  ron,
+  wallpaper,
+
+  /// setTerminal: the desktop's own terminal gets a color scheme.
+  terminal,
+  fonts,
+  icons,
+
+  /// wm `workspaces` (and `watch` events).
+  workspaces,
+
+  /// wm `set-tiling` per workspace.
+  tiling,
+
+  /// wm `windows`, `move`, `close`, `activate`.
+  windows,
+
+  /// shortcutBinder is not null.
+  shortcuts,
+
+  /// A native panel applet of Maprisma Theme exists for this desktop.
+  panel,
+}
+
+/// What Maprisma Theme asks of the desktop: one backend per desktop
+/// ([CosmicDesktop] in desktop_cosmic.dart, GenericDesktop in desktops.dart),
+/// chosen by `selectDesktop`; tests use [FakeDesktop]. A call the backend
+/// cannot do returns false/null (see [caps]).
 abstract interface class Desktop {
-  /// Applies Omarchy-style [colors] (docs/cosmic-interface.md) as the COSMIC theme.
+  /// `cosmic`, `generic`, `fake`, … (stable, for settings and the protocol).
+  String get id;
+
+  /// For texts: "COSMIC".
+  String get name;
+
+  /// The desktop's own terminal, for texts ("COSMIC Terminal"), or null.
+  String? get terminalName;
+  Set<Cap> get caps;
+
+  /// Applies Omarchy-style [colors] (docs/cosmic-interface.md) as the desktop's theme.
   Future<bool> applyColors(Map<String, String> colors);
 
-  /// Applies a COSMIC ThemeBuilder RON file.
+  /// Applies a COSMIC ThemeBuilder RON file (only with [Cap.ron]).
   Future<bool> applyRon(String path);
 
-  /// The colors a COSMIC ThemeBuilder RON file stands for, or null.
+  /// The colors a COSMIC ThemeBuilder RON file stands for, or null (any
+  /// backend: the helper only parses the file).
   Future<Map<String, String>?> ronColors(String path);
 
-  /// {colors, is_dark, corner_radius} of the COSMIC theme in use.
+  /// {colors, is_dark, corner_radius} of the desktop theme in use.
   Future<Map<String, dynamic>?> current();
 
   /// The desktop background (every output), or false.
   Future<bool> setWallpaper(String path);
 
-  /// The background shown now (cosmic-bg's config), or null.
+  /// The background shown now, or null.
   String? wallpaper();
 
   /// Everything a background change touches, to put back after a preview.
   Object? snapshotBackground();
   Future<bool> restoreBackground(Object? snapshot);
 
-  /// The COSMIC Terminal color scheme [name] from [colors].
+  /// The desktop terminal's color scheme [name] from [colors].
   Future<bool> setTerminal(Map<String, String> colors, String name);
 
   String? monospaceFont();
   Future<bool> setMonospaceFont(String family);
 
-  /// Back to COSMIC's default monospace font (its config entry removed).
+  /// Back to the desktop's default monospace font.
   Future<bool> resetMonospaceFont();
   Future<List<String>> monospaceFonts();
 
@@ -47,8 +92,126 @@ abstract interface class Desktop {
   bool setIconTheme(String name);
   List<String> iconThemes();
 
-  /// The helper's JSON for `workspaces` / `windows`, or null.
-  Future<Map<String, dynamic>?> helperJson(List<String> args, {Duration timeout});
+  /// The window-manager contract (docs/cosmic-interface.md: `workspaces`,
+  /// `windows`, `move`, `close`, `activate`, `set-tiling`): the same JSON on
+  /// every desktop; `{"error": "not_available"}` without the cap; null when
+  /// the backend did not answer.
+  Future<Map<String, dynamic>?> wm(List<String> args, {Duration timeout});
+
+  /// Where the theme keys are written ([Cap.shortcuts]), or null.
+  ShortcutBinder? shortcutBinder(Paths paths);
+
+  /// The backend's part of the health check: `helper` and `applet` entries
+  /// ({ok, path, …}); keys a backend has nothing for are left out.
+  Future<Map<String, dynamic>> health(Paths paths, Map<String, String> environment);
+}
+
+/// A program in ~/.local/bin, else on PATH, or null.
+String? findProgram(Paths paths, Map<String, String> environment, String name) {
+  final local = '${paths.home}/.local/bin/$name';
+  return Posix.instance.executable(local) && FileSystemEntity.isFileSync(local) ? local : which(name, environment);
+}
+
+/// What the UI needs to know about a backend.
+Map<String, dynamic> desktopInfo(Desktop d) => {
+  'id': d.id,
+  'name': d.name,
+  'terminal': d.terminalName,
+  'caps': [
+    for (final c in Cap.values)
+      if (d.caps.contains(c)) c.name,
+  ],
+};
+
+/// `{"error": "not_available"}` for a wm call the backend cannot do.
+Map<String, dynamic> wmNotAvailable(String name) => {'error': 'not_available', 'message': 'not available on $name'};
+
+/// What every real backend shares: maprisma-theme-helper (for parsing RON
+/// files on any desktop), fc-list fonts, the icon theme folders.
+abstract base class DesktopBase implements Desktop {
+  DesktopBase(this.paths, this.environment);
+  final Paths paths;
+  final Map<String, String> environment;
+
+  /// maprisma-theme-helper next to the running program, then PATH.
+  String? get helper {
+    final override = environment['MAPRISMA_THEME_HELPER'];
+    if (override != null && override.startsWith('/')) return override;
+    final dir = File(Platform.resolvedExecutable).parent.path;
+    for (final c in ['$dir/maprisma-theme-helper', '$dir/bin/maprisma-theme-helper']) {
+      if (File(c).existsSync()) return File(c).absolute.path;
+    }
+    return which('maprisma-theme-helper', environment);
+  }
+
+  /// The helper's JSON for [args], or null.
+  Future<Map<String, dynamic>?> helperJson(List<String> args, {Duration timeout = const Duration(seconds: 20)}) async {
+    final h = helper;
+    if (h == null) return null;
+    final out = await readBoundedText([h, ...args], maxBytes: 4 * 1024 * 1024, timeout: timeout, okCodes: const {});
+    if (out == null) return null;
+    try {
+      final v = jsonDecode(out.trim());
+      return v is Map ? Map<String, dynamic>.from(v) : null;
+    } on FormatException {
+      return null;
+    }
+  }
+
+  @override
+  Future<Map<String, String>?> ronColors(String path) async {
+    final r = await helperJson(['ron-colors', path]);
+    if (r == null || r['error'] != null) return null;
+    return {
+      for (final e in r.entries)
+        if (e.value is String) e.key: e.value as String,
+    };
+  }
+
+  @override
+  Future<List<String>> monospaceFonts() async {
+    final out = await readBoundedText(['fc-list', ':spacing=mono', 'family'], maxBytes: 1024 * 1024, timeout: const Duration(seconds: 5));
+    if (out == null) return [];
+    final set = <String>{};
+    for (final line in const LineSplitter().convert(out)) {
+      final first = line.split(',').first.trim();
+      if (first.isNotEmpty && first.length < 100) set.add(first);
+    }
+    return set.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+  }
+
+  @override
+  List<String> iconThemes() {
+    final names = <String>{};
+    for (final base in ['${paths.home}/.icons', '${paths.data}/icons', '/usr/local/share/icons', '/usr/share/icons']) {
+      try {
+        for (final e in Directory(base).listSync()) {
+          if (File('${e.path}/index.theme').existsSync()) names.add(e.path.substring(e.path.lastIndexOf('/') + 1));
+        }
+      } on FileSystemException {
+        continue;
+      }
+    }
+    return names.toList()..sort();
+  }
+
+  /// A private temporary JSON file for the helper (caller deletes it).
+  String tempJson(Object value) {
+    final dir = Directory(paths.runtime);
+    if (!dir.existsSync()) dir.createSync(recursive: true);
+    chmodPath(dir.path, 448);
+    final path = '${dir.path}/colors-$pid-${DateTime.now().microsecondsSinceEpoch}.json';
+    writeJson(path, value);
+    return path;
+  }
+
+  static void deleteQuietly(String path) {
+    try {
+      File(path).deleteSync();
+    } on FileSystemException {
+      // gone
+    }
+  }
 }
 
 String ronString(String s) => '"${s.replaceAll(r'\', r'\\').replaceAll('"', r'\"')}"';
@@ -94,245 +257,22 @@ String? ronField(String text, String key) {
   return m?[1]?.replaceAll(r'\"', '"').replaceAll(r'\\', r'\');
 }
 
-final class CosmicDesktop implements Desktop {
-  CosmicDesktop(this.paths, this.environment);
-  final Paths paths;
-  final Map<String, String> environment;
-
-  String get _cosmic => paths.cosmicConfig;
-  String get _bgDir => '$_cosmic/com.system76.CosmicBackground/v1';
-  String get _tkDir => '$_cosmic/com.system76.CosmicTk/v1';
-
-  /// maprisma-theme-helper next to the running program, then PATH.
-  String? get helper {
-    final override = environment['MAPRISMA_THEME_HELPER'];
-    if (override != null && override.startsWith('/')) return override;
-    final dir = File(Platform.resolvedExecutable).parent.path;
-    for (final c in ['$dir/maprisma-theme-helper', '$dir/bin/maprisma-theme-helper']) {
-      if (File(c).existsSync()) return File(c).absolute.path;
-    }
-    return which('maprisma-theme-helper', environment);
-  }
-
-  @override
-  Future<Map<String, dynamic>?> helperJson(List<String> args, {Duration timeout = const Duration(seconds: 20)}) async {
-    final h = helper;
-    if (h == null) return null;
-    final out = await readBoundedText([h, ...args], maxBytes: 4 * 1024 * 1024, timeout: timeout, okCodes: const {});
-    if (out == null) return null;
-    try {
-      final v = jsonDecode(out.trim());
-      return v is Map ? Map<String, dynamic>.from(v) : null;
-    } on FormatException {
-      return null;
-    }
-  }
-
-  Future<bool> _helperOk(List<String> args) async {
-    final r = await helperJson(args, timeout: const Duration(seconds: 30));
-    return r != null && r['error'] == null;
-  }
-
-  String _tempJson(Object value) {
-    final dir = Directory(paths.runtime);
-    if (!dir.existsSync()) dir.createSync(recursive: true);
-    chmodPath(dir.path, 448);
-    final path = '${dir.path}/colors-$pid-${DateTime.now().microsecondsSinceEpoch}.json';
-    writeJson(path, value);
-    return path;
-  }
-
-  @override
-  Future<bool> applyColors(Map<String, String> colors) async {
-    final file = _tempJson(colors);
-    try {
-      return await _helperOk(['apply', '--colors', file]);
-    } finally {
-      _delete(file);
-    }
-  }
-
-  @override
-  Future<bool> applyRon(String path) => _helperOk(['apply', '--ron', path]);
-
-  @override
-  Future<Map<String, String>?> ronColors(String path) async {
-    final r = await helperJson(['ron-colors', path]);
-    if (r == null || r['error'] != null) return null;
-    return {
-      for (final e in r.entries)
-        if (e.value is String) e.key: e.value as String,
-    };
-  }
-
-  @override
-  Future<Map<String, dynamic>?> current() async {
-    final r = await helperJson(['current']);
-    return r == null || r['error'] != null ? null : r;
-  }
-
-  @override
-  Future<bool> setTerminal(Map<String, String> colors, String name) async {
-    final file = _tempJson(colors);
-    try {
-      return await _helperOk(['terminal', '--colors', file, '--name', name]);
-    } finally {
-      _delete(file);
-    }
-  }
-
-  // --- wallpaper: cosmic-bg follows its config files -------------------------
-
-  @override
-  String? wallpaper() {
-    final text = readSmall('$_bgDir/all', limit: 64 * 1024);
-    return text == null ? null : ronField(text, 'source');
-  }
-
-  @override
-  Future<bool> setWallpaper(String path) async {
-    if (!path.startsWith('/') || !File(path).existsSync()) return false;
-    // Every way a background reaches COSMIC (apply, presets, automation) is checked here.
-    if (imageSizeProblem(path) != null) return false;
-    final old = readSmall('$_bgDir/all', limit: 64 * 1024);
-    String text;
-    final source = 'source: Path(${ronString(path)}),';
-    if (old != null && RegExp(r'source\s*:').hasMatch(old)) {
-      final replaced = replaceRonValue(old, 'source', 'Path(${ronString(path)})');
-      if (replaced == null) return false;
-      text = replaced;
-    } else {
-      text =
-          '(\n    output: "all",\n    $source\n    filter_by_theme: false,\n    rotation_frequency: 300,\n'
-          '    filter_method: Lanczos,\n    scaling_mode: Zoom,\n    sampling_method: Alphanumeric,\n)';
-    }
-    try {
-      writeText('$_bgDir/all', text, mode: 420);
-      if (readSmall('$_bgDir/same-on-all')?.trim() != 'true') writeText('$_bgDir/same-on-all', 'true', mode: 420);
-      return true;
-    } on FileSystemException {
-      return false;
-    }
-  }
-
-  /// The raw text of every file in cosmic-bg's config folder (null: missing).
-  @override
-  Object? snapshotBackground() {
-    final out = <String, String?>{};
-    try {
-      for (final e in Directory(_bgDir).listSync(followLinks: false)) {
-        if (e is File) out[e.path.substring(e.path.lastIndexOf('/') + 1)] = readSmall(e.path, limit: 256 * 1024);
-      }
-    } on FileSystemException {
-      // no config yet
-    }
-    for (final n in ['all', 'same-on-all']) {
-      out.putIfAbsent(n, () => null);
-    }
-    return out;
-  }
-
-  @override
-  Future<bool> restoreBackground(Object? snapshot) async {
-    if (snapshot is! Map<String, String?>) return false;
-    try {
-      for (final e in snapshot.entries) {
-        if (e.key.contains('/') || e.key.startsWith('.')) continue;
-        final path = '$_bgDir/${e.key}';
-        if (e.value == null) {
-          if (File(path).existsSync()) File(path).deleteSync();
-        } else {
-          writeText(path, e.value!, mode: 420);
-        }
-      }
-      return true;
-    } on FileSystemException {
-      return false;
-    }
-  }
-
-  // --- fonts and icons: CosmicTk ---------------------------------------------
-
-  @override
-  String? monospaceFont() {
-    final t = readSmall('$_tkDir/monospace_font', limit: 8192);
-    return t == null ? null : ronField(t, 'family');
-  }
-
-  @override
-  Future<bool> setMonospaceFont(String family) async {
-    if (!(await monospaceFonts()).contains(family)) return false;
-    final old = readSmall('$_tkDir/monospace_font', limit: 8192);
-    final text = old != null && RegExp(r'family\s*:').hasMatch(old)
-        ? old.replaceFirst(RegExp(r'family\s*:\s*"(?:[^"\\]|\\.)*"'), 'family: ${ronString(family)}')
-        : '(\n    family: ${ronString(family)},\n    weight: Normal,\n    stretch: Normal,\n    style: Normal,\n)';
-    writeText('$_tkDir/monospace_font', text, mode: 420);
-    return true;
-  }
-
-  @override
-  Future<bool> resetMonospaceFont() async {
-    final f = File('$_tkDir/monospace_font');
-    try {
-      if (f.existsSync()) f.deleteSync();
-      return true;
-    } on FileSystemException {
-      return false;
-    }
-  }
-
-  @override
-  Future<List<String>> monospaceFonts() async {
-    final out = await readBoundedText(['fc-list', ':spacing=mono', 'family'], maxBytes: 1024 * 1024, timeout: const Duration(seconds: 5));
-    if (out == null) return [];
-    final set = <String>{};
-    for (final line in const LineSplitter().convert(out)) {
-      final first = line.split(',').first.trim();
-      if (first.isNotEmpty && first.length < 100) set.add(first);
-    }
-    return set.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-  }
-
-  @override
-  String? iconTheme() {
-    final t = readSmall('$_tkDir/icon_theme', limit: 1024)?.trim();
-    if (t == null) return null;
-    return t.startsWith('"') && t.endsWith('"') ? t.substring(1, t.length - 1) : t;
-  }
-
-  @override
-  bool setIconTheme(String name) {
-    if (!iconThemes().contains(name)) return false;
-    writeText('$_tkDir/icon_theme', ronString(name), mode: 420);
-    return true;
-  }
-
-  @override
-  List<String> iconThemes() {
-    final names = <String>{};
-    for (final base in ['${paths.home}/.icons', '${paths.data}/icons', '/usr/local/share/icons', '/usr/share/icons']) {
-      try {
-        for (final e in Directory(base).listSync()) {
-          if (File('${e.path}/index.theme').existsSync()) names.add(e.path.substring(e.path.lastIndexOf('/') + 1));
-        }
-      } on FileSystemException {
-        continue;
-      }
-    }
-    return names.toList()..sort();
-  }
-
-  void _delete(String path) {
-    try {
-      File(path).deleteSync();
-    } on FileSystemException {
-      // gone
-    }
-  }
-}
-
-/// A desktop that only records what it was asked (tests, --dry runs).
+/// A desktop that only records what it was asked (tests, --dry runs). It
+/// stands for COSMIC unless told otherwise (its shortcuts and applet checks
+/// are COSMIC's, on the test's config folder).
 final class FakeDesktop implements Desktop {
+  FakeDesktop({this.id = 'cosmic', this.name = 'COSMIC', this.terminalName = 'COSMIC Terminal', Set<Cap>? caps})
+    : caps = caps ?? Cap.values.toSet();
+
+  @override
+  final String id;
+  @override
+  final String name;
+  @override
+  final String? terminalName;
+  @override
+  final Set<Cap> caps;
+
   final calls = <String>[];
   String? _wallpaper, _font, _icons = 'Cosmic';
   var fonts = <String>['JetBrains Mono', 'Fira Code'];
@@ -437,7 +377,18 @@ final class FakeDesktop implements Desktop {
   List<String> iconThemes() => icons;
 
   @override
-  Future<Map<String, dynamic>?> helperJson(List<String> args, {Duration timeout = const Duration(seconds: 20)}) async {
+  ShortcutBinder? shortcutBinder(Paths paths) => caps.contains(Cap.shortcuts) ? CosmicShortcutBinder(paths) : null;
+
+  @override
+  Future<Map<String, dynamic>> health(Paths paths, Map<String, String> environment) async => caps.isEmpty
+      ? const {}
+      : {
+    'helper': {'ok': true, 'path': null},
+    'applet': cosmicAppletHealth(paths, environment),
+  };
+
+  @override
+  Future<Map<String, dynamic>?> wm(List<String> args, {Duration timeout = const Duration(seconds: 20)}) async {
     calls.add('helper ${args.join(' ')}');
     return switch (args.first) {
       'workspaces' => workspaces,

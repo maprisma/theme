@@ -310,71 +310,27 @@ String restoreBackup(Ctx ctx, String path) {
 
 // --- health -------------------------------------------------------------------------
 
-/// The applet's id in COSMIC's panels.
-const appletId = 'io.github.ubruckhaus.CosmicMaprismaTheme';
-
 /// Is the helper there, is the applet installed and in a panel, and is the
-/// shortcut file in order?
+/// shortcut file in order? (The backend answers `helper` and `applet`.)
 Future<Map<String, dynamic>> health(Ctx ctx) async {
-  final desktop = ctx.desktop;
-  String? helperPath;
-  bool helperOk;
-  if (desktop is CosmicDesktop) {
-    helperPath = desktop.helper;
-    helperOk = helperPath != null && await desktop.current() != null;
-  } else {
-    helperOk = await desktop.helperJson(['current']) != null;
-  }
-
-  final local = '${ctx.paths.home}/.local/bin';
-  String? find(String name) => Posix.instance.executable('$local/$name') && FileSystemEntity.isFileSync('$local/$name')
-      ? '$local/$name'
-      : which(name, ctx.environment);
-  final applet = find('maprisma-theme-applet');
-  final desktopFile = [
-    '${ctx.paths.data}/applications/$appletId.desktop',
-    '/usr/local/share/applications/$appletId.desktop',
-    '/usr/share/applications/$appletId.desktop',
-  ].where((p) => File(p).existsSync()).firstOrNull;
-  var inPanel = false;
-  try {
-    for (final panel in Directory(ctx.paths.cosmicConfig).listSync()) {
-      if (!baseName(panel.path).startsWith('com.system76.CosmicPanel')) continue;
-      for (final f in ['plugins_center', 'plugins_wings']) {
-        if ((readSmall('${panel.path}/v1/$f', limit: 64 * 1024) ?? '').contains('"$appletId"')) inPanel = true;
-      }
-    }
-  } on FileSystemException {
-    // no COSMIC config
-  }
-
+  final desktop = await ctx.desktop.health(ctx.paths, ctx.environment);
   final shortcuts = ThemeShortcuts(ctx);
   final state = shortcuts.load();
-  var fileOk = true;
-  var written = 0;
-  String note = '';
-  try {
-    final text = readSmall(shortcuts.customFile, limit: 1024 * 1024);
-    if (text != null) {
-      final entries = parseCosmicShortcuts(text).$2;
-      written = entries.where((e) => e['combo'] != null && (e['description'] as String).endsWith(ownTag)).length;
-    }
-  } on FormatException catch (e) {
-    fileOk = false;
-    note = "COSMIC's custom shortcuts file cannot be read: ${e.message}";
-  }
   final installed = {for (final t in ctx.themes()) t.slug};
   final expected = state.keys.where((t) => themeOfTarget(t) == null || installed.contains(themeOfTarget(t))).length;
-  if (fileOk && written != expected) {
-    fileOk = false;
-    note = '$expected key(s) set, $written in COSMIC\'s file: Repair writes them again';
-  }
-  final core = find('maprisma-theme-core');
+  final check = shortcuts.binder?.check(expected) ?? {'ok': true, 'written': 0, 'note': ''};
+  final core = findProgram(ctx.paths, ctx.environment, 'maprisma-theme-core');
   return {
-    'helper': {'ok': helperOk, 'path': helperPath},
+    'helper': desktop['helper'] ?? {'ok': false, 'path': null},
     'core': {'ok': core != null, 'path': core},
-    'applet': {'ok': applet != null || desktopFile != null, 'path': applet, 'in_panel': inPanel},
-    'shortcuts': {'ok': fileOk, 'available': shortcuts.available, 'keys': state.length, 'written': written, 'note': note},
+    'applet': desktop['applet'] ?? {'ok': false, 'path': null, 'in_panel': false},
+    'shortcuts': {
+      'ok': check['ok'],
+      'available': shortcuts.available,
+      'keys': state.length,
+      'written': check['written'],
+      'note': check['note'],
+    },
   };
 }
 

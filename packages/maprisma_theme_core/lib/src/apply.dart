@@ -54,7 +54,7 @@ Future<Map<String, dynamic>> applyTheme(Ctx ctx, String slug, {String? wallpaper
       : await ctx.desktop.applyColors(object);
   if (!ok) throw RouteError('apply_failed', 'COSMIC did not take the theme (is maprisma-theme-helper installed?)');
 
-  final done = <String>['cosmic'];
+  final done = <String>[ctx.desktop.id];
   final wp = wallpaper ?? startWallpaper(ctx, theme)?.path;
   if (wp != null && File(wp).existsSync() && await ctx.desktop.setWallpaper(wp)) {
     done.add('wallpaper');

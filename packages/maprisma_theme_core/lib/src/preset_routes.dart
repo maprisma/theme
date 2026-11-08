@@ -31,7 +31,7 @@ Map<String, Handler> presetRoutes(Ctx ctx) {
   return {
     'workspaces.get': (_) async => {
       'state': loadWorkspaces(ctx),
-      'desktop': await ctx.desktop.helperJson(['workspaces']),
+      'desktop': await ctx.desktop.wm(['workspaces']),
     },
     'workspaces.set': (p) => change((s) {
       for (final k in ['active', 'autoMoveOnRestore']) {

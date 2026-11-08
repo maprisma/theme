@@ -330,7 +330,7 @@ List<int> workspacesOf(Ctx ctx, String slug, String name, [Map<String, Map<int, 
 
 /// The active workspace's presentation index, from maprisma-theme-helper.
 Future<int?> activeWorkspace(Ctx ctx) async {
-  final r = await ctx.desktop.helperJson(['workspaces'], timeout: const Duration(seconds: 3));
+  final r = await ctx.desktop.wm(['workspaces'], timeout: const Duration(seconds: 3));
   final list = r?['workspaces'];
   if (list is! List) return null;
   for (final w in list) {

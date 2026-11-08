@@ -131,7 +131,7 @@ Map<String, dynamic> tilingAutomation(Ctx ctx) {
 }
 
 Future<Map<String, dynamic>> helper(Ctx ctx, List<String> args) async {
-  final result = await ctx.desktop.helperJson(args);
+  final result = await ctx.desktop.wm(args);
   if (result == null || result['error'] != null) {
     throw RouteError(
       'desktop_unavailable',

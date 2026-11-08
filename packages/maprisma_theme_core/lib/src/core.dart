@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'context.dart';
 import 'desktop.dart';
+import 'desktop_cosmic.dart';
 import 'paths.dart';
 import 'protocol.dart';
 import 'routes.dart';
@@ -15,7 +16,9 @@ final class CoreService {
     final p = paths ?? Paths.fromEnvironment(environment);
     ctx = Ctx(paths: p, desktop: desktop ?? CosmicDesktop(p, environment), environment: environment, clock: clock);
     routes = {
-      'core.hello': (_) async => {'version': coreVersion, 'protocol': protocolVersion, 'desktop': 'cosmic'},
+      'core.hello': (_) async => {'version': coreVersion, 'protocol': protocolVersion, 'desktop': ctx.desktop.id},
+      /// The active desktop backend: {id, name, terminal, caps} (docs/multi-desktop.md).
+      'desktop.info': (_) async => desktopInfo(ctx.desktop),
       ...allRoutes(ctx),
     };
     ctx.automationChanged(); // once, with every module's part (tiling from presets)

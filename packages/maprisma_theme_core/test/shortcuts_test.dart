@@ -118,6 +118,16 @@ void main() {
     expect(text(), contains('(modifiers: [Super, Ctrl], key: "b"): Spawn("firefox")'));
   });
 
+  test('an unreadable COSMIC file is reported before a missing program', () async {
+    await call('shortcuts.set', {'target': 'bg:next', 'mods': ['SUPER', 'ALT'], 'combo_key': 'N'});
+    File(custom).writeAsStringSync('not a map');
+    File('${env.paths.home}/.local/bin/maprisma-theme-core').deleteSync();
+    await expectLater(
+      call('health.repair'),
+      throwsA(isA<RouteError>().having((e) => e.code, 'code', 'not_available')),
+    );
+  });
+
   test('a deleted theme gives its key back; a renamed one keeps it', () async {
     await call('shortcuts.set', {'target': 'apply:nord', 'mods': ['SUPER', 'ALT'], 'combo_key': 'N'});
     await call('shortcuts.set', {'target': 'apply:gruvbox', 'mods': ['SUPER', 'ALT'], 'combo_key': 'G'});
