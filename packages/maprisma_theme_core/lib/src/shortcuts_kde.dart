@@ -344,7 +344,13 @@ Future<bool> _sync(Paths paths, Map<String, String> environment, DBusClient? cli
         if (sycoca != null) await runBounded([sycoca], timeout: const Duration(seconds: 30));
         await c('doRegister', [aid]);
         await c('setForeignShortcutKeys', [aid, _keys([_single(e.value.$1)])]);
-        if ((await keysOf(e.key, '_launch')).any((q) => _sameSeq(q, _single(e.value.$1)))) break;
+        if ((await keysOf(e.key, '_launch')).any((q) => _sameSeq(q, _single(e.value.$1)))) {
+          // Active now: a service shortcut registered at runtime stays inactive
+          // (a pressed key does nothing) until marked present, as an app does
+          // with setShortcutKeys and SetPresent (2) | NoAutoloading (4).
+          await c('setShortcutKeys', [aid, _keys([_single(e.value.$1)]), const DBusUint32(6)]);
+          break;
+        }
         if (attempt >= 3) {
           dropped = true;
           break;
