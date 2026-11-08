@@ -51,7 +51,13 @@ class _ImportPageState extends State<ImportPage> {
       section: false,
       backTooltip: 'Back to themes (Left, Backspace or Esc)',
       actions: [tabButton(0, 'omarchy.org'), tabButton(1, 'cosmic-themes.org')],
-      body: IndexedStack(index: tab, children: [_OmarchyTab(active: tab == 0), _CosmicTab(active: tab == 1)]),
+      body: IndexedStack(
+        index: tab,
+        children: [
+          _OmarchyTab(active: tab == 0),
+          _CosmicTab(active: tab == 1),
+        ],
+      ),
     );
   }
 }
@@ -66,21 +72,23 @@ class _Toolbar extends StatelessWidget {
   final Widget? trailing;
 
   @override
-  Widget build(BuildContext context) => Row(children: [
-    Expanded(
-      child: Focus(
-        onKeyEvent: onKey,
-        child: TextField(
-          controller: controller,
-          focusNode: focus,
-          maxLength: 100,
-          style: const TextStyle(fontSize: 14),
-          decoration: InputDecoration(counterText: '', prefixIcon: const Icon(Icons.search, size: 18), hintText: hint),
+  Widget build(BuildContext context) => Row(
+    children: [
+      Expanded(
+        child: Focus(
+          onKeyEvent: onKey,
+          child: TextField(
+            controller: controller,
+            focusNode: focus,
+            maxLength: 100,
+            style: const TextStyle(fontSize: 14),
+            decoration: InputDecoration(counterText: '', prefixIcon: const Icon(Icons.search, size: 18), hintText: hint),
+          ),
         ),
       ),
-    ),
-    if (trailing != null) ...[const SizedBox(width: 8), trailing!],
-  ]);
+      if (trailing != null) ...[const SizedBox(width: 8), trailing!],
+    ],
+  );
 }
 
 /// The tiles of one source with the keyboard of the plugin's import page.
@@ -184,42 +192,60 @@ mixin _Gallery<T extends StatefulWidget> on State<T> {
   }
 
   /// The grid of [tile]s under the toolbar and the hint.
-  Widget gallery({required Widget toolbar, required String hint, required Widget Function(int i, bool selected) tile,
-      Widget? empty, Widget? footer}) {
+  Widget gallery({
+    required Widget toolbar,
+    required String hint,
+    required Widget Function(int i, bool selected) tile,
+    Widget? empty,
+    Widget? footer,
+  }) {
     final list = items;
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      toolbar,
-      const SizedBox(height: 8),
-      Text(hint, style: hintStyle(context)),
-      const SizedBox(height: 8),
-      Expanded(
-        child: Focus(
-          focusNode: gridFocus,
-          onKeyEvent: onGridKey,
-          onFocusChange: (_) => setState(() {}),
-          child: LayoutBuilder(builder: (context, box) {
-            columns = gridColumns(box.maxWidth);
-            if (list.isEmpty) return Align(alignment: Alignment.topLeft, child: empty ?? const SizedBox());
-            return TileGrid(
-              controller: scroll,
-              count: list.length,
-              columns: columns,
-              footer: footer,
-              builder: (context, i) => KeyedSubtree(
-                key: tileKeys.putIfAbsent(idOf(list[i]), () => GlobalKey()),
-                child: tile(i, gridFocus.hasFocus && i == selected),
-              ),
-            );
-          }),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        toolbar,
+        const SizedBox(height: 8),
+        Text(hint, style: hintStyle(context)),
+        const SizedBox(height: 8),
+        Expanded(
+          child: Focus(
+            focusNode: gridFocus,
+            onKeyEvent: onGridKey,
+            onFocusChange: (_) => setState(() {}),
+            child: LayoutBuilder(
+              builder: (context, box) {
+                columns = gridColumns(box.maxWidth);
+                if (list.isEmpty) return Align(alignment: Alignment.topLeft, child: empty ?? const SizedBox());
+                return TileGrid(
+                  controller: scroll,
+                  count: list.length,
+                  columns: columns,
+                  footer: footer,
+                  builder: (context, i) => KeyedSubtree(
+                    key: tileKeys.putIfAbsent(idOf(list[i]), () => GlobalKey()),
+                    child: tile(i, gridFocus.hasFocus && i == selected),
+                  ),
+                );
+              },
+            ),
+          ),
         ),
-      ),
-    ]);
+      ],
+    );
   }
 
   /// One gallery theme as the plugin's tile: preview, “installed”, ☰, name.
-  Widget themeTile(int i, bool isSelected,
-      {required Widget picture, required String name, required List<PopupMenuEntry<VoidCallback>> Function() menu,
-      bool installed = false, bool busy = false, List<Widget> extraBadges = const [], String? tooltip}) {
+  Widget themeTile(
+    int i,
+    bool isSelected, {
+    required Widget picture,
+    required String name,
+    required List<PopupMenuEntry<VoidCallback>> Function() menu,
+    bool installed = false,
+    bool busy = false,
+    List<Widget> extraBadges = const [],
+    String? tooltip,
+  }) {
     final t = items[i];
     final menuKey = menuKeys.putIfAbsent(idOf(t), () => GlobalKey());
     return PluginTile(
@@ -230,10 +256,17 @@ mixin _Gallery<T extends StatefulWidget> on State<T> {
         select(i);
       },
       onSecondaryTap: () => menuKey.currentState?.showButtonMenu(),
-      picture: Stack(fit: StackFit.expand, children: [
-        picture,
-        if (busy) const ColoredBox(color: Color(0x66000000), child: Center(child: CircularProgressIndicator())),
-      ]),
+      picture: Stack(
+        fit: StackFit.expand,
+        children: [
+          picture,
+          if (busy)
+            const ColoredBox(
+              color: Color(0x66000000),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+        ],
+      ),
       menu: TileMenuButton(menuKey: menuKey, tooltip: 'Theme actions (Enter)', enabled: !busy, menu: menu),
       bottomLeft: [if (installed) const TileBadge('installed'), ...extraBadges],
       captionText: name,
@@ -350,13 +383,17 @@ class _OmarchyTabState extends State<_OmarchyTab> with _Gallery<_OmarchyTab> {
     while (_running < 4 && _queue.isNotEmpty) {
       final slug = _queue.removeLast(); // the latest tiles first: what is on screen now
       _running++;
-      app.call('import.omarchy_preview', {'slug': slug}).then((r) {
-        final path = r['path'];
-        if (mounted && path is String) setState(() => previews[slug] = path);
-      }).catchError((_) {}).whenComplete(() {
-        _running--;
-        if (mounted) _pump();
-      });
+      app
+          .call('import.omarchy_preview', {'slug': slug})
+          .then((r) {
+            final path = r['path'];
+            if (mounted && path is String) setState(() => previews[slug] = path);
+          })
+          .catchError((_) {})
+          .whenComplete(() {
+            _running--;
+            if (mounted) _pump();
+          });
     }
   }
 
@@ -391,8 +428,12 @@ class _OmarchyTabState extends State<_OmarchyTab> with _Gallery<_OmarchyTab> {
         item(Icons.check, 'Installed', () {}, enabled: false),
         item(Icons.play_arrow, 'Apply theme', () => _apply(app, t['slug'] as String, '${t['name']}')),
       ] else ...[
-        item(Icons.download_outlined, 'Install', () => install(t, false),
-            tooltip: 'git clone into ~/.config/maprisma-theme/themes/${t['slug']}'),
+        item(
+          Icons.download_outlined,
+          'Install',
+          () => install(t, false),
+          tooltip: 'git clone into ~/.config/maprisma-theme/themes/${t['slug']}',
+        ),
         item(Icons.play_arrow, 'Install and apply', () => install(t, true)),
       ],
       menuLine(),
@@ -402,7 +443,8 @@ class _OmarchyTabState extends State<_OmarchyTab> with _Gallery<_OmarchyTab> {
 
   @override
   Widget build(BuildContext context) {
-    final hint = status ??
+    final hint =
+        status ??
         error ??
         (loading
             ? 'Loading themes from omarchy.org…'
@@ -512,10 +554,7 @@ class _CosmicTabState extends State<_CosmicTab> with _Gallery<_CosmicTab> {
     super.dispose();
   }
 
-  Map<String, dynamic> get _params => {
-    if (search.text.trim().isNotEmpty) 'search': search.text.trim(),
-    'sort': sort,
-  };
+  Map<String, dynamic> get _params => {if (search.text.trim().isNotEmpty) 'search': search.text.trim(), 'sort': sort};
 
   Future<void> load() async {
     final gen = ++_generation;
@@ -605,7 +644,8 @@ class _CosmicTabState extends State<_CosmicTab> with _Gallery<_CosmicTab> {
   Widget build(BuildContext context) {
     final look = Look.of(context);
     final native = AppScope.of(context).can('ron');
-    final hint = status ??
+    final hint =
+        status ??
         error ??
         (loading
             ? 'Loading themes from cosmic-themes.org…'
@@ -643,9 +683,13 @@ class _CosmicTabState extends State<_CosmicTab> with _Gallery<_CosmicTab> {
           ? const Center(child: CircularProgressIndicator())
           : error != null
           ? null
-          : Text(search.text.trim().isEmpty ? 'No themes found.' : 'No theme matches “${search.text.trim()}”.',
-              style: hintStyle(context)),
-      footer: loadingMore ? const Padding(padding: EdgeInsets.all(12), child: Center(child: CircularProgressIndicator())) : null,
+          : Text(search.text.trim().isEmpty ? 'No themes found.' : 'No theme matches “${search.text.trim()}”.', style: hintStyle(context)),
+      footer: loadingMore
+          ? const Padding(
+              padding: EdgeInsets.all(12),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          : null,
       tile: (i, isSelected) {
         final t = themes[i];
         final author = '${t['author'] ?? ''}';
