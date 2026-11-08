@@ -158,6 +158,23 @@ void main() {
     expect(logText(), contains('--key fixed --delete'));
   });
 
+  test('tiling through Krohnkite: the cap while it is installed, each workspace by its ignore list', () {
+    expect(kde.caps.contains(Cap.tiling), isFalse);
+    final script = Directory('${paths.data}/kwin/scripts/krohnkite')..createSync(recursive: true);
+    File('${script.path}/metadata.json').writeAsStringSync('{}');
+    expect(kde.caps.contains(Cap.tiling), isTrue);
+    File('$config/kwinrc').writeAsStringSync('[Plugins]\nkrohnkiteEnabled=true\n\n[Script-krohnkite]\nignoreVDesktop=2, 4\n');
+    final r = kde.withTiling({
+      'workspaces': [for (var i = 1; i <= 4; i++) {'index': i, 'name': '$i', 'tiling': false}],
+      'can_tile': false,
+    });
+    expect([for (final w in r['workspaces']) w['tiling']], [true, false, true, false]);
+    expect(r['can_tile'], isTrue);
+    // Krohnkite switched off: nothing tiles
+    File('$config/kwinrc').writeAsStringSync('[Plugins]\nkrohnkiteEnabled=false\n');
+    expect([for (final w in kde.withTiling(r)['workspaces']) w['tiling']], everyElement(isFalse));
+  });
+
   test('caps and the rest of the contract', () async {
     expect(kde.caps, {Cap.appearance, Cap.kdeScheme, Cap.wallpaper, Cap.terminal, Cap.fonts, Cap.icons, Cap.workspaces, Cap.windows, Cap.shortcuts});
     expect(await kde.applyRon('/x.ron'), isFalse);

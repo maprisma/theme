@@ -106,8 +106,12 @@ Map<String, dynamic>? kdeCurrentLook(String kdeglobals) {
   final foreground = kdeRgb(
     iniValue(kdeglobals, 'Colors:Window', 'ForegroundNormal'),
   );
+  // The scheme's accent: Plasma's own setting, else the focus decoration
+  // (the accent itself in Maprisma's and Breeze's schemes); the selection
+  // background last (often a muted mix, too dark to draw text in).
   final accent =
       kdeRgb(iniValue(kdeglobals, 'General', 'AccentColor')) ??
+      kdeRgb(iniValue(kdeglobals, 'Colors:View', 'DecorationFocus')) ??
       kdeRgb(iniValue(kdeglobals, 'Colors:Selection', 'BackgroundNormal'));
   if (background == null || foreground == null || accent == null) return null;
   return {

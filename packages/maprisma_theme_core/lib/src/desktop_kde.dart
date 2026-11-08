@@ -37,14 +37,77 @@ final class KdeDesktop extends DesktopBase {
   String get name => 'KDE Plasma';
   @override
   String get terminalName => 'Konsole';
-  /// No `tiling` (KWin has no per-desktop switch Maprisma Theme can drive;
-  /// Krohnkite has no control API) and no `panel` (the daemon's tray icon
-  /// stands in).
+  /// `tiling` while Krohnkite (KWin's tiling script) is installed: a
+  /// workspace is tiled unless its name is in Krohnkite's ignoreVDesktop
+  /// list. No `panel` (the daemon's tray icon stands in).
   @override
-  Set<Cap> get caps => const {
+  Set<Cap> get caps => {
     Cap.appearance, Cap.kdeScheme, Cap.wallpaper, Cap.terminal, Cap.fonts, Cap.icons,
     Cap.workspaces, Cap.windows, Cap.shortcuts,
+    if (krohnkiteInstalled) Cap.tiling,
   };
+
+  String get _kwinrc => '$_configHome/kwinrc';
+
+  bool get krohnkiteInstalled => [
+    '${paths.data}/kwin/scripts/krohnkite',
+    for (final d in _dataDirs) '$d/kwin/scripts/krohnkite',
+  ].any((d) => File('$d/metadata.json').existsSync());
+
+  bool get krohnkiteEnabled => iniValue(_text(_kwinrc), 'Plugins', 'krohnkiteEnabled') == 'true';
+
+  /// The desktop names Krohnkite leaves untiled.
+  Set<String> get krohnkiteIgnored => {
+    for (final n in (iniValue(_text(_kwinrc), 'Script-krohnkite', 'ignoreVDesktop') ?? '').split(','))
+      if (n.trim().isNotEmpty) n.trim(),
+  };
+
+  /// The wm contract's workspaces with each one's real tiling state.
+  Map<String, dynamic> withTiling(Map<String, dynamic> r) {
+    if (r['workspaces'] is! List) return r;
+    final on = krohnkiteInstalled && krohnkiteEnabled;
+    final ignored = krohnkiteIgnored;
+    return {
+      ...r,
+      'workspaces': [
+        for (final w in r['workspaces'] as List)
+          if (w is Map) {...w, 'tiling': on && !ignored.contains('${w['name']}')},
+      ],
+      'can_tile': krohnkiteInstalled,
+    };
+  }
+
+  /// Tiling of workspace [index] on or off: its name leaves or joins
+  /// Krohnkite's ignore list, Krohnkite is switched on when a workspace wants
+  /// tiling, and reloaded so it reads the list again.
+  Future<Map<String, dynamic>> _setTiling(int index, bool on) async {
+    if (!krohnkiteInstalled) return {'error': 'not_available', 'message': 'Krohnkite is not installed'};
+    final ws = await wm(['workspaces']);
+    final list = ws?['workspaces'];
+    if (list is! List) return ws ?? {'error': 'unavailable'};
+    final w = list.whereType<Map>().where((w) => w['index'] == index).firstOrNull;
+    if (w == null) return {'error': 'not_found', 'message': 'no workspace $index'};
+    final name = '${w['name']}'.trim();
+    if (name.isEmpty || name.contains(',')) return {'error': 'bad_args', 'message': 'Krohnkite cannot tell this workspace by its name'};
+    final ignored = krohnkiteIgnored;
+    final changed = on ? ignored.remove(name) : ignored.add(name);
+    final wasEnabled = krohnkiteEnabled;
+    final enable = on && !wasEnabled;
+    if (!changed && !enable) return {'done': true};
+    if (changed && !await _run(['kwriteconfig6', '--file', 'kwinrc', '--group', 'Script-krohnkite', '--key', 'ignoreVDesktop', ignored.join(',')])) {
+      return {'error': 'unavailable', 'message': 'kwinrc could not be written'};
+    }
+    // Krohnkite reads its settings when it starts: off and on again.
+    if (wasEnabled) {
+      await _run(['kwriteconfig6', '--file', 'kwinrc', '--group', 'Plugins', '--key', 'krohnkiteEnabled', 'false']);
+      await _run(['qdbus6', 'org.kde.KWin', '/KWin', 'reconfigure']);
+    }
+    if (on || wasEnabled) {
+      await _run(['kwriteconfig6', '--file', 'kwinrc', '--group', 'Plugins', '--key', 'krohnkiteEnabled', 'true']);
+    }
+    await _run(['qdbus6', 'org.kde.KWin', '/KWin', 'reconfigure']);
+    return {'done': true};
+  }
 
   /// KWin through scripts (kwin_bridge.dart), opened on first use.
   KWinBridge? _bridge;
@@ -344,10 +407,14 @@ print('maprisma-snapshot ' + JSON.stringify(r));
 
   @override
   Future<Map<String, dynamic>?> wm(List<String> args, {Duration timeout = const Duration(seconds: 20)}) async {
+    if (args.length == 3 && args[0] == 'set-tiling' && int.tryParse(args[1]) != null && (args[2] == 'on' || args[2] == 'off')) {
+      return _setTiling(int.parse(args[1]), args[2] == 'on');
+    }
     final b = bridge;
     if (b == null) return {'error': 'unavailable', 'message': 'no session bus'};
     try {
-      return await kdeWm(b, args).timeout(timeout);
+      final r = await kdeWm(b, args).timeout(timeout);
+      return args.isNotEmpty && args.first == 'workspaces' ? withTiling(r) : r;
     } on Object catch (e) {
       return {'error': 'unavailable', 'message': '$e'};
     }

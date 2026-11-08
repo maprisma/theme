@@ -31,10 +31,15 @@ String modeLabel(String mode) => switch (mode) {
   _ => 'Native',
 };
 
-String modeHint(String mode) => switch (mode) {
-  'tiled' => 'COSMIC tiles the windows: each new one splits the last along its longer side',
+/// Who tiles on [desktop]: COSMIC itself, on KDE Plasma the Krohnkite script.
+String tilerOf(String desktop) => desktop == 'KDE Plasma' ? 'Krohnkite' : desktop;
+
+String modeHint(String mode, [String desktop = 'COSMIC']) => switch (mode) {
+  'tiled' => desktop == 'KDE Plasma'
+      ? 'Krohnkite tiles the windows of this workspace (its layout)'
+      : '${tilerOf(desktop)} tiles the windows: each new one splits the last along its longer side',
   'floating' => 'Tiling off: windows float where they open',
-  _ => "Leaves COSMIC's own tiling setting of the workspace as it is",
+  _ => "Leaves ${tilerOf(desktop)}'s own tiling setting of the workspace as it is",
 };
 
 /// The windows of a layout as rectangles in 0…1 of the area below the bar.
@@ -338,10 +343,10 @@ class _PresetsPageState extends State<PresetsPage> {
       ),
       child: Text(
         state['active'] == true
-            ? 'The Maprisma Theme applet in the panel arranges the windows: window limits and overflow take '
-                  "effect there at once. Tiled and Floating switch COSMIC's tiling; Native leaves it as it is."
-            : 'Tiling is off (All Workspaces): layouts switch COSMIC\'s tiling of a workspace, window limits '
-                  "wait until Tiling active is on. Native leaves COSMIC's tiling as it is.",
+            ? 'Maprisma Theme ${app!.can('panel') ? 'applet in the panel' : 'tray service'} arranges the windows: window limits and overflow take '
+                  "effect there at once. Tiled and Floating switch ${tilerOf(app!.desktopName)}'s tiling; Native leaves it as it is."
+            : "Tiling is off (All Workspaces): layouts switch ${tilerOf(app!.desktopName)}'s tiling of a workspace, window limits "
+                  "wait until Tiling active is on. Native leaves ${tilerOf(app!.desktopName)}'s tiling as it is.",
         style: const TextStyle(fontSize: 12),
       ),
     );
@@ -776,7 +781,7 @@ class _PresetsPageState extends State<PresetsPage> {
       children: [
         for (final mode in _modes)
           Tooltip(
-            message: modeHint(mode),
+            message: modeHint(mode, app!.desktopName),
             child: Semantics(
               selected: mode == chosen,
               button: true,
@@ -873,7 +878,7 @@ class _PresetsPageState extends State<PresetsPage> {
                 tooltip: 'Reset all workspaces to the default limit and layout preset'),
             action('Remove All Presets', Icons.layers_clear_outlined,
                 () => perform('workspaces.bulk', {'action': 'remove_all'}, 'All workspaces Native', tiling: true),
-                tooltip: "Set all workspaces to Native: COSMIC's own tiling, no layout preset or limit of their own"),
+                tooltip: "Set all workspaces to Native: ${tilerOf(app!.desktopName)}'s own tiling, no layout preset or limit of their own"),
             action('Clear All Presets & App Presets', Icons.delete_outline, () async {
               if (await confirm(context, 'Clear All Presets & App Presets?',
                   'Clear all workspace layouts, limits, saved apps and autostart settings', action: 'Delete')) {
