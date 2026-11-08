@@ -224,10 +224,11 @@ class _WallhavenPageState extends State<WallhavenPage> {
       item_(Icons.check, 'Already added', null)
     else ...[
       item(Icons.add, 'Add to ${widget.themeName}', () => add(w), tooltip: 'Saved in ~/.config/maprisma-theme/backgrounds/${widget.slug}/'),
-      if (widget.current) item_(Icons.wallpaper_outlined, 'Add and set as background', () => add(w, set: true)),
+      if (widget.current && app.can('wallpaper')) item_(Icons.wallpaper_outlined, 'Add and set as background', () => add(w, set: true)),
     ],
-    item(Icons.visibility_outlined, 'Preview on desktop', () => preview(w, seconds: previewSeconds),
-        tooltip: 'Loads the full image and shows it for $previewSeconds seconds; or hold Space on the tile'),
+    if (app.can('wallpaper'))
+      item(Icons.visibility_outlined, 'Preview on desktop', () => preview(w, seconds: previewSeconds),
+          tooltip: 'Loads the full image and shows it for $previewSeconds seconds; or hold Space on the tile'),
     menuLine(),
     item(Icons.open_in_browser, 'Open on $_source', () => openPage(w), tooltip: '${w['page']}'),
   ];
@@ -247,7 +248,7 @@ class _WallhavenPageState extends State<WallhavenPage> {
 
   KeyEventResult onGridKey(FocusNode node, KeyEvent e) {
     final key = e.logicalKey;
-    if (key == LogicalKeyboardKey.space) {
+    if (key == LogicalKeyboardKey.space && app.can('wallpaper')) {
       if (e is KeyDownEvent && selected < results.length) {
         preview(results[selected]);
       } else if (e is KeyUpEvent && previewTimer == null) {

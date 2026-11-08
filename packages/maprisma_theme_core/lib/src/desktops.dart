@@ -3,11 +3,12 @@ library;
 
 import 'desktop.dart';
 import 'desktop_cosmic.dart';
+import 'desktop_kde.dart';
 import 'paths.dart';
 import 'shortcuts.dart';
 
 /// The backend ids `MAPRISMA_THEME_DESKTOP` accepts.
-const desktopIds = ['cosmic', 'generic'];
+const desktopIds = ['cosmic', 'kde', 'generic'];
 
 /// The backend for this session: `MAPRISMA_THEME_DESKTOP` when set and not
 /// blank (an unknown id is an [ArgumentError], never a silent fallback; a
@@ -20,6 +21,7 @@ Desktop selectDesktop(Paths paths, Map<String, String> environment) {
   if (override != null && override.isNotEmpty) {
     return switch (override) {
       'cosmic' => CosmicDesktop(paths, environment),
+      'kde' => KdeDesktop(paths, environment),
       'generic' => GenericDesktop(paths, environment),
       _ => throw ArgumentError.value(override, 'MAPRISMA_THEME_DESKTOP', 'one of ${desktopIds.join(', ')}'),
     };
@@ -28,6 +30,8 @@ Desktop selectDesktop(Paths paths, Map<String, String> environment) {
     switch (token.trim().toUpperCase()) {
       case 'COSMIC':
         return CosmicDesktop(paths, environment);
+      case 'KDE':
+        return KdeDesktop(paths, environment);
     }
   }
   return GenericDesktop(paths, environment);
@@ -59,7 +63,7 @@ final class GenericDesktop extends DesktopBase {
   @override
   String? wallpaper() => null;
   @override
-  Object? snapshotBackground() => null;
+  Future<Object?> snapshotBackground() async => null;
   @override
   Future<bool> restoreBackground(Object? snapshot) async => false;
   @override
@@ -73,7 +77,7 @@ final class GenericDesktop extends DesktopBase {
   @override
   String? iconTheme() => null;
   @override
-  bool setIconTheme(String name) => false;
+  Future<bool> setIconTheme(String name) async => false;
   @override
   Future<Map<String, dynamic>?> wm(List<String> args, {Duration timeout = const Duration(seconds: 20)}) async => wmNotAvailable(name);
   @override

@@ -151,7 +151,7 @@ Map<String, Handler> wallpaperRoutes(Ctx ctx, {Fetch? fetch}) {
       if (!path.startsWith('/') || !imageExts.contains(extOf(path))) throw RouteError('bad_params', 'path');
       final problem = imageSizeProblem(path);
       if (problem != null) throw RouteError('bad_image', problem);
-      if (!previewing) beforePreview = ctx.desktop.snapshotBackground();
+      if (!previewing) beforePreview = await ctx.desktop.snapshotBackground();
       previewing = true;
       // Shown only: Current and the remembered wallpaper stay as they are.
       return {'shown': await ctx.desktop.setWallpaper(path)};

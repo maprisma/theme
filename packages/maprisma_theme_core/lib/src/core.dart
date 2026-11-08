@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'context.dart';
 import 'desktop.dart';
-import 'desktop_cosmic.dart';
+import 'desktops.dart';
 import 'paths.dart';
 import 'protocol.dart';
 import 'routes.dart';
@@ -14,7 +14,7 @@ const coreVersion = '0.1.0';
 final class CoreService {
   CoreService({required Map<String, String> environment, Paths? paths, Desktop? desktop, DateTime Function()? clock}) {
     final p = paths ?? Paths.fromEnvironment(environment);
-    ctx = Ctx(paths: p, desktop: desktop ?? CosmicDesktop(p, environment), environment: environment, clock: clock);
+    ctx = Ctx(paths: p, desktop: desktop ?? selectDesktop(p, environment), environment: environment, clock: clock);
     routes = {
       'core.hello': (_) async => {'version': coreVersion, 'protocol': protocolVersion, 'desktop': ctx.desktop.id},
       /// The active desktop backend: {id, name, terminal, caps} (docs/multi-desktop.md).

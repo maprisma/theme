@@ -105,7 +105,7 @@ final class CosmicDesktop extends DesktopBase {
 
   /// The raw text of every file in cosmic-bg's config folder (null: missing).
   @override
-  Object? snapshotBackground() {
+  Future<Object?> snapshotBackground() async {
     final out = <String, String?>{};
     try {
       for (final e in Directory(_bgDir).listSync(followLinks: false)) {
@@ -177,7 +177,7 @@ final class CosmicDesktop extends DesktopBase {
   }
 
   @override
-  bool setIconTheme(String name) {
+  Future<bool> setIconTheme(String name) async {
     if (!iconThemes().contains(name)) return false;
     writeText('$_tkDir/icon_theme', ronString(name), mode: 420);
     return true;

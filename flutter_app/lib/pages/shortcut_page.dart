@@ -59,6 +59,7 @@ class ShortcutPage extends StatefulWidget {
 }
 
 class _ShortcutPageState extends State<ShortcutPage> {
+  MaprismaThemeAppState get app => AppScope.read(context);
   Map<String, dynamic> view = const {};
   bool loading = true, busy = false;
   List<String> mods = const ['SUPER', 'CTRL'];
@@ -138,7 +139,7 @@ class _ShortcutPageState extends State<ShortcutPage> {
       'same' => ('That is the current key.', 'info', 'Assign', false),
       'ours' => ('$owner has it now. Assigning moves it here.', 'warn', 'Move here', true),
       'custom' => ('Your shortcut “$owner”. Assigning turns it off while this one exists; removing it brings it back.', 'warn', 'Rebind', true),
-      _ => ("COSMIC's “$owner”. Assigning overrides it while this one exists; removing it brings it back.", 'desktop', 'Rebind', true),
+      _ => ("${app.desktopName}'s “$owner”. Assigning overrides it while this one exists; removing it brings it back.", 'desktop', 'Rebind', true),
     };
   }
 
@@ -247,7 +248,7 @@ class _ShortcutPageState extends State<ShortcutPage> {
       'same' => '$label — the current key',
       'ours' => '$label — $owner; click to move it here',
       'custom' => '$label — your shortcut “$owner”; click to rebind',
-      _ => "$label — COSMIC's “$owner”; click to rebind",
+      _ => "$label — ${app.desktopName}'s “$owner”; click to rebind",
     };
   }
 
@@ -373,7 +374,7 @@ class _ShortcutPageState extends State<ShortcutPage> {
       Tooltip(
         message: 'Taken keys can be rebound; the original works again when you remove the shortcut.',
         child: Wrap(children: [
-          for (final (t, c) in [('free', marks.running), ('yours', marks.fresh), ('COSMIC default', marks.update)])
+          for (final (t, c) in [('free', marks.running), ('yours', marks.fresh), ('${app.desktopName} default', marks.update)])
             Padding(
               padding: const EdgeInsets.only(right: 12),
               child: Text('● $t', style: TextStyle(fontSize: 12, color: c)),
@@ -402,7 +403,7 @@ class _ShortcutPageState extends State<ShortcutPage> {
                 child: Padding(
                   padding: const EdgeInsets.all(24),
                   child: Text(
-                    message.isNotEmpty ? message : "COSMIC's keyboard settings were not found, so shortcuts cannot be set here.",
+                    message.isNotEmpty ? message : "${app.desktopName}'s keyboard settings were not found, so shortcuts cannot be set here.",
                     textAlign: TextAlign.center,
                   ),
                 ),

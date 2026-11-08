@@ -75,7 +75,7 @@ abstract interface class Desktop {
   String? wallpaper();
 
   /// Everything a background change touches, to put back after a preview.
-  Object? snapshotBackground();
+  Future<Object?> snapshotBackground();
   Future<bool> restoreBackground(Object? snapshot);
 
   /// The desktop terminal's color scheme [name] from [colors].
@@ -89,7 +89,7 @@ abstract interface class Desktop {
   Future<List<String>> monospaceFonts();
 
   String? iconTheme();
-  bool setIconTheme(String name);
+  Future<bool> setIconTheme(String name);
   List<String> iconThemes();
 
   /// The window-manager contract (docs/cosmic-interface.md: `workspaces`,
@@ -261,8 +261,11 @@ String? ronField(String text, String key) {
 /// stands for COSMIC unless told otherwise (its shortcuts and applet checks
 /// are COSMIC's, on the test's config folder).
 final class FakeDesktop implements Desktop {
-  FakeDesktop({this.id = 'cosmic', this.name = 'COSMIC', this.terminalName = 'COSMIC Terminal', Set<Cap>? caps})
+  FakeDesktop({this.id = 'cosmic', this.name = 'COSMIC', this.terminalName = 'COSMIC Terminal', Set<Cap>? caps, this.hasLook = true})
     : caps = caps ?? Cap.values.toSet();
+
+  /// False: current() is null, as on a desktop without a backend.
+  final bool hasLook;
 
   @override
   final String id;
@@ -308,7 +311,9 @@ final class FakeDesktop implements Desktop {
   };
 
   @override
-  Future<Map<String, dynamic>?> current() async => {
+  Future<Map<String, dynamic>?> current() async => !hasLook
+      ? null
+      : {
     'colors': lastColors ?? {'background': '#1b1b1b', 'foreground': '#e0e0e0', 'accent': '#63d0df'},
     'is_dark': true,
     'corner_radius': 8,
@@ -325,7 +330,7 @@ final class FakeDesktop implements Desktop {
   String? wallpaper() => _wallpaper;
 
   @override
-  Object? snapshotBackground() => _wallpaper ?? '';
+  Future<Object?> snapshotBackground() async => _wallpaper ?? '';
 
   @override
   Future<bool> restoreBackground(Object? snapshot) async {
@@ -366,7 +371,7 @@ final class FakeDesktop implements Desktop {
   String? iconTheme() => _icons;
 
   @override
-  bool setIconTheme(String name) {
+  Future<bool> setIconTheme(String name) async {
     if (!icons.contains(name)) return false;
     calls.add('icons $name');
     _icons = name;

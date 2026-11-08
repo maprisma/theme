@@ -66,8 +66,8 @@ class _ThemesPageState extends State<ThemesPage> {
 
   Future<void> load() async {
     final r = await app.run('themes.list');
-    final labels = await _quiet('shortcuts.labels');
-    final ws = await _quiet('auto.workspace_themes');
+    final labels = app.can('shortcuts') ? await _quiet('shortcuts.labels') : null;
+    final ws = app.can('workspaces') ? await _quiet('auto.workspace_themes') : null;
     final schedule = await _quiet('auto.schedule');
     if (!mounted || r == null) return;
     setState(() {
@@ -231,16 +231,16 @@ class _ThemesPageState extends State<ThemesPage> {
       else
         item(Icons.play_arrow, 'Apply theme', () => apply(t)),
       item(Icons.image_outlined, 'Wallpapers', () => open(WallpapersPage(slug: slug)), end: Icons.chevron_right),
-      item(Icons.grid_view, 'Use on workspace…', () => onWorkspaces(t),
+      if (app.can('workspaces')) item(Icons.grid_view, 'Use on workspace…', () => onWorkspaces(t),
           tooltip: 'Switches the theme when that workspace gains focus'),
-      if (current && workspaceThemes.isNotEmpty)
+      if (app.can('workspaces') && current && workspaceThemes.isNotEmpty)
         item(Icons.apps, 'Use on all workspaces', () => useEverywhere(t),
             tooltip: "Removes the other workspaces' own themes: this one everywhere (until the next day/night switch)"),
       item(Icons.add, 'New theme from this…', () => open(EditorPage(base: slug)),
           tooltip: 'Your own copy with other colors, a font and these wallpapers'),
       if (t['custom'] == true)
         item(Icons.edit_outlined, 'Edit theme…', () => open(EditorPage(edit: slug)), tooltip: 'Name, colors and font'),
-      item(Icons.keyboard_outlined, shortcut, () => open(ShortcutPage(target: 'apply:$slug', title: '${t['name']}')),
+      if (app.can('shortcuts')) item(Icons.keyboard_outlined, shortcut, () => open(ShortcutPage(target: 'apply:$slug', title: '${t['name']}')),
           tooltip: 'A key that applies this theme from anywhere'
               '${hidden ? '. It also works while the theme is hidden, and applying it unhides it.' : ''}'),
       if (fav)
@@ -383,6 +383,7 @@ class _ThemesPageState extends State<ThemesPage> {
 
   @override
   Widget build(BuildContext context) {
+    AppScope.of(context);
     final look = Look.of(context);
     final list = shown;
     final hiddenCount = hiddenOut;
@@ -420,8 +421,8 @@ class _ThemesPageState extends State<ThemesPage> {
                       child: ThemeTile(
                         theme: t,
                         selected: slug == selected,
-                        shortcuts: shortcutLabels['apply:$slug'] ?? const [],
-                        workspaces: [for (final e in workspaceThemes.entries) if (e.value == slug) e.key]..sort(),
+                        shortcuts: app.can('shortcuts') ? shortcutLabels['apply:$slug'] ?? const [] : const [],
+                        workspaces: [if (app.can('workspaces')) for (final e in workspaceThemes.entries) if (e.value == slug) e.key]..sort(),
                         menuKey: _menuKeys.putIfAbsent(slug, () => GlobalKey()),
                         onApply: () {
                           focus.requestFocus();
@@ -477,6 +478,7 @@ class _ThemeTileState extends State<ThemeTile> {
 
   @override
   Widget build(BuildContext context) {
+    AppScope.of(context);
     final look = Look.of(context);
     final r = corners(context);
     final t = widget.theme;

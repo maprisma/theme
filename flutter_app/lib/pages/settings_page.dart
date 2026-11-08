@@ -34,7 +34,7 @@ const _sections = [
 const _sectionHints = {
   'wallpapers': 'Scroll on the panel icon for the next or previous wallpaper; right-click it for your favorite themes.',
   'shortcuts':
-      "Give a theme its own key in its ⋮ menu → Shortcut…. Keys are COSMIC custom shortcuts; "
+      "Give a theme its own key in its ⋮ menu → Shortcut…. Keys are desktop custom shortcuts; "
       "a key taken from another shortcut works again when you remove yours.",
   'themes':
       'Apps get the theme colors through one marked include line in their own config (a backup is kept). '
@@ -106,7 +106,7 @@ class _SettingsPageState extends State<SettingsPage> {
       _try('auto.schedule'),
       _try('themes.list'),
       _try('apps.list'),
-      _try('shortcuts.list'),
+      app.can('shortcuts') ? _try('shortcuts.list') : Future.value(null),
       _try('ask.helpers'),
       _try('health.get'),
     ]);
@@ -313,7 +313,7 @@ class _SettingsPageState extends State<SettingsPage> {
   // --- rows ------------------------------------------------------------------------
 
   String get _cornersTip =>
-      "Corners of the window and its theme cards. “Like windows” follows the COSMIC theme's corner radius.";
+      "Corners of the window and its theme cards. “Like windows” follows the ${app.desktopName} theme's corner radius.";
 
   List<_Row> rows() {
     final marks = markColors(context);
@@ -400,7 +400,7 @@ class _SettingsPageState extends State<SettingsPage> {
       _Row(
         'wallpapers',
         'A theme for each workspace',
-        "Switches COSMIC's theme when you focus a workspace with an assigned theme. Switching takes a moment and changes "
+        "Switches ${app.desktopName}'s theme when you focus a workspace with an assigned theme. Switching takes a moment and changes "
             'every monitor. Leaving the workspace goes back to the theme you used before.',
         _switch(settings['workspace_themes'] == true, (on) => set('workspace_themes', on)),
       ),
@@ -418,7 +418,7 @@ class _SettingsPageState extends State<SettingsPage> {
         _Row(
           'shortcuts',
           'Keyboard shortcuts',
-          "COSMIC's keyboard settings were not found, so shortcuts cannot be set here.",
+          "${app.desktopName}'s keyboard settings were not found, so shortcuts cannot be set here.",
           const SizedBox(),
         ),
       for (final s in [
@@ -524,14 +524,14 @@ class _SettingsPageState extends State<SettingsPage> {
     out.addAll([
       _Row(
         'integration',
-        'maprisma-theme-helper',
-        'Applies themes to COSMIC and reads the workspaces.',
-        status(helper?['ok'] == true, helper?['ok'] == true ? 'Found' : 'Not found'),
+        helper?['name'] as String? ?? (app.desktopName == 'COSMIC' ? 'maprisma-theme-helper' : '${app.desktopName} integration'),
+        app.can('workspaces') ? 'Applies themes to ${app.desktopName} and reads the workspaces.' : app.can('appearance') ? 'Applies themes to ${app.desktopName}.' : 'App colors use templates; desktop integration is not available yet.',
+        status(helper?['ok'] == true, !app.can('appearance') ? 'Not available' : helper?['ok'] == true ? 'Found' : 'Not found'),
       ),
       _Row(
         'integration',
         'maprisma-theme-core',
-        'The panel applet and the keyboard shortcuts run it.',
+        'Applies themes and manages app settings.',
         status(core?['ok'] == true, core?['ok'] == true ? 'Found' : 'Not found'),
       ),
       _Row(
@@ -539,7 +539,7 @@ class _SettingsPageState extends State<SettingsPage> {
         'Panel applet',
         applet?['in_panel'] == true
             ? 'In the panel: click toggles this window, scroll changes the wallpaper, right-click shows your favorites'
-            : 'Add “Maprisma Theme” in COSMIC Settings → Desktop → Panel → Applets',
+            : 'Add “Maprisma Theme” in ${app.desktopName} Settings → Desktop → Panel → Applets',
         status(
           applet?['ok'] == true && applet?['in_panel'] == true,
           applet?['ok'] != true
@@ -554,7 +554,7 @@ class _SettingsPageState extends State<SettingsPage> {
         'Shortcut file',
         '${keys?['note'] ?? ''}'.isNotEmpty
             ? '${keys!['note']}'
-            : "${keys?['keys'] ?? 0} key(s) in COSMIC's custom shortcuts",
+            : "${keys?['keys'] ?? 0} key(s) in ${app.desktopName}'s custom shortcuts",
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -574,6 +574,11 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
       ),
     ]);
+    out.removeWhere((r) =>
+      (!app.can('shortcuts') && (r.section == 'shortcuts' || r.title == 'Shortcut file')) ||
+      (!app.can('panel') && r.title == 'Panel applet') ||
+      (!app.can('wallpaper') && r.title == 'Change the wallpaper') ||
+      (!app.can('workspaces') && (r.title == 'A wallpaper for each workspace' || r.title == 'A theme for each workspace')));
     return out;
   }
 
@@ -616,7 +621,7 @@ class _SettingsPageState extends State<SettingsPage> {
     return Padding(
       padding: const EdgeInsets.only(top: 8, bottom: 4),
       child: Tooltip(
-        message: _sectionHints[key] ?? '',
+        message: (key == 'wallpapers' && !app.can('panel')) ? '' : _sectionHints[key] ?? '',
         child: Text(
           _sectionName(key),
           style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1, color: look.fg),
@@ -635,6 +640,12 @@ class _SettingsPageState extends State<SettingsPage> {
         children.add(_heading(r.section));
       }
       children.add(_rowWidget(r));
+    }
+    if (search.trim().isEmpty && section == 'general' && !app.can('shortcuts')) {
+      children.add(Text('Keyboard shortcuts are not available on ${app.desktopName} yet.', style: hintStyle(context)));
+    }
+    if (search.trim().isEmpty && section == 'wallpapers' && !app.can('workspaces')) {
+      children.add(Text('Workspaces are not available on ${app.desktopName} yet.', style: hintStyle(context)));
     }
     if (shown.isEmpty && search.trim().isNotEmpty) {
       children.add(
@@ -655,6 +666,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
+    AppScope.of(context);
     final look = Look.of(context);
     final r = corners(context);
     final reset = _small(
@@ -752,7 +764,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           child: ListView(
                             scrollDirection: Axis.horizontal,
                             children: [
-                              for (final (key, name) in _sections)
+                              for (final (key, name) in _sections.where((s) => s.$1 != 'shortcuts' || app.can('shortcuts')))
                                 Padding(
                                   padding: const EdgeInsets.only(right: 5),
                                   child: navButton(key, name, chip: true),
@@ -780,7 +792,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            for (final (key, name) in _sections)
+                            for (final (key, name) in _sections.where((s) => s.$1 != 'shortcuts' || app.can('shortcuts')))
                               Padding(padding: const EdgeInsets.only(bottom: 4), child: navButton(key, name)),
                             const Spacer(),
                             Align(alignment: Alignment.centerLeft, child: reset),

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'apps.dart';
 import 'colors.dart';
 import 'context.dart';
+import 'desktop.dart';
 import 'store.dart';
 import 'themes.dart';
 
@@ -39,8 +40,12 @@ Future<Map<String, String>> themeColors(Ctx ctx, ThemeInfo theme) async {
   return resolved;
 }
 
-/// Applies a theme everywhere (docs/plan.md, "Apply theme"): COSMIC, the
-/// wallpaper, icons, font, COSMIC Terminal and the app templates.
+/// Applies a theme everywhere (docs/plan.md, "Apply theme"): the desktop's
+/// own theme, the wallpaper, icons, font, the desktop's terminal and the app
+/// templates; whatever the desktop backend cannot do is left out
+/// (docs/multi-desktop.md), so on a desktop without a backend only the app
+/// templates change. A COSMIC RON theme is applied as its colors where the
+/// desktop cannot take RON files.
 /// [wallpaper]: a file to show instead of the theme's start wallpaper.
 Future<Map<String, dynamic>> applyTheme(Ctx ctx, String slug, {String? wallpaper, bool remember = true}) async {
   final theme = ctx.theme(slug);
@@ -49,12 +54,22 @@ Future<Map<String, dynamic>> applyTheme(Ctx ctx, String slug, {String? wallpaper
     throw RouteError('bad_theme', 'the theme has no usable colors');
   }
   final object = colorsObject(resolved);
-  final ok = theme.cosmicNative
-      ? await ctx.desktop.applyRon('${theme.dir}/cosmic.ron')
-      : await ctx.desktop.applyColors(object);
-  if (!ok) throw RouteError('apply_failed', 'COSMIC did not take the theme (is maprisma-theme-helper installed?)');
-
-  final done = <String>[ctx.desktop.id];
+  final desktop = ctx.desktop;
+  final done = <String>[];
+  if (desktop.caps.contains(Cap.appearance)) {
+    final ok = theme.cosmicNative && desktop.caps.contains(Cap.ron)
+        ? await desktop.applyRon('${theme.dir}/cosmic.ron')
+        : await desktop.applyColors(object);
+    if (!ok) {
+      throw RouteError(
+        'apply_failed',
+        desktop.id == 'cosmic'
+            ? 'COSMIC did not take the theme (is maprisma-theme-helper installed?)'
+            : '${desktop.name} did not take the theme',
+      );
+    }
+    done.add(desktop.id);
+  }
   final wp = wallpaper ?? startWallpaper(ctx, theme)?.path;
   if (wp != null && File(wp).existsSync() && await ctx.desktop.setWallpaper(wp)) {
     done.add('wallpaper');
@@ -63,8 +78,8 @@ Future<Map<String, dynamic>> applyTheme(Ctx ctx, String slug, {String? wallpaper
     ctx.current.save(slug: slug, clearWallpaper: true);
   }
   final icons = theme.iconTheme;
-  if (icons != null && ctx.desktop.setIconTheme(icons)) done.add('icons');
-  if (await _applyFont(ctx, theme)) done.add('font');
+  if (icons != null && await ctx.desktop.setIconTheme(icons)) done.add('icons');
+  if (desktop.caps.contains(Cap.fonts) && await _applyFont(ctx, theme)) done.add('font');
   if (await ctx.desktop.setTerminal(object, theme.name)) done.add('terminal');
   done.addAll(await applyAppTemplates(ctx, theme, resolved));
 
@@ -76,21 +91,26 @@ Future<Map<String, dynamic>> applyTheme(Ctx ctx, String slug, {String? wallpaper
   return {'applied': slug, 'done': done};
 }
 
+/// The setting that keeps the user's own font: one per desktop, as each has
+/// its own monospace font (COSMIC keeps the old name).
+String ownFontKey(Desktop d) => d.id == 'kde' ? 'own_font_kde' : 'own_font';
+
 /// A theme's own font, and the user's own font back for any other theme.
 Future<bool> _applyFont(Ctx ctx, ThemeInfo theme) async {
-  final own = ctx.settings.get('own_font') as String?;
+  final key = ownFontKey(ctx.desktop);
+  final own = ctx.settings.get(key) as String?;
   final themed = theme.font;
   if (themed != null) {
     final now = ctx.desktop.monospaceFont();
     if (now == themed) return false;
     if (!await ctx.desktop.setMonospaceFont(themed)) return false;
     // The font to go back to; COSMIC's default when none was set.
-    if (own == null) ctx.settings.set('own_font', now ?? defaultFontMark);
+    if (own == null) ctx.settings.set(key, now ?? defaultFontMark);
     return true;
   }
   if (own != null) {
     final ok = own == defaultFontMark ? await ctx.desktop.resetMonospaceFont() : await ctx.desktop.setMonospaceFont(own);
-    ctx.settings.set('own_font', null);
+    if (ok) ctx.settings.set(key, null); // kept until the user's font is really back
     return ok;
   }
   return false;

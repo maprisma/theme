@@ -109,7 +109,7 @@ class _WallpapersPageState extends State<WallpapersPage> {
     final r = await app.run('wallpapers.list', {'slug': widget.slug});
     final ws = <int, String>{};
     try {
-      final w = await app.call('auto.workspace_wallpapers', {'slug': widget.slug});
+      final w = app.can('workspaces') ? await app.call('auto.workspace_wallpapers', {'slug': widget.slug}) : <String, dynamic>{};
       for (final e in ((w['map'] as Map?) ?? const {}).entries) {
         final n = int.tryParse('${e.key}');
         if (n != null && e.value is String) ws[n] = e.value as String;
@@ -244,6 +244,7 @@ class _WallpapersPageState extends State<WallpapersPage> {
   }
 
   Future<void> startPreview(String path, {int seconds = 0}) async {
+    if (!app.can('wallpaper')) return;
     previewTimer?.cancel();
     previewTimer = null;
     final r = await _try('wallpapers.preview', {'path': path}, 'No preview');
@@ -335,14 +336,14 @@ class _WallpapersPageState extends State<WallpapersPage> {
     final hidden = w['hidden'] == true;
     final ws = workspacesOf('${w['name']}');
     return [
-      if (isCurrent && !hidden) item(Icons.wallpaper_outlined, 'Set as background', () => setBackground(w)),
-      if (!hidden)
+      if (app.can('wallpaper') && isCurrent && !hidden) item(Icons.wallpaper_outlined, 'Set as background', () => setBackground(w)),
+      if (app.can('wallpaper') && !hidden)
         item(Icons.visibility_outlined, 'Preview on desktop', () => startPreview(w['path'] as String, seconds: previewSeconds),
             tooltip: 'Shows it for $previewSeconds seconds; or hold Space on the tile'),
       if (!hidden)
         item(Icons.palette_outlined, 'New theme from this wallpaper…', () => newTheme(w),
             tooltip: "A theme in this picture's colors, with this wallpaper"),
-      if (!hidden)
+      if (app.can('workspaces') && !hidden)
         item(Icons.grid_view, ws.isEmpty ? 'Show on workspace…' : 'On workspace ${ws.join(', ')}…', () => showOnWorkspaces(w),
             end: Icons.chevron_right,
             tooltip: 'This wallpaper appears whenever you switch to that workspace'
@@ -387,7 +388,7 @@ class _WallpapersPageState extends State<WallpapersPage> {
     final key = e.logicalKey;
     final ctrl = HardwareKeyboard.instance.isControlPressed;
     final list = tiles;
-    if (key == LogicalKeyboardKey.space && filter.isEmpty) {
+    if (app.can('wallpaper') && key == LogicalKeyboardKey.space && filter.isEmpty) {
       final t = selected < list.length ? list[selected] : null;
       if (e is KeyDownEvent && t != null && t['hidden'] != true && t['problem'] == null) {
         startPreview(t['path'] as String);
@@ -532,7 +533,7 @@ class _WallpapersPageState extends State<WallpapersPage> {
       onSecondaryTap: () => menuKey.currentState?.showButtonMenu(),
       menu: TileMenuButton(menuKey: menuKey, tooltip: 'Wallpaper actions (Enter)', menu: () => menuFor(w)),
       topLeft: [
-        if (ws.isNotEmpty)
+        if (app.can('workspaces') && ws.isNotEmpty)
           TileBadge('ws ${ws.join(' · ')}', kind: BadgeKind.workspace, tooltip: 'Shown on workspace ${ws.join(', ')}'),
       ],
       bottomLeft: [if (hidden) const TileBadge('hidden')],

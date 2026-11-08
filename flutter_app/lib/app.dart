@@ -59,6 +59,28 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
   final navigator = GlobalKey<NavigatorState>();
   final messenger = GlobalKey<ScaffoldMessengerState>();
   final shotKey = GlobalKey();
+  String desktopName = 'COSMIC';
+  String terminalName = 'COSMIC Terminal';
+  Set<String> _caps = {
+    'appearance', 'ron', 'wallpaper', 'terminal', 'fonts', 'icons',
+    'workspaces', 'tiling', 'windows', 'shortcuts', 'panel',
+  };
+  bool can(String cap) => _caps.contains(cap);
+
+  Future<void> _refreshDesktop() async {
+    try {
+      final info = await call('desktop.info');
+      if (!mounted || info['caps'] is! List) return;
+      setState(() {
+        desktopName = info['name'] as String? ?? desktopName;
+        terminalName = info['terminal'] as String? ?? terminalName;
+        _caps = Set<String>.from(info['caps'] as List);
+      });
+    } catch (_) {
+      // Keep the last desktop information while the core is unavailable.
+    }
+  }
+
   Map colors = const {};
   int? windowRadius;
   Map<String, dynamic> settings = const {};
@@ -135,6 +157,7 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
   /// Reloads the desktop's colors and the settings (after applying a theme
   /// the window restyles in the new colors, as the plugin's popup).
   Future<void> refreshLook() async {
+    await _refreshDesktop();
     try {
       final look = await call('desktop.look');
       final s = await call('settings.get');
@@ -566,7 +589,7 @@ String errorText(Object e) {
   final m = RegExp(r'Service operation failed: (\w+)').firstMatch(s);
   if (m != null) {
     return switch (m[1]) {
-      'apply_failed' => 'COSMIC did not take the theme. Is maprisma-theme-helper installed?',
+      'apply_failed' => 'The desktop did not take the theme.',
       'not_found' => 'Not found any more.',
       'timeout' => 'That took too long.',
       final code => 'Failed: ${code!.replaceAll('_', ' ')}',

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:maprisma_theme_core/maprisma_theme_core.dart';
 import 'package:maprisma_theme_core/src/desktop_cosmic.dart';
+import 'package:maprisma_theme_core/src/desktop_kde.dart';
 import 'package:maprisma_theme_core/src/desktops.dart';
 import 'package:test/test.dart';
 
@@ -23,7 +24,8 @@ void main() {
     expect(select({'XDG_CURRENT_DESKTOP': 'pop:cosmic'}), isA<CosmicDesktop>());
     expect(select({'XDG_CURRENT_DESKTOP': ' Cosmic '}), isA<CosmicDesktop>());
     expect(select({'XDG_CURRENT_DESKTOP': 'COSMICX'}), isA<GenericDesktop>());
-    expect(select({'XDG_CURRENT_DESKTOP': 'KDE'}), isA<GenericDesktop>());
+    expect(select({'XDG_CURRENT_DESKTOP': 'KDE'}), isA<KdeDesktop>());
+    expect(select({'XDG_CURRENT_DESKTOP': 'GNOME'}), isA<GenericDesktop>());
     expect(select({'XDG_CURRENT_DESKTOP': ''}), isA<GenericDesktop>());
     expect(select({}), isA<GenericDesktop>());
   });
@@ -41,7 +43,7 @@ void main() {
     expect(await d.applyRon('/x.ron'), isFalse);
     expect(await d.setWallpaper('/x.png'), isFalse);
     expect(await d.setTerminal({}, 'x'), isFalse);
-    expect(d.setIconTheme('Adwaita'), isFalse);
+    expect(await d.setIconTheme('Adwaita'), isFalse);
     expect((await d.wm(['workspaces']))?['error'], 'not_available');
     expect(d.shortcutBinder(paths), isNull);
     expect(await d.health(paths, const {}), isEmpty);

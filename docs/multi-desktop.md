@@ -121,6 +121,17 @@ Started by an XDG autostart entry.
 2. **Go multi-desktop**: activate `selectDesktop`; Generic = template-only apply, `current()` from the applied theme (Codex step-1 finding) (explicit success
    without desktop appearance), RON → colors when the desktop cannot apply RON; UI gates operations by
    caps; per-desktop state namespacing; KdeDesktop appearance: colors, wallpaper, Konsole, fonts, icons.
+2b. **KDE Store import** (user request 2026-11-08): a third Import tab next to omarchy.org and
+   cosmic-themes.org, shown on every desktop. Source: the KDE Store's public OCS API
+   (`https://api.kde-look.org/ocs/v1/content/data?categories=112&sortmode=high|new&search=&page=`,
+   category 112 = Plasma color schemes, ~2200 items with `previewpic1`, `score`, `downloadlink1`/
+   `downloadname1` = a `.colors` file; checked 2026-11-08). Install = download the `.colors` (HTTPS,
+   exact host shapes `api.kde-look.org` / `files*.pling.com` / `images.pling.com`, size-capped, parsed
+   as INI before it is kept), convert to Omarchy colors (`colors.toml`: Window → background/foreground,
+   Selection → accent/selection, View/Complementary for the shades, Negative/Positive/Neutral/Link/
+   Visited for red/green/yellow/blue/magenta) and keep the original as `kde.colors` in the theme folder
+   (like `cosmic.ron`). On KDE such a theme is applied with its own file (`kdeNative`), elsewhere as
+   its colors. Later maybe: Konsole Color Schemes (category 462) as terminal palettes.
 3. **Daemon + tray icon**; coordinated automation handover from the COSMIC applet.
 4. **KDE workspaces/windows/shortcuts** (KWin bridge script + kglobalaccel actions); presets live-tested.
 5. Optional: Plasma panel widget.

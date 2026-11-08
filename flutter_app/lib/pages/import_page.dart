@@ -604,11 +604,12 @@ class _CosmicTabState extends State<_CosmicTab> with _Gallery<_CosmicTab> {
   @override
   Widget build(BuildContext context) {
     final look = Look.of(context);
+    final native = AppScope.of(context).can('ron');
     final hint = status ??
         error ??
         (loading
             ? 'Loading themes from cosmic-themes.org…'
-            : "Native COSMIC themes from cosmic-themes.org. Enter opens a theme's menu: install, install and apply, or open its page.");
+            : "${native ? 'Native COSMIC themes' : 'Theme colors'} from cosmic-themes.org. Enter opens a theme's menu: install, install and apply, or open its page.");
     return gallery(
       toolbar: _Toolbar(
         controller: search,

@@ -122,8 +122,8 @@ class _PresetsPageState extends State<PresetsPage> {
 
   Future<void> reload() async {
     final a = app!;
-    final w = await a.run('workspaces.get');
-    final l = await a.run('workspaces.looks');
+    final w = a.can('workspaces') ? await a.run('workspaces.get') : null;
+    final l = a.can('workspaces') ? await a.run('workspaces.looks') : null;
     final p = await a.run('presets.list');
     final t = await a.run('themes.list');
     if (!mounted) return;
@@ -233,7 +233,7 @@ class _PresetsPageState extends State<PresetsPage> {
       final result = await app!.run(route, params);
       if (result == null) return null;
       String? applied;
-      if (tiling) {
+      if (tiling && app!.can('workspaces') && app!.can('tiling') && app!.can('windows')) {
         try {
           applied = (await app!.call('workspaces.apply'))['receipt'] as String?;
         } catch (_) {
@@ -417,7 +417,7 @@ class _PresetsPageState extends State<PresetsPage> {
     final scheme = Theme.of(context).colorScheme;
     final chosen = ws == current();
     final pic = pictureOf(ws);
-    final text = summary(ws);
+    final text = app!.can('tiling') ? summary(ws) : title(ws);
     final picture = AspectRatio(
       aspectRatio: 16 / 9,
       child: Stack(
@@ -472,7 +472,7 @@ class _PresetsPageState extends State<PresetsPage> {
             ),
           ),
           const SizedBox(height: 4),
-          picture,
+          if (app!.can('tiling')) picture,
           const SizedBox(height: 3),
           Text(text,
               maxLines: 1,
@@ -508,6 +508,7 @@ class _PresetsPageState extends State<PresetsPage> {
   /// Wide: the preview on the right shows it (it is chosen); narrow: the
   /// large preview over the page, the small picture fading out.
   void zoom(int ws, bool wide) {
+    if (!app!.can('tiling')) return;
     select(ws);
     if (wide) {
       previewFocus.requestFocus();
@@ -849,22 +850,22 @@ class _PresetsPageState extends State<PresetsPage> {
     if (ws == 0) {
       final cap = globalCap;
       return [
-        groupCard([
+        if (app!.can('windows') && app!.can('tiling')) groupCard([
           toggle('Tiling active', 'Window limits with overflow to the next workspace with room',
               state['active'] == true, (v) => setWs(0, {'active': v}, v ? 'Tiling active' : 'Tiling off'),
               tooltip: 'Move new windows when full · Manual moves override'),
         ]),
-        groupCard(title: 'Default window limit (all workspaces)', [
+        if (app!.can('windows')) groupCard(title: 'Default window limit (all workspaces)', [
           choiceRow([
             for (var n = 1; n <= 4; n++)
               (label: '$n', on: cap == n, tap: () => setLimit(0, n), tooltip: 'Default: ${windows(n)}'),
           ]),
         ]),
-        groupCard(title: 'Default layout preset', [
+        if (app!.can('tiling')) groupCard(title: 'Default layout preset', [
           layoutChoices(0, cap, defaults['$cap'] as String?, width),
           hint('For ${windows(cap)} on workspaces without a layout of their own. Click again to remove it (Native).'),
         ]),
-        groupCard(title: 'Preset & App Preset management (all workspaces)', [
+        if (app!.can('tiling') && app!.can('windows')) groupCard(title: 'Preset & App Preset management (all workspaces)', [
           Wrap(spacing: 8, runSpacing: 8, children: [
             action('Reset All to Default', Icons.undo,
                 () => perform('workspaces.bulk', {'action': 'reset_all'}, 'All workspaces reset to the default',
@@ -887,7 +888,7 @@ class _PresetsPageState extends State<PresetsPage> {
     final own = modes['$ws'] as String?;
     final fallback = defaults['$cap'] as String?;
     return [
-      groupCard(title: 'Window limit', [
+      if (app!.can('windows')) groupCard(title: 'Window limit', [
         choiceRow([
           for (var n = 1; n <= 4; n++)
             (label: '$n', on: cap == n, tap: () => setLimit(ws, n), tooltip: 'Set Workspace $ws limit to ${windows(n)}'),
@@ -898,7 +899,7 @@ class _PresetsPageState extends State<PresetsPage> {
               () => setWs(ws, {'limit': null}, 'Workspace $ws: default limit', tiling: true)),
         ],
       ]),
-      groupCard(title: 'Layout preset', [
+      if (app!.can('tiling')) groupCard(title: 'Layout preset', [
         if (cap <= 1)
           Padding(
             padding: const EdgeInsets.only(bottom: 6),
@@ -911,7 +912,7 @@ class _PresetsPageState extends State<PresetsPage> {
           hint('Uses the default for ${windows(cap)}: ${modeLabel(fallback)}.'),
         const SizedBox(height: 8),
         action('Reset Workspace to Default', Icons.undo,
-            () => setWs(ws, {'limit': null, 'mode': null}, 'Workspace $ws reset to the default', tiling: true)),
+            () => setWs(ws, {'mode': null, if (app!.can('windows')) 'limit': null}, 'Workspace $ws reset to the default', tiling: true)),
       ]),
       lookControls(ws),
     ];
@@ -1175,7 +1176,7 @@ class _PresetsPageState extends State<PresetsPage> {
               (v) => perform('apppresets.autostart', {'workspace': ws, 'enabled': v},
                   v ? 'Autostart on for Workspace $ws' : 'Autostart off for Workspace $ws')),
         ],
-        hint('Documents, window positions and sizes are not saved: COSMIC places the windows.'),
+        hint('Documents, window positions and sizes are not saved: ${app!.desktopName} places the windows.'),
       ]),
       groupCard([
         toggle('Auto-move on restore', 'Move existing windows to next free workspace without asking',
@@ -1197,7 +1198,7 @@ class _PresetsPageState extends State<PresetsPage> {
   Widget workspaceTab() {
     final scheme = Theme.of(context).colorScheme;
     return LayoutBuilder(builder: (context, box) {
-      final wide = box.maxWidth >= _wideFrom;
+      final wide = box.maxWidth >= _wideFrom && app!.can('tiling');
       final leftW = (wide ? (box.maxWidth - 32) * 0.56 : box.maxWidth - 32).floorToDouble();
       final ws = current();
       final left = Column(
@@ -1245,7 +1246,7 @@ class _PresetsPageState extends State<PresetsPage> {
         !await confirm(context, 'Replace “$text”?', 'A preset with this name already exists.', action: 'Replace')) {
       return;
     }
-    final r = await perform('presets.save', {'name': text, 'includeWorkspaces': include}, 'Saved preset “$text”');
+    final r = await perform('presets.save', {'name': text, 'includeWorkspaces': include && app!.can('workspaces') && app!.can('tiling') && app!.can('windows')}, 'Saved preset “$text”');
     if (r != null) name.clear();
   }
 
@@ -1337,7 +1338,7 @@ class _PresetsPageState extends State<PresetsPage> {
             child: const Text('Save current'),
           ),
         ]),
-        CheckboxListTile(
+        if (app!.can('workspaces') && app!.can('tiling') && app!.can('windows')) CheckboxListTile(
           contentPadding: EdgeInsets.zero,
           controlAffinity: ListTileControlAffinity.leading,
           dense: true,
@@ -1350,6 +1351,9 @@ class _PresetsPageState extends State<PresetsPage> {
       ],
     );
   }
+
+  bool canApplyPreset(Map p) => p['workspaces'] == null ||
+      (app!.can('workspaces') && app!.can('tiling') && app!.can('windows'));
 
   Widget presetRow(Map p) {
     final scheme = Theme.of(context).colorScheme;
@@ -1377,12 +1381,13 @@ class _PresetsPageState extends State<PresetsPage> {
               overflow: TextOverflow.ellipsis,
               style: small,
             ),
-            if (ws != null) Text('Workspace presets: $layoutCount · App presets: $appCount', style: small),
+            if (!canApplyPreset(p)) Text('This preset needs workspace features unavailable on ${app!.desktopName}.', style: small),
+            if (app!.can('workspaces') && ws != null) Text('Workspace presets: $layoutCount · App presets: $appCount', style: small),
           ]),
         ),
         const SizedBox(width: 6),
-        OutlinedButton(onPressed: busy || theme == null ? null : () => applyPreset(p), child: const Text('Apply')),
-        IconButton(
+        if (canApplyPreset(p)) OutlinedButton(onPressed: busy || theme == null ? null : () => applyPreset(p), child: const Text('Apply')),
+        if (app!.can('workspaces')) IconButton(
           tooltip: 'Assign theme and/or wallpaper to workspace',
           icon: const Icon(Icons.grid_view),
           onPressed: busy || theme == null ? null : () => assign(p),
@@ -1404,7 +1409,11 @@ class _PresetsPageState extends State<PresetsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final z = zoomed;
+    AppScope.of(context);
+    final hasWorkspaces = app!.can('workspaces');
+    final hasApps = hasWorkspaces && app!.can('windows');
+    final effectiveTab = !hasWorkspaces || (tab == 1 && !hasApps) ? 2 : tab;
+    final z = hasWorkspaces && app!.can('tiling') ? zoomed : null;
     return PopScope(
       canPop: z == null,
       onPopInvokedWithResult: (didPop, _) {
@@ -1420,19 +1429,19 @@ class _PresetsPageState extends State<PresetsPage> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                   child: Wrap(spacing: 8, runSpacing: 8, children: [
-                    tabButton(0, Icons.grid_view, 'Workspaces'),
-                    tabButton(1, Icons.apps, 'App Presets'),
+                    if (hasWorkspaces) tabButton(0, Icons.grid_view, 'Workspaces'),
+                    if (hasApps) tabButton(1, Icons.apps, 'App Presets'),
                     tabButton(2, Icons.download_outlined, 'Save/Load Presets'),
                   ]),
                 ),
-                Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 8), child: note()),
+                Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 8), child: hasWorkspaces && app!.can('tiling') && app!.can('windows') ? note() : Text('${hasWorkspaces ? 'Tiling and window limits' : 'Workspaces'} are not available on ${app!.desktopName} yet.')),
                 SizedBox(height: 2, child: busy ? const LinearProgressIndicator() : null),
                 Expanded(
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 120),
                     layoutBuilder: (current, previous) =>
                         Stack(fit: StackFit.expand, children: [...previous, ?current]),
-                    child: KeyedSubtree(key: ValueKey(tab), child: tab == 2 ? savedTab() : workspaceTab()),
+                    child: KeyedSubtree(key: ValueKey(effectiveTab), child: effectiveTab == 2 ? savedTab() : workspaceTab()),
                   ),
                 ),
               ],

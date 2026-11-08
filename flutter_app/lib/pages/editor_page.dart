@@ -427,7 +427,7 @@ class _EditorPageState extends State<EditorPage> {
             ),
           ),
         ),
-        _row(
+        if (AppScope.of(context).can('fonts')) _row(
           'Font',
           Tooltip(
             message:
