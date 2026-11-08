@@ -277,7 +277,6 @@ class _PresetsPageState extends State<PresetsPage> {
       ('left', 'Gap left', 200),
       ('between', 'Gap between windows', 200),
       ('border', 'Active window frame', 16),
-      ('inset', 'Frame distance from screen edge', 32),
     ];
     final values = {for (final f in fields) f.$1: (now[f.$1] as num?)?.toInt() ?? 0};
     final result = await showDialog<Map<String, int>>(
