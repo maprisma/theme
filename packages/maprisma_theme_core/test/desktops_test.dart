@@ -51,14 +51,14 @@ void main() {
   });
 
   test('COSMIC has every cap; desktop.info and core.hello name the backend', () async {
-    expect(CosmicDesktop(paths, const {}).caps, Cap.values.toSet());
+    expect(CosmicDesktop(paths, const {}).caps, Cap.values.toSet().difference({Cap.kdeScheme}));
     final env = TestEnv.create();
     addTearDown(env.dispose);
     final info = await env.core.call('desktop.info');
     expect(info['id'], 'cosmic');
     expect(info['name'], 'COSMIC');
     expect(info['terminal'], 'COSMIC Terminal');
-    expect(info['caps'], [for (final c in Cap.values) c.name]);
+    expect(info['caps'], [for (final c in Cap.values) c.name]); // the fake has every cap
     expect((await env.core.call('core.hello'))['desktop'], 'cosmic');
   });
 

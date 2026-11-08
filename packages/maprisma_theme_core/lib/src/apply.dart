@@ -57,7 +57,9 @@ Future<Map<String, dynamic>> applyTheme(Ctx ctx, String slug, {String? wallpaper
   final desktop = ctx.desktop;
   final done = <String>[];
   if (desktop.caps.contains(Cap.appearance)) {
-    final ok = theme.cosmicNative && desktop.caps.contains(Cap.ron)
+    final ok = theme.kdeNative && desktop.caps.contains(Cap.kdeScheme)
+        ? await desktop.applyKdeScheme('${theme.dir}/kde.colors')
+        : theme.cosmicNative && desktop.caps.contains(Cap.ron)
         ? await desktop.applyRon('${theme.dir}/cosmic.ron')
         : await desktop.applyColors(object);
     if (!ok) {

@@ -65,6 +65,16 @@ void main() {
     expect(File('$schemes/MaprismaB.colors').existsSync(), isTrue);
   });
 
+  test('a KDE Store scheme is applied as it is, under the alternating name', () async {
+    final file = File('${root.path}/one.colors')
+      ..writeAsStringSync('[Colors:Window]\nBackgroundNormal=40,44,52\nForegroundNormal=220,223,228\n\n[General]\nColorScheme=OneDark\nName=One Dark\n');
+    expect(await kde.applyKdeScheme(file.path), isTrue);
+    final applied = File('${paths.data}/color-schemes/MaprismaA.colors').readAsStringSync();
+    expect(iniValue(applied, 'General', 'ColorScheme'), 'MaprismaA');
+    expect(iniValue(applied, 'Colors:Window', 'BackgroundNormal'), '40,44,52');
+    expect(file.readAsStringSync(), contains('ColorScheme=OneDark')); // the theme's own file stays as it came
+  });
+
   test('colors: a tool that does not switch the scheme is a failure', () async {
     tool('plasma-apply-colorscheme', 'true');
     expect(await kde.applyColors(colors), isFalse);
@@ -149,7 +159,7 @@ void main() {
   });
 
   test('caps and the rest of the contract', () async {
-    expect(kde.caps, {Cap.appearance, Cap.wallpaper, Cap.terminal, Cap.fonts, Cap.icons});
+    expect(kde.caps, {Cap.appearance, Cap.kdeScheme, Cap.wallpaper, Cap.terminal, Cap.fonts, Cap.icons});
     expect(await kde.applyRon('/x.ron'), isFalse);
     expect((await kde.wm(['workspaces']))?['error'], 'not_available');
     expect(kde.shortcutBinder(paths), isNull);

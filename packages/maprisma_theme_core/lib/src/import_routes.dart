@@ -1,6 +1,7 @@
 import 'apply.dart';
 import 'auto.dart';
 import 'catalog_cosmic.dart';
+import 'catalog_kde.dart';
 import 'catalog_omarchy.dart';
 import 'context.dart';
 import 'import_net.dart';
@@ -79,10 +80,39 @@ Map<String, Handler> importRoutes(Ctx ctx) => {
     return _maybeApply(ctx, slug, boolParam(p, 'apply', fallback: false));
   },
 
-  // A theme's page (GitHub repository, cosmic-themes.org entry) in the browser.
+  // KDE Store (Plasma color schemes)
+  'import.kde_list': (p) async {
+    final page = p['page'] == null ? 1 : intParam(p, 'page', min: 1, max: 10000);
+    final sort = optStr(p, 'sort');
+    if (sort != null && !kdeSorts.any((s) => s['value'] == sort)) throw RouteError('bad_params', 'sort');
+    final search = optStr(p, 'search');
+    if (search != null && search.length > 200) throw RouteError('bad_params', 'search');
+    final (themes, next) = await fetchKdeList(search: search, sort: sort, page: page);
+    final installed = installedKdeIds(ctx);
+    return {
+      'themes': [
+        for (final t in themes)
+          {...t.toJson(), 'preview': cachedKdePreview(ctx, t.id), 'installed': installed.containsKey(t.id), 'slug': installed[t.id]},
+      ],
+      'next_page': next,
+      'sorts': kdeSorts,
+    };
+  },
+  'import.kde_preview': (p) async => {'path': await kdePreview(ctx, intParam(p, 'id', min: 1, max: 999999999))},
+  'import.kde_install': (p) async {
+    final id = intParam(p, 'id', min: 1, max: 999999999);
+    if (installedKdeIds(ctx)[id] case final slug?) {
+      throw RouteError('exists', 'this theme is already installed as “$slug”');
+    }
+    final (text, entry) = await downloadKdeColors(id);
+    final slug = installKdeColors(ctx, entry, text);
+    return _maybeApply(ctx, slug, boolParam(p, 'apply', fallback: false));
+  },
+
+  // A theme's page (GitHub repository, cosmic-themes.org entry, KDE Store page) in the browser.
   'import.open': (p) async {
     final url = str(p, 'url');
-    if (!omarchyOpenable(url) && !cosmicOpenable(url)) throw RouteError('bad_url', url);
+    if (!omarchyOpenable(url) && !cosmicOpenable(url) && !kdeOpenable(url)) throw RouteError('bad_url', url);
     return {'opened': await openInBrowser(url, ctx.environment)};
   },
 

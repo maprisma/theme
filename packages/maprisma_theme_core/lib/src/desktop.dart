@@ -17,6 +17,9 @@ enum Cap {
 
   /// applyRon: COSMIC ThemeBuilder files applied natively.
   ron,
+
+  /// applyKdeScheme: Plasma color scheme files applied natively.
+  kdeScheme,
   wallpaper,
 
   /// setTerminal: the desktop's own terminal gets a color scheme.
@@ -60,6 +63,9 @@ abstract interface class Desktop {
 
   /// Applies a COSMIC ThemeBuilder RON file (only with [Cap.ron]).
   Future<bool> applyRon(String path);
+
+  /// Applies a Plasma color scheme file as it is (only with [Cap.kdeScheme]).
+  Future<bool> applyKdeScheme(String path);
 
   /// The colors a COSMIC ThemeBuilder RON file stands for, or null (any
   /// backend: the helper only parses the file).
@@ -299,6 +305,12 @@ final class FakeDesktop implements Desktop {
   @override
   Future<bool> applyRon(String path) async {
     calls.add('applyRon $path');
+    return true;
+  }
+
+  @override
+  Future<bool> applyKdeScheme(String path) async {
+    calls.add('applyKdeScheme $path');
     return true;
   }
 

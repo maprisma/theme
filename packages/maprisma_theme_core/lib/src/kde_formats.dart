@@ -87,7 +87,8 @@ String setIniValue(String? text, String group, String key, String value) {
       '[$group]$newline$key=$value$newline';
 }
 
-String? _rgb(String? value) {
+/// A KDE color value ("r,g,b" or "r,g,b,a") as #rrggbb, or null.
+String? kdeRgb(String? value) {
   if (value == null) return null;
   final parts = value.split(',').map((p) => int.tryParse(p.trim())).toList();
   if ((parts.length != 3 && parts.length != 4) ||
@@ -99,15 +100,15 @@ String? _rgb(String? value) {
 
 /// A partial palette is unusable: callers need all three colors to draw a look.
 Map<String, dynamic>? kdeCurrentLook(String kdeglobals) {
-  final background = _rgb(
+  final background = kdeRgb(
     iniValue(kdeglobals, 'Colors:Window', 'BackgroundNormal'),
   );
-  final foreground = _rgb(
+  final foreground = kdeRgb(
     iniValue(kdeglobals, 'Colors:Window', 'ForegroundNormal'),
   );
   final accent =
-      _rgb(iniValue(kdeglobals, 'General', 'AccentColor')) ??
-      _rgb(iniValue(kdeglobals, 'Colors:Selection', 'BackgroundNormal'));
+      kdeRgb(iniValue(kdeglobals, 'General', 'AccentColor')) ??
+      kdeRgb(iniValue(kdeglobals, 'Colors:Selection', 'BackgroundNormal'));
   if (background == null || foreground == null || accent == null) return null;
   return {
     'colors': {

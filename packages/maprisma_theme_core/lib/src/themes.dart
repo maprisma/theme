@@ -56,6 +56,9 @@ final class ThemeInfo {
   bool get custom => !system && !fromGit && File('$dir/theme-manager.json').existsSync();
   bool get cosmicNative => File('$dir/cosmic.ron').existsSync();
 
+  /// A KDE Store theme: its Plasma color scheme as it came (`kde.colors`).
+  bool get kdeNative => File('$dir/kde.colors').existsSync();
+
   Map<String, dynamic> get meta => readJsonMap('$dir/theme-manager.json');
 
   Map<String, String> get rawColors {

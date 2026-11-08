@@ -9,8 +9,7 @@ import '../theme.dart';
 import '../widgets.dart';
 
 /// Import themes, as the plugin's import page: the omarchy.org gallery (git
-/// themes, applied on COSMIC through their colors.toml) and, as a second
-/// source, cosmic-themes.org (native COSMIC themes). A search field and the
+/// themes), cosmic-themes.org, and KDE Store color schemes. A search field and the
 /// reload button, a hint, then the themes as tiles; a tile's ☰ menu installs,
 /// installs and applies, or opens the theme's page. Typing searches, ↓ or
 /// Enter goes from the field to the tiles, the arrows move, Enter, Space or
@@ -29,33 +28,42 @@ class _ImportPageState extends State<ImportPage> {
   Widget build(BuildContext context) {
     final look = Look.of(context);
     final r = corners(context);
-    Widget tabButton(int i, String label) {
+    Widget tabButton(int i, String label, String source) {
       final on = tab == i;
       return Padding(
         padding: const EdgeInsets.only(right: 6),
-        child: OutlinedButton(
-          onPressed: () => setState(() => tab = i),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: on ? look.accent : look.fg,
-            backgroundColor: on ? look.accent.withValues(alpha: .08) : Colors.transparent,
-            side: BorderSide(color: on ? look.accent : look.fg.withValues(alpha: .25), width: on ? 2 : 1),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(r)),
+        child: Tooltip(
+          message: source,
+          child: OutlinedButton(
+            onPressed: () => setState(() => tab = i),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: on ? look.accent : look.fg,
+              backgroundColor: on ? look.accent.withValues(alpha: .08) : Colors.transparent,
+              side: BorderSide(color: on ? look.accent : look.fg.withValues(alpha: .25), width: on ? 2 : 1),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(r)),
+            ),
+            child: Text(label),
           ),
-          child: Text(label),
         ),
       );
     }
 
     return SubPage(
-      title: tab == 0 ? 'Import themes — omarchy.org' : 'Import themes — cosmic-themes.org',
+      title: 'Import themes — ${['omarchy.org', 'cosmic-themes.org', 'KDE Store'][tab]}',
       section: false,
       backTooltip: 'Back to themes (Left, Backspace or Esc)',
-      actions: [tabButton(0, 'omarchy.org'), tabButton(1, 'cosmic-themes.org')],
+      // short labels: three sources fit the header at the smallest window size
+      actions: [
+        tabButton(0, 'Omarchy', 'omarchy.org'),
+        tabButton(1, 'COSMIC', 'cosmic-themes.org'),
+        tabButton(2, 'KDE', 'KDE Store (store.kde.org)'),
+      ],
       body: IndexedStack(
         index: tab,
         children: [
           _OmarchyTab(active: tab == 0),
           _CosmicTab(active: tab == 1),
+          _KdeTab(active: tab == 2),
         ],
       ),
     );
@@ -64,12 +72,20 @@ class _ImportPageState extends State<ImportPage> {
 
 /// The search field with the reload button (or the sort) beside it.
 class _Toolbar extends StatelessWidget {
-  const _Toolbar({required this.controller, required this.focus, required this.hint, required this.onKey, this.trailing});
+  const _Toolbar({
+    required this.controller,
+    required this.focus,
+    required this.hint,
+    required this.onKey,
+    this.trailing,
+    this.maxLength = 100,
+  });
   final TextEditingController controller;
   final FocusNode focus;
   final String hint;
   final FocusOnKeyEventCallback onKey;
   final Widget? trailing;
+  final int maxLength;
 
   @override
   Widget build(BuildContext context) => Row(
@@ -80,7 +96,7 @@ class _Toolbar extends StatelessWidget {
           child: TextField(
             controller: controller,
             focusNode: focus,
-            maxLength: 100,
+            maxLength: maxLength,
             style: const TextStyle(fontSize: 14),
             decoration: InputDecoration(counterText: '', prefixIcon: const Icon(Icons.search, size: 18), hintText: hint),
           ),
@@ -245,6 +261,7 @@ mixin _Gallery<T extends StatefulWidget> on State<T> {
     bool busy = false,
     List<Widget> extraBadges = const [],
     String? tooltip,
+    Widget? caption,
   }) {
     final t = items[i];
     final menuKey = menuKeys.putIfAbsent(idOf(t), () => GlobalKey());
@@ -270,6 +287,7 @@ mixin _Gallery<T extends StatefulWidget> on State<T> {
       menu: TileMenuButton(menuKey: menuKey, tooltip: 'Theme actions (Enter)', enabled: !busy, menu: menu),
       bottomLeft: [if (installed) const TileBadge('installed'), ...extraBadges],
       captionText: name,
+      caption: caption,
     );
   }
 }
@@ -281,10 +299,18 @@ Widget _noPicture(BuildContext context) => ColoredBox(
 
 /// Installs through [method]; tells how it went and lets the other pages
 /// reload. True when the theme was installed.
-Future<bool> _install(MaprismaThemeAppState app, String method, Map<String, dynamic> params, String name, bool apply) async {
+Future<bool> _install(
+  MaprismaThemeAppState app,
+  String method,
+  Map<String, dynamic> params,
+  String name,
+  bool apply, {
+  void Function(Map<String, dynamic>)? onInstalled,
+}) async {
   app.notify(apply ? 'Installing and applying $name…' : 'Installing $name…', duration: const Duration(seconds: 60));
   final r = await app.run(method, {...params, 'apply': apply});
   if (r == null) return false;
+  onInstalled?.call(r);
   app.changed();
   if (r['apply_error'] != null) {
     app.notify('$name installed, but not applied: ${r['apply_error']}');
@@ -704,6 +730,288 @@ class _CosmicTabState extends State<_CosmicTab> with _Gallery<_CosmicTab> {
           extraBadges: [TileBadge(t['dark'] == true ? 'dark' : 'light')],
           menu: () => menu(t),
           picture: ColorPreview(colors: (t['preview'] as Map?) ?? const {}, title: '${t['name']}'),
+        );
+      },
+    );
+  }
+}
+
+// --- KDE Store -----------------------------------------------------------------
+
+class _KdeTab extends StatefulWidget {
+  const _KdeTab({required this.active});
+  final bool active;
+  @override
+  State<_KdeTab> createState() => _KdeTabState();
+}
+
+class _KdeTabState extends State<_KdeTab> with _Gallery<_KdeTab> {
+  List<Map<String, dynamic>> themes = [];
+  List<Map> sorts = const [
+    {'value': 'high', 'label': 'Rating'},
+    {'value': 'new', 'label': 'Newest'},
+    {'value': 'down', 'label': 'Downloads'},
+    {'value': 'alpha', 'label': 'Name'},
+  ];
+  String sort = 'high';
+  int? nextPage;
+  bool loading = true, loadingMore = false, started = false;
+  String? error, status;
+  final busy = <int>{};
+  Timer? _debounce;
+  String _lastSearch = '';
+  int _generation = 0;
+  final previews = <int, String>{};
+  final _queue = <int>[];
+  int _running = 0;
+
+  @override
+  Object idOf(Map<String, dynamic> t) => t['id'] as int;
+
+  @override
+  List<Map<String, dynamic>> get items => themes;
+
+  @override
+  void initState() {
+    super.initState();
+    search.addListener(() {
+      if (search.text.trim() == _lastSearch) return;
+      _debounce?.cancel();
+      _debounce = Timer(const Duration(milliseconds: 400), load);
+    });
+    scroll.addListener(() {
+      if (scroll.position.extentAfter < 400) more();
+    });
+    if (widget.active) _start();
+  }
+
+  @override
+  void didUpdateWidget(_KdeTab old) {
+    super.didUpdateWidget(old);
+    if (widget.active && !old.active) {
+      _start();
+      fieldFocus.requestFocus();
+    }
+  }
+
+  /// Only once the tab is opened: no request to store.kde.org before.
+  void _start() {
+    if (started) return;
+    started = true;
+    load();
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  Map<String, dynamic> get _params => {if (search.text.trim().isNotEmpty) 'search': search.text.trim(), 'sort': sort};
+
+  Future<void> load() async {
+    final gen = ++_generation;
+    _lastSearch = search.text.trim();
+    setState(() {
+      loading = true;
+      loadingMore = false;
+      nextPage = null;
+      error = null;
+      selected = 0;
+    });
+    try {
+      final r = await app.call('import.kde_list', _params);
+      if (!mounted || gen != _generation) return;
+      setState(() {
+        themes = [for (final t in r['themes'] as List) Map<String, dynamic>.from(t as Map)];
+        nextPage = r['next_page'] as int?;
+        final s = r['sorts'];
+        if (s is List && s.isNotEmpty) sorts = [for (final o in s) o as Map];
+        loading = false;
+      });
+      if (scroll.hasClients) scroll.jumpTo(0);
+    } catch (e) {
+      if (!mounted || gen != _generation) return;
+      setState(() {
+        loading = false;
+        error = 'Could not load the theme list: ${errorText(e)}';
+      });
+    }
+  }
+
+  /// The next page, when the grid is scrolled near its end.
+  Future<void> more() async {
+    final page = nextPage;
+    if (page == null || loading || loadingMore) return;
+    final gen = _generation;
+    setState(() => loadingMore = true);
+    try {
+      final r = await app.call('import.kde_list', {..._params, 'page': page});
+      if (!mounted || gen != _generation) return;
+      final have = {for (final t in themes) t['id']};
+      setState(() {
+        themes = [
+          ...themes,
+          for (final t in r['themes'] as List)
+            if (!have.contains((t as Map)['id'])) Map<String, dynamic>.from(t),
+        ];
+        nextPage = r['next_page'] as int?;
+      });
+    } catch (_) {
+      // the next scroll tries again
+    } finally {
+      if (mounted && gen == _generation) setState(() => loadingMore = false);
+    }
+  }
+
+  /// Cache missing previews, with at most four requests in flight.
+  void wantPreview(Map<String, dynamic> theme) {
+    final id = theme['id'] as int;
+    final cached = theme['preview'];
+    if (cached is String && cached.isNotEmpty) {
+      previews[id] = cached;
+      return;
+    }
+    if (previews.containsKey(id)) return;
+    previews[id] = '';
+    _queue.add(id);
+    scheduleMicrotask(_pump);
+  }
+
+  void _pump() {
+    if (!mounted) return;
+    while (_running < 4 && _queue.isNotEmpty) {
+      final id = _queue.removeLast();
+      _running++;
+      app
+          .call('import.kde_preview', {'id': id})
+          .then((r) {
+            if (mounted && r['path'] is String) {
+              setState(() => previews[id] = r['path'] as String);
+            }
+          })
+          .catchError((_) {})
+          .whenComplete(() {
+            _running--;
+            if (mounted) _pump();
+          });
+    }
+  }
+
+  Future<void> install(Map<String, dynamic> t, bool apply) async {
+    final id = t['id'] as int;
+    setState(() {
+      busy.add(id);
+      status = 'Installing ${t['name']}…';
+    });
+    final ok = await _install(app, 'import.kde_install', {'id': id}, t['name'] as String, apply, onInstalled: (r) => t['slug'] = r['slug']);
+    if (!mounted) return;
+    setState(() {
+      busy.remove(id);
+      status = null;
+      if (ok) t['installed'] = true;
+    });
+  }
+
+  List<PopupMenuEntry<VoidCallback>> menu(Map<String, dynamic> t) {
+    final installed = t['installed'] == true;
+    final slug = t['slug'];
+    return [
+      if (installed) ...[
+        item(Icons.check, 'Installed', () {}, enabled: false),
+        if (slug is String) item(Icons.play_arrow, 'Apply theme', () => _apply(app, slug, '${t['name']}')),
+      ] else ...[
+        item(Icons.download_outlined, 'Install', () => install(t, false)),
+        item(Icons.play_arrow, 'Install and apply', () => install(t, true)),
+      ],
+      menuLine(),
+      item(Icons.public, 'Open theme page', () => _open(app, t['page']), tooltip: '${t['page']}'),
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final look = Look.of(context);
+    final hint =
+        status ??
+        error ??
+        (loading
+            ? 'Loading themes from store.kde.org…'
+            : 'Plasma color schemes from the KDE Store (store.kde.org). On KDE Plasma they are applied as they are; elsewhere as their colors.');
+    return gallery(
+      toolbar: _Toolbar(
+        controller: search,
+        focus: fieldFocus,
+        hint: 'Search KDE Store',
+        maxLength: 200,
+        onKey: onFieldKey,
+        trailing: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            border: Border.all(color: look.fg.withValues(alpha: .25)),
+            borderRadius: BorderRadius.circular(corners(context)),
+          ),
+          child: DropdownButton<String>(
+            value: sorts.any((s) => s['value'] == sort) ? sort : null,
+            hint: const Text('Sort'),
+            isDense: true,
+            dropdownColor: look.bg,
+            underline: const SizedBox.shrink(),
+            style: Theme.of(context).textTheme.bodyMedium!.copyWith(fontSize: 13, color: look.fg),
+            items: [for (final s in sorts) DropdownMenuItem(value: '${s['value']}', child: Text('${s['label']}'))],
+            onChanged: (v) {
+              if (v == null || v == sort) return;
+              setState(() => sort = v);
+              load();
+            },
+          ),
+        ),
+      ),
+      hint: hint,
+      empty: loading
+          ? const Center(child: CircularProgressIndicator())
+          : error != null
+          ? null
+          : Text(search.text.trim().isEmpty ? 'No themes found.' : 'No theme matches “${search.text.trim()}”.', style: hintStyle(context)),
+      footer: loadingMore
+          ? const Padding(
+              padding: EdgeInsets.all(12),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          : nextPage != null && !loading
+          ? Center(
+              child: TextButton(onPressed: more, child: const Text('Load more')),
+            )
+          : null,
+      tile: (i, isSelected) {
+        final t = themes[i];
+        wantPreview(t);
+        final path = previews[t['id']] ?? '';
+        final author = '${t['author'] ?? ''}';
+        final downloads = t['downloads'] as int? ?? 0;
+        return themeTile(
+          i,
+          isSelected,
+          name: '${t['name']}',
+          tooltip: [if (author.isNotEmpty) 'by $author', '$downloads downloads'].join(' · '),
+          installed: t['installed'] == true,
+          busy: busy.contains(t['id']),
+          extraBadges: [TileBadge('Score: ${t['score'] ?? 0}/100')],
+          caption: Column(
+            children: [
+              Text(
+                '${t['name']}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 13, color: look.fg),
+              ),
+              if (author.isNotEmpty) Text('by $author', maxLines: 1, overflow: TextOverflow.ellipsis, style: hintStyle(context)),
+            ],
+          ),
+          menu: () => menu(t),
+          picture: path.isEmpty
+              ? _noPicture(context)
+              : Image.file(File(path), fit: BoxFit.cover, cacheWidth: 640, errorBuilder: (_, _, _) => _noPicture(context)),
         );
       },
     );

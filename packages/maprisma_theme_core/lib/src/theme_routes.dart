@@ -41,6 +41,7 @@ Map<String, dynamic> themeJson(Ctx ctx, ThemeInfo t, {required String current, r
   'custom': t.custom,
   'git': t.fromGit,
   'cosmic': t.cosmicNative,
+  'kde': t.kdeNative,
   'deletable': !t.system,
   'colors': swatches(t.colors),
   'font': t.font,

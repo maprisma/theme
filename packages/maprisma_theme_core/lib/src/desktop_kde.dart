@@ -35,7 +35,7 @@ final class KdeDesktop extends DesktopBase {
   @override
   String get terminalName => 'Konsole';
   @override
-  Set<Cap> get caps => const {Cap.appearance, Cap.wallpaper, Cap.terminal, Cap.fonts, Cap.icons};
+  Set<Cap> get caps => const {Cap.appearance, Cap.kdeScheme, Cap.wallpaper, Cap.terminal, Cap.fonts, Cap.icons};
 
   /// ~/.config (XDG_CONFIG_HOME): the folder COSMIC's config is in.
   String get _configHome => File(paths.cosmicConfig).parent.path;
@@ -85,10 +85,29 @@ final class KdeDesktop extends DesktopBase {
   Future<bool> applyColors(Map<String, String> colors) async {
     final template = readSmall('${paths.templates}/kde.colors.tpl', limit: 256 * 1024);
     if (template == null) return false;
-    final inUse = iniValue(_text(_kdeglobals), 'General', 'ColorScheme');
-    final name = inUse == kdeSchemeNames.first ? kdeSchemeNames.last : kdeSchemeNames.first;
+    final name = _nextSchemeName();
     final text = renderKdeScheme(template, resolveColors(colors), name);
     if (text == null) return false;
+    return _applyScheme(name, text);
+  }
+
+  /// A KDE Store scheme as it came, under Maprisma's alternating name.
+  @override
+  Future<bool> applyKdeScheme(String path) async {
+    final original = readSmall(path, limit: 256 * 1024);
+    if (original == null) return false;
+    final name = _nextSchemeName();
+    var text = setIniValue(original, 'General', 'ColorScheme', name);
+    text = setIniValue(text, 'General', 'Name', name);
+    return _applyScheme(name, text);
+  }
+
+  String _nextSchemeName() {
+    final inUse = iniValue(_text(_kdeglobals), 'General', 'ColorScheme');
+    return inUse == kdeSchemeNames.first ? kdeSchemeNames.last : kdeSchemeNames.first;
+  }
+
+  Future<bool> _applyScheme(String name, String text) async {
     final dir = '${paths.data}/color-schemes';
     try {
       writeText('$dir/$name.colors', text, mode: 420);

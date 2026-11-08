@@ -22,7 +22,10 @@ final class CosmicDesktop extends DesktopBase {
   @override
   String get terminalName => 'COSMIC Terminal';
   @override
-  Set<Cap> get caps => Cap.values.toSet();
+  Set<Cap> get caps => Cap.values.toSet().difference({Cap.kdeScheme});
+
+  @override
+  Future<bool> applyKdeScheme(String path) async => false;
 
   String get _cosmic => paths.cosmicConfig;
   String get _bgDir => '$_cosmic/com.system76.CosmicBackground/v1';
