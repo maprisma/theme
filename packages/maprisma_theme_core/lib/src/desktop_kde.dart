@@ -56,6 +56,9 @@ final class KdeDesktop extends DesktopBase {
 
   bool get krohnkiteEnabled => iniValue(_text(_kwinrc), 'Plugins', 'krohnkiteEnabled') == 'true';
 
+  /// Between switching Krohnkite off and on again (tests set it to zero).
+  static Duration krohnkiteRestartPause = const Duration(milliseconds: 1500);
+
   /// The desktop names Krohnkite leaves untiled.
   Set<String> get krohnkiteIgnored => {
     for (final n in (iniValue(_text(_kwinrc), 'Script-krohnkite', 'ignoreVDesktop') ?? '').split(','))
@@ -132,6 +135,9 @@ final class KdeDesktop extends DesktopBase {
     if (krohnkite && krohnkiteEnabled) {
       await _run(['kwriteconfig6', '--file', 'kwinrc', '--group', 'Plugins', '--key', 'krohnkiteEnabled', 'false']);
       await _run(['qdbus6', 'org.kde.KWin', '/KWin', 'reconfigure']);
+      // KWin unloads a script asynchronously: switched on again at once,
+      // Krohnkite keeps running and never reads its settings again.
+      await Future<void>.delayed(krohnkiteRestartPause);
       await _run(['kwriteconfig6', '--file', 'kwinrc', '--group', 'Plugins', '--key', 'krohnkiteEnabled', 'true']);
     }
     await _run(['qdbus6', 'org.kde.KWin', '/KWin', 'reconfigure']);
@@ -162,6 +168,9 @@ final class KdeDesktop extends DesktopBase {
     if (wasEnabled) {
       await _run(['kwriteconfig6', '--file', 'kwinrc', '--group', 'Plugins', '--key', 'krohnkiteEnabled', 'false']);
       await _run(['qdbus6', 'org.kde.KWin', '/KWin', 'reconfigure']);
+      // KWin unloads a script asynchronously: switched on again at once,
+      // Krohnkite keeps running and never reads its settings again.
+      await Future<void>.delayed(krohnkiteRestartPause);
     }
     if (on || wasEnabled) {
       await _run(['kwriteconfig6', '--file', 'kwinrc', '--group', 'Plugins', '--key', 'krohnkiteEnabled', 'true']);
