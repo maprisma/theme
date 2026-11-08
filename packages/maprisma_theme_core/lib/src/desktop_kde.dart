@@ -97,6 +97,7 @@ final class KdeDesktop extends DesktopBase {
     'left': ('Script-krohnkite', 'screenGapLeft', 0),
     'between': ('Script-krohnkite', 'screenGapBetween', 0),
     'border': ('Script-maprisma-active-frame', 'borderWidth', 3),
+    'radius': ('Script-maprisma-active-frame', 'cornerRadius', 10),
   };
 
   Map<String, dynamic> tileStyle() {
@@ -108,8 +109,9 @@ final class KdeDesktop extends DesktopBase {
     };
   }
 
-  /// [json]: {top, right, bottom, left, between, border}, any subset, 0…200
-  /// (border 0…16). Krohnkite reads its settings when it starts, so it is
+  /// [json]: {top, right, bottom, left, between, border, radius}, any subset,
+  /// 0…200 (border 0…16, radius 0…32: the windows' corner radius, which KWin
+  /// does not report). Krohnkite reads its settings when it starts, so it is
   /// switched off and on again; the frame script re-reads by itself.
   Future<Map<String, dynamic>> _setTileStyle(String json) async {
     if (!krohnkiteInstalled) return {'error': 'not_available', 'message': 'Krohnkite is not installed'};
@@ -125,7 +127,7 @@ final class KdeDesktop extends DesktopBase {
     for (final e in tileStyleKeys.entries) {
       final n = v[e.key];
       if (n == null) continue;
-      if (n is! int || n < 0 || n > (e.key == 'border' ? 16 : 200)) return {'error': 'bad_args', 'message': e.key};
+      if (n is! int || n < 0 || n > (switch (e.key) { 'border' => 16, 'radius' => 32, _ => 200 })) return {'error': 'bad_args', 'message': e.key};
       if (n == old[e.key]) continue;
       if (!await _run(['kwriteconfig6', '--file', 'kwinrc', '--group', e.value.$1, '--key', e.value.$2, '$n'])) {
         return {'error': 'unavailable', 'message': 'kwinrc could not be written'};
