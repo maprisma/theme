@@ -136,6 +136,28 @@ Started by an XDG autostart entry.
 4. **KDE workspaces/windows/shortcuts** (KWin bridge script + kglobalaccel actions); presets live-tested.
 5. Optional: Plasma panel widget.
 
+### Steps 3 and 4 as built (2026-11-08)
+
+- **KWin bridge** (`kwin_bridge.dart`, Codex): one short KWin script per request (state, move, close,
+  activate), loaded/run/unloaded over `org.kde.KWin /Scripting`, answering through `callDBus` to the
+  caller's unique bus name; one long-lived watcher script for `watch` events, reloaded when KWin
+  restarts. `KdeDesktop.wm` answers the wm contract with it (`set-tiling` → not_available).
+- **KDE keys** (`shortcuts_kde.dart`): each key is a hidden desktop file
+  `~/.local/share/applications/maprisma-theme-key-<target>.desktop`; kglobalaccel runs it itself
+  (a "service" component, as System Settings' Add Command). The files are the wanted state;
+  `syncKdeShortcuts` makes kglobalaccel match (after each change, at daemon start, when shortcuts.json
+  changes). A key another action had is taken and given back after (`kde-shadowed.json`).
+- **Daemon** (`daemon.dart`, `maprisma-theme-core daemon`): KDE only (on COSMIC the applet keeps
+  ownership, so no handover is needed); single instance by bus name `com.maprisma.Theme.Daemon`;
+  StatusNotifierItem tray icon + com.canonical.dbusmenu menu (favorites, Next wallpaper, Open); the
+  applet's automation ported (queue ≤ 64 with coalescing, minute tick, workspace themes, window limits
+  with the applet's overflow rule, autostart once per session). Started by
+  `~/.config/autostart/com.maprisma.Theme.Daemon.desktop` (`OnlyShowIn=KDE;`) and by the installer.
+- All D-Bus use goes through the backend's own environment (`DBUS_SESSION_BUS_ADDRESS`); tests have
+  none, so they never reach the real session.
+- KDE caps: appearance, kdeScheme, wallpaper, terminal, fonts, icons, workspaces, windows, shortcuts.
+  Still not: `tiling` (no external control of KWin/Krohnkite tiling per desktop) and `panel`.
+
 ## Who does what
 
 Claude: Dart core + Flutter (steps 1–3), commits. Codex: plan review, KWin script and Konsole/Plasma

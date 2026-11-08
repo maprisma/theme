@@ -159,10 +159,12 @@ void main() {
   });
 
   test('caps and the rest of the contract', () async {
-    expect(kde.caps, {Cap.appearance, Cap.kdeScheme, Cap.wallpaper, Cap.terminal, Cap.fonts, Cap.icons});
+    expect(kde.caps, {Cap.appearance, Cap.kdeScheme, Cap.wallpaper, Cap.terminal, Cap.fonts, Cap.icons, Cap.workspaces, Cap.windows, Cap.shortcuts});
     expect(await kde.applyRon('/x.ron'), isFalse);
-    expect((await kde.wm(['workspaces']))?['error'], 'not_available');
-    expect(kde.shortcutBinder(paths), isNull);
+    // no session bus in the test's environment: KWin is never reached
+    expect((await kde.wm(['workspaces']))?['error'], 'unavailable');
+    expect(kde.watch(), isNull);
+    expect(kde.shortcutBinder(paths).available, isFalse);
     expect(kde.iconTheme(), 'breeze');
     expect((await kde.health(paths, const {}))['helper'], isA<Map>());
   });

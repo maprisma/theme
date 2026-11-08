@@ -8,14 +8,17 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+
 import 'bounded.dart';
 import 'colors.dart';
 import 'desktop.dart';
 import 'images.dart';
 import 'kde_formats.dart';
+import 'kwin_bridge.dart';
 import 'paths.dart';
 import 'posix.dart';
 import 'shortcuts.dart';
+import 'shortcuts_kde.dart';
 import 'store.dart';
 
 /// The two scheme names Maprisma Theme alternates between:
@@ -34,8 +37,22 @@ final class KdeDesktop extends DesktopBase {
   String get name => 'KDE Plasma';
   @override
   String get terminalName => 'Konsole';
+  /// No `tiling` (KWin has no per-desktop switch Maprisma Theme can drive;
+  /// Krohnkite has no control API) and no `panel` (the daemon's tray icon
+  /// stands in).
   @override
-  Set<Cap> get caps => const {Cap.appearance, Cap.kdeScheme, Cap.wallpaper, Cap.terminal, Cap.fonts, Cap.icons};
+  Set<Cap> get caps => const {
+    Cap.appearance, Cap.kdeScheme, Cap.wallpaper, Cap.terminal, Cap.fonts, Cap.icons,
+    Cap.workspaces, Cap.windows, Cap.shortcuts,
+  };
+
+  /// KWin through scripts (kwin_bridge.dart), opened on first use.
+  KWinBridge? _bridge;
+  KWinBridge? get bridge {
+    if (_bridge != null) return _bridge;
+    final bus = sessionBus(environment);
+    return bus == null ? null : _bridge = KWinBridge(bus, scriptDir: paths.runtime);
+  }
 
   /// ~/.config (XDG_CONFIG_HOME): the folder COSMIC's config is in.
   String get _configHome => File(paths.cosmicConfig).parent.path;
@@ -319,10 +336,21 @@ print('maprisma-snapshot ' + JSON.stringify(r));
   // --- not yet on KDE (step 4) -------------------------------------------------------
 
   @override
-  Future<Map<String, dynamic>?> wm(List<String> args, {Duration timeout = const Duration(seconds: 20)}) async => wmNotAvailable(name);
+  Future<Map<String, dynamic>?> wm(List<String> args, {Duration timeout = const Duration(seconds: 20)}) async {
+    final b = bridge;
+    if (b == null) return {'error': 'unavailable', 'message': 'no session bus'};
+    try {
+      return await kdeWm(b, args).timeout(timeout);
+    } on Object catch (e) {
+      return {'error': 'unavailable', 'message': '$e'};
+    }
+  }
 
   @override
-  ShortcutBinder? shortcutBinder(Paths paths) => null;
+  ShortcutBinder shortcutBinder(Paths paths) => KdeShortcutBinder(paths, environment);
+
+  @override
+  Stream<Map<String, dynamic>>? watch() => bridge?.watch();
 
   /// `helper`: are Plasma's tools there (no helper of ours is needed).
   @override

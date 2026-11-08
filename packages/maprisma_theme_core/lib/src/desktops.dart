@@ -85,5 +85,7 @@ final class GenericDesktop extends DesktopBase {
   @override
   ShortcutBinder? shortcutBinder(Paths paths) => null;
   @override
+  Stream<Map<String, dynamic>>? watch() => null;
+  @override
   Future<Map<String, dynamic>> health(Paths paths, Map<String, String> environment) async => const {};
 }

@@ -6,6 +6,7 @@
 # ~/.local/lib/maprisma-theme      the Flutter bundle + bin/ (core CLI, helper, applet) + share/ (themes, templates)
 # ~/.local/bin/maprisma-theme{,-core,-helper}, maprisma-theme-applet   links
 # ~/.local/share/applications      the app's and the applet's desktop entries; icons under hicolor
+# ~/.config/autostart              the tray/automation daemon (KDE Plasma only; COSMIC has the applet)
 #
 # A running Flutter app maps its code from the bundle: never copy over it. The running copies are
 # stopped (by their real program path), a fresh folder is swapped in, and the app is not restarted.
@@ -71,4 +72,11 @@ sed "s|^Exec=.*|Exec=$bin/maprisma-theme-applet|" "$root/cosmic/applet/data/$id.
 install -m644 "$root/cosmic/applet/data/icons/$id-symbolic.svg" "$data/icons/hicolor/scalable/apps/"
 command -v gtk-update-icon-cache >/dev/null && gtk-update-icon-cache -f -t "$data/icons/hicolor" >/dev/null 2>&1 || true
 command -v update-desktop-database >/dev/null && update-desktop-database "$data/applications" >/dev/null 2>&1 || true
+autostart="${XDG_CONFIG_HOME:-$HOME/.config}/autostart"
+mkdir -p "$autostart"
+sed "s|^Exec=.*|Exec=$bin/maprisma-theme-core daemon|" "$root/packaging/com.maprisma.Theme.Daemon.desktop" > "$autostart/com.maprisma.Theme.Daemon.desktop"
+# The daemon was stopped with the other running copies: start it again in a Plasma session.
+if [[ ":${XDG_CURRENT_DESKTOP:-}:" == *:KDE:* ]]; then
+  setsid -f "$bin/maprisma-theme-core" daemon >/dev/null 2>&1 < /dev/null || true
+fi
 echo "Installed Maprisma Theme into $lib"

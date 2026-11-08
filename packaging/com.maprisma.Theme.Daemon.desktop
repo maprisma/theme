@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Maprisma Theme tray
+Comment=Tray icon and automation of Maprisma Theme (desktops without its panel applet)
+Exec=maprisma-theme-core daemon
+Icon=com.maprisma.Theme
+OnlyShowIn=KDE;
+NoDisplay=true
+X-KDE-autostart-phase=2

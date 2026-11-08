@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'context.dart';
+import 'desktop.dart';
 import 'store.dart';
 
 Map<String, dynamic> cleanWorkspaceState(Object? value) {
@@ -146,7 +147,10 @@ Future<List<Map<String, dynamic>>> desktopWindows(Ctx ctx) async =>
         .whereType<Map>()
         .map((v) => Map<String, dynamic>.from(v))
         .toList();
+/// Per-workspace tiling as the layouts say (only where the desktop can
+/// switch it: [Cap.tiling]).
 Future<void> applyTiling(Ctx ctx) async {
+  if (!ctx.desktop.caps.contains(Cap.tiling)) return;
   final s = loadWorkspaces(ctx);
   final existing =
       (await helper(ctx, ['workspaces']))['workspaces'] as List? ?? [];

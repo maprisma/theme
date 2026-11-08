@@ -3,6 +3,7 @@ import 'dart:io';
 import 'apply.dart';
 import 'auto.dart';
 import 'context.dart';
+import 'desktop.dart';
 import 'launchers.dart';
 import 'posix.dart';
 import 'store.dart';
@@ -400,7 +401,7 @@ class PresetUndo {
       }
       ctx.automationChanged();
     }
-    for (final w in s['tiling'] as List? ?? []) {
+    for (final w in ctx.desktop.caps.contains(Cap.tiling) ? s['tiling'] as List? ?? [] : const []) {
       await helper(ctx, [
         'set-tiling',
         '${w['workspace']}',

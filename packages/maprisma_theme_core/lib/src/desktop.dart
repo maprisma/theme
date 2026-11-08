@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -103,6 +104,10 @@ abstract interface class Desktop {
   /// every desktop; `{"error": "not_available"}` without the cap; null when
   /// the backend did not answer.
   Future<Map<String, dynamic>?> wm(List<String> args, {Duration timeout});
+
+  /// The wm contract's `watch` events as a stream for the daemon, or null
+  /// (COSMIC: its applet watches; desktops without workspaces).
+  Stream<Map<String, dynamic>>? watch();
 
   /// Where the theme keys are written ([Cap.shortcuts]), or null.
   ShortcutBinder? shortcutBinder(Paths paths);
@@ -395,6 +400,12 @@ final class FakeDesktop implements Desktop {
 
   @override
   ShortcutBinder? shortcutBinder(Paths paths) => caps.contains(Cap.shortcuts) ? CosmicShortcutBinder(paths) : null;
+
+  /// Events a test sends to the daemon.
+  final events = StreamController<Map<String, dynamic>>.broadcast();
+
+  @override
+  Stream<Map<String, dynamic>>? watch() => events.stream;
 
   @override
   Future<Map<String, dynamic>> health(Paths paths, Map<String, String> environment) async => caps.isEmpty

@@ -38,6 +38,10 @@ final class CosmicDesktop extends DesktopBase {
   @override
   ShortcutBinder shortcutBinder(Paths paths) => CosmicShortcutBinder(paths);
 
+  /// The applet watches on COSMIC.
+  @override
+  Stream<Map<String, dynamic>>? watch() => null;
+
   Future<bool> _helperOk(List<String> args) async {
     final r = await helperJson(args, timeout: const Duration(seconds: 30));
     return r != null && r['error'] == null;
