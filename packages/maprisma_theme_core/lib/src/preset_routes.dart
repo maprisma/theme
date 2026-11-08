@@ -1,5 +1,8 @@
+import 'apply.dart';
 import 'auto.dart';
 import 'context.dart';
+import 'images.dart';
+import 'themes.dart';
 import 'presets.dart';
 import 'launchers.dart';
 import 'workspace_state.dart';
@@ -9,6 +12,12 @@ Map<String, Handler> presetRoutes(Ctx ctx) {
   final undo = PresetUndo();
   int workspace(Map<String, dynamic> p) =>
       intParam(p, 'workspace', min: 1, max: 10);
+  String modeParam(Map<String, dynamic> p, String key) {
+    final mode = str(p, key);
+    if (!workspaceModeNames.contains(mode)) throw RouteError('bad_params', key);
+    return mode;
+  }
+
   Future<Map<String, dynamic>> change(
     void Function(Map<String, dynamic>) edit,
   ) async {
@@ -41,14 +50,152 @@ Map<String, Handler> presetRoutes(Ctx ctx) {
           }
         }
         if (p.containsKey('mode')) {
-          final mode = str(p, 'mode');
-          if (!['tiled', 'floating', 'default'].contains(mode)) {
-            throw RouteError('bad_params', 'mode');
+          if (p['mode'] == null) {
+            (s['workspaceModes'] as Map).remove(ws);
+          } else {
+            s['workspaceModes'][ws] = modeParam(p, 'mode');
           }
-          s['workspaceModes'][ws] = mode;
+        }
+      } else if (p.containsKey('defaultMode')) {
+        // All Workspaces: the layout for workspaces of this limit.
+        final limit = '${intParam(p, 'defaultLimit', min: 1, max: 4)}';
+        if (p['defaultMode'] == null) {
+          (s['defaultModes'] as Map).remove(limit);
+        } else {
+          s['defaultModes'][limit] = modeParam(p, 'defaultMode');
         }
       }
     }),
+
+    /// All Workspaces' bulk actions. reset_all: every workspace back to the
+    /// default limit and layout; remove_all: every workspace Native (COSMIC's
+    /// own tiling, no limit of its own). App Presets stay.
+    'workspaces.bulk': (p) {
+      final action = str(p, 'action');
+      if (!['reset_all', 'remove_all'].contains(action)) {
+        throw RouteError('bad_params', 'action');
+      }
+      return change((s) {
+        (s['workspaceCaps'] as Map).clear();
+        (s['workspaceModes'] as Map).clear();
+        if (action == 'remove_all') {
+          for (var ws = 1; ws <= 10; ws++) {
+            s['workspaceModes']['$ws'] = 'default';
+          }
+        }
+      });
+    },
+
+    /// Every workspace (0 = All Workspaces) as it looks: the theme it shows
+    /// (its own or the current one) with the colours the pictures use, the
+    /// wallpaper (only a file whose header is sane) and its limit and layout.
+    'workspaces.looks': (_) async {
+      final s = loadWorkspaces(ctx);
+      final current = ctx.current.slug;
+      final themesOn = workspaceThemesEnabled(ctx);
+      final wallsOn = workspaceWallpapersEnabled(ctx);
+      final assigned = loadWorkspaceThemes(ctx);
+      final walls = loadWorkspaceMap(ctx);
+      final colors = <String, Map<String, String>>{};
+      final out = <String, dynamic>{};
+      for (var ws = 0; ws <= 10; ws++) {
+        final own = ws > 0 ? assigned[ws] : null;
+        final slug = themesOn && own != null ? own : current;
+        final theme = slug.isEmpty ? null : findTheme(ctx.paths, slug);
+        final ownWall = ws > 0 && theme != null
+            ? (walls[theme.slug] ?? const <int, String>{})[ws]
+            : null;
+        String? wallpaper;
+        if (theme != null && wallsOn && ownWall != null) {
+          wallpaper = wallpaperNamed(ctx, theme, ownWall);
+        }
+        if (wallpaper == null && theme != null && slug == current) {
+          wallpaper = currentBackground(ctx);
+        }
+        if (wallpaper != null && imageSizeProblem(wallpaper) != null) {
+          wallpaper = null;
+        }
+        var preview = theme?.preview;
+        if (preview != null && imageSizeProblem(preview) != null) {
+          preview = null;
+        }
+        if (theme != null && !colors.containsKey(theme.slug)) {
+          final all = await themeColors(ctx, theme);
+          colors[theme.slug] = {
+            for (final k in ['background', 'foreground', 'accent'])
+              if (all[k] != null) k: all[k]!,
+          };
+        }
+        out['$ws'] = {
+          'theme': theme?.slug,
+          'name': theme == null ? null : plainText(theme.name, 40),
+          'own_theme': own,
+          'own_wallpaper': ownWall,
+          'colors': theme == null ? const {} : colors[theme.slug],
+          'wallpaper': wallpaper,
+          'preview': preview,
+          'limit': effectiveLimit(s, ws),
+          'mode': effectiveMode(s, ws),
+          'own_limit': ws > 0 && (s['workspaceCaps'] as Map).containsKey('$ws'),
+          'own_mode': ws > 0 && (s['workspaceModes'] as Map).containsKey('$ws'),
+        };
+      }
+      int? active;
+      try {
+        active = await activeWorkspace(ctx);
+      } on Object {
+        active = null;
+      }
+      return {
+        'workspaces': out,
+        'current': current,
+        'workspace_themes': themesOn,
+        'workspace_wallpapers': wallsOn,
+        'active_workspace': active,
+      };
+    },
+
+    /// A workspace's own theme and/or wallpaper (null: none of its own).
+    /// The wallpaper belongs to the theme the workspace shows.
+    'workspaces.set_look': (p) async {
+      final ws = workspace(p);
+      final hasTheme = p.containsKey('theme');
+      final hasWall = p.containsKey('wallpaper');
+      if (!hasTheme && !hasWall) {
+        throw RouteError('bad_params', 'theme or wallpaper');
+      }
+      final slug = hasTheme && p['theme'] != null
+          ? ctx.theme(str(p, 'theme')).slug
+          : null;
+      final name = hasWall && p['wallpaper'] != null
+          ? str(p, 'wallpaper')
+          : null;
+      if (name != null && !validWallpaperName(name)) {
+        throw RouteError('bad_params', 'wallpaper');
+      }
+      final receipt = undo.capture(ctx);
+      undo.captureAssignments(ctx, receipt);
+      await autoLocked(ctx, () async {
+        if (hasTheme) {
+          setWorkspaceTheme(ctx, ws, slug);
+          if (slug != null) ctx.settings.set('workspace_themes', true);
+        }
+        if (hasWall) {
+          final shown = workspaceThemesEnabled(ctx)
+              ? loadWorkspaceThemes(ctx)[ws] ?? ctx.current.slug
+              : ctx.current.slug;
+          final theme = ctx.theme(shown);
+          if (name != null && wallpaperNamed(ctx, theme, name) == null) {
+            throw RouteError('not_found', 'Wallpaper missing');
+          }
+          setWorkspaceWallpaper(ctx, theme.slug, ws, name);
+          if (name != null) ctx.settings.set('workspace_wallpapers', true);
+        }
+        ctx.automationChanged();
+        if (await activeWorkspace(ctx) == ws) await applyWorkspace(ctx, ws);
+      });
+      return {'receipt': receipt, 'appearance': true};
+    },
     'workspaces.reset': (_) => change((s) {
       s.clear();
     }),
@@ -107,6 +254,9 @@ Map<String, Handler> presetRoutes(Ctx ctx) {
       } else {
         (s['workspaceLayouts'] as Map).remove(ws);
       }
+    }),
+    'apppresets.remove_all': (_) => change((s) {
+      (s['workspaceLayouts'] as Map).clear();
     }),
     'apppresets.autostart': (p) => change((s) {
       final layout = s['workspaceLayouts']['${workspace(p)}'];

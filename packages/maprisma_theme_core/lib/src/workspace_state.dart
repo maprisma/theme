@@ -14,7 +14,12 @@ Map<String, dynamic> cleanWorkspaceState(Object? value) {
         ? raw['maxWindows']
         : 2,
   };
-  for (final key in ['workspaceCaps', 'workspaceModes', 'workspaceLayouts']) {
+  for (final key in [
+    'workspaceCaps',
+    'workspaceModes',
+    'workspaceLayouts',
+    'defaultModes',
+  ]) {
     final map = <String, dynamic>{};
     final source = raw[key];
     if (source is Map) {
@@ -23,8 +28,8 @@ Map<String, dynamic> cleanWorkspaceState(Object? value) {
         if (key == 'workspaceCaps' && v is int && v >= 1 && v <= 4) {
           map['$ws'] = v;
         }
-        if (key == 'workspaceModes' &&
-            ['tiled', 'floating', 'default'].contains(v)) {
+        if ((key == 'workspaceModes' || key == 'defaultModes' && ws <= 4) &&
+            workspaceModeNames.contains(v)) {
           map['$ws'] = v;
         }
         if (key == 'workspaceLayouts' && v is Map) {
@@ -50,6 +55,32 @@ Map<String, dynamic> cleanWorkspaceState(Object? value) {
     out[key] = map;
   }
   return out;
+}
+
+/// COSMIC's real layout choices: tiling on, tiling off, or COSMIC's own
+/// setting left alone ("default", shown as Native).
+const workspaceModeNames = ['tiled', 'floating', 'default'];
+
+/// The window limit in effect on [ws] (1–10); 0 = All Workspaces' default.
+int effectiveLimit(Map s, int ws) {
+  final caps = s['workspaceCaps'] is Map ? s['workspaceCaps'] as Map : const {};
+  final own = ws > 0 ? caps['$ws'] : null;
+  return own is int ? own : (s['maxWindows'] as int? ?? 2);
+}
+
+/// The layout in effect on [ws]: its own, else the default layout for its
+/// limit, else Native ("default"). 0 = All Workspaces' default.
+String effectiveMode(Map s, int ws) {
+  final modes = s['workspaceModes'] is Map
+      ? s['workspaceModes'] as Map
+      : const {};
+  final defaults = s['defaultModes'] is Map
+      ? s['defaultModes'] as Map
+      : const {};
+  final own = ws > 0 ? modes['$ws'] : null;
+  if (own is String) return own;
+  final fallback = defaults['${effectiveLimit(s, ws)}'];
+  return fallback is String ? fallback : 'default';
 }
 
 Map<String, dynamic> loadWorkspaces(Ctx ctx) =>
@@ -79,7 +110,6 @@ void saveWorkspaces(
 
 Map<String, dynamic> tilingAutomation(Ctx ctx) {
   final s = loadWorkspaces(ctx);
-  final modes = s['workspaceModes'] as Map;
   return {
     'tiling': {
       'active': s['active'],
@@ -87,11 +117,11 @@ Map<String, dynamic> tilingAutomation(Ctx ctx) {
       'limits': s['workspaceCaps'],
       'floating': [
         for (var i = 1; i <= 10; i++)
-          if (modes['$i'] == 'floating') i,
+          if (effectiveMode(s, i) == 'floating') i,
       ],
       'tiled': [
         for (var i = 1; i <= 10; i++)
-          if (modes['$i'] == 'tiled') i,
+          if (effectiveMode(s, i) == 'tiled') i,
       ],
     },
     'autostart': (s['workspaceLayouts'] as Map).values.any(
@@ -117,11 +147,13 @@ Future<List<Map<String, dynamic>>> desktopWindows(Ctx ctx) async =>
         .map((v) => Map<String, dynamic>.from(v))
         .toList();
 Future<void> applyTiling(Ctx ctx) async {
-  final modes = loadWorkspaces(ctx)['workspaceModes'] as Map;
+  final s = loadWorkspaces(ctx);
   final existing =
       (await helper(ctx, ['workspaces']))['workspaces'] as List? ?? [];
   for (final w in existing.whereType<Map>()) {
-    final mode = modes['${w['index']}'];
+    final index = w['index'];
+    if (index is! int || index < 1 || index > 10) continue;
+    final mode = effectiveMode(s, index);
     if (mode == 'tiled' || mode == 'floating') {
       await helper(ctx, [
         'set-tiling',

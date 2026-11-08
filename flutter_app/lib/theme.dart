@@ -34,6 +34,49 @@ MarkColors markColors(BuildContext context) =>
     Theme.of(context).extension<MarkColors>() ??
     const MarkColors(running: Color(0xff3a944a), update: Color(0xffed5b00), fresh: Color(0xffc88800));
 
+/// The plugin's palette (theme_popup.py apply_theme_css): background, text,
+/// accent, muted hints, the dimmer settings labels, the selection and the
+/// text on it, red for destructive entries.
+class Look extends ThemeExtension<Look> {
+  const Look({
+    required this.bg,
+    required this.fg,
+    required this.accent,
+    required this.muted,
+    required this.dim,
+    required this.selection,
+    required this.selectionFg,
+    required this.red,
+  });
+  final Color bg, fg, accent, muted, dim, selection, selectionFg, red;
+  @override
+  Look copyWith() => this;
+  @override
+  Look lerp(Look? other, double t) => other ?? this;
+
+  static Look of(BuildContext context) =>
+      Theme.of(context).extension<Look>() ?? _fallback(Theme.of(context).colorScheme);
+
+  static Look _fallback(ColorScheme s) => Look(
+    bg: s.surface,
+    fg: s.onSurface,
+    accent: s.primary,
+    muted: s.onSurfaceVariant,
+    dim: s.onSurfaceVariant,
+    selection: s.secondaryContainer,
+    selectionFg: s.onSecondaryContainer,
+    red: s.error,
+  );
+}
+
+double _lum(Color c) => .2126 * c.r + .7152 * c.g + .0722 * c.b;
+
+/// Qt.darker(foreground, 1.45): the HSV value divided by 1.45.
+Color _darker(Color c) {
+  final hsv = HSVColor.fromColor(c);
+  return hsv.withValue(hsv.value / 1.45).toColor();
+}
+
 double corners(BuildContext context) => Theme.of(context).extension<Corners>()?.radius ?? 12;
 
 /// "windows" follows the desktop's window corners, "rounded" 12, "square" 0.
@@ -74,12 +117,41 @@ ThemeData appTheme(Brightness platform, Map colors, double radius) {
       error: hexColor(colors, 'red') ?? scheme.error,
     );
   }
-  final shape = RoundedRectangleBorder(borderRadius: BorderRadius.circular(radius));
+  final bg = scheme.surface, fg = scheme.onSurface, accent = scheme.primary;
+  final sel = hexColor(colors, 'selection') ?? Color.lerp(bg, fg, .2)!;
+  final look = Look(
+    bg: bg,
+    fg: fg,
+    accent: accent,
+    muted: hexColor(colors, 'muted') ?? Color.lerp(bg, fg, .55)!,
+    dim: _darker(fg),
+    selection: sel,
+    selectionFg: (_lum(sel) - _lum(fg)).abs() < .25 ? (_lum(sel) <= .45 ? Colors.white : bg) : fg,
+    red: hexColor(colors, 'red') ?? scheme.error,
+  );
+  final shape = RoundedRectangleBorder(
+    borderRadius: BorderRadius.circular(radius),
+    side: BorderSide(color: accent),
+  );
+  final small = (radius - 4).clamp(0, 100).toDouble();
   return ThemeData(
     colorScheme: scheme,
     useMaterial3: true,
     scaffoldBackgroundColor: scheme.surface,
+    visualDensity: VisualDensity.compact,
+    hoverColor: fg.withValues(alpha: .06),
+    focusColor: sel.withValues(alpha: .5),
+    tooltipTheme: TooltipThemeData(
+      textStyle: TextStyle(color: fg, fontSize: 12),
+      decoration: BoxDecoration(
+        color: Color.lerp(bg, fg, .1),
+        border: Border.all(color: fg.withValues(alpha: .2)),
+        borderRadius: BorderRadius.circular(small),
+      ),
+      waitDuration: const Duration(milliseconds: 500),
+    ),
     extensions: [
+      look,
       Corners(radius),
       MarkColors(
         running: hexColor(colors, 'green') ?? const Color(0xff3a944a),
@@ -87,30 +159,92 @@ ThemeData appTheme(Brightness platform, Map colors, double radius) {
         fresh: hexColor(colors, 'yellow') ?? const Color(0xffc88800),
       ),
     ],
+    // .tm-tile / .tm-group-card: a faint mat and hairline.
     cardTheme: CardThemeData(
-      color: scheme.surfaceContainerLow,
+      color: fg.withValues(alpha: .03),
       elevation: 0,
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(radius),
-        side: BorderSide(color: scheme.outlineVariant),
+        side: BorderSide(color: fg.withValues(alpha: .16)),
       ),
     ),
-    dialogTheme: DialogThemeData(shape: shape),
+    // Confirmations as the plugin's in-card dialog: background, accent border.
+    dialogTheme: DialogThemeData(shape: shape, backgroundColor: bg, elevation: 8),
+    // popover.tm-popover: background, accent border, the card's corners.
     popupMenuTheme: PopupMenuThemeData(
-      color: scheme.surfaceContainerHigh,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radius.clamp(0, 8))),
+      color: bg,
+      surfaceTintColor: Colors.transparent,
+      elevation: 6,
+      shadowColor: Colors.black54,
+      menuPadding: const EdgeInsets.all(5),
+      textStyle: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: fg),
+      shape: shape,
     ),
+    dropdownMenuTheme: DropdownMenuThemeData(menuStyle: MenuStyle(backgroundColor: WidgetStatePropertyAll(bg))),
     inputDecorationTheme: InputDecorationTheme(
-      filled: true,
-      fillColor: scheme.surfaceContainer,
+      filled: false,
       isDense: true,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(radius.clamp(0, 10)), borderSide: BorderSide.none),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      hintStyle: TextStyle(color: look.muted, fontSize: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(radius.clamp(0, 10)),
+        borderSide: BorderSide(color: fg.withValues(alpha: .25)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(radius.clamp(0, 10)),
+        borderSide: BorderSide(color: fg.withValues(alpha: .25)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(radius.clamp(0, 10)),
+        borderSide: BorderSide(color: accent, width: 1.5),
+      ),
     ),
+    // .tm-undo: the selection colour, accent border, floating over the bottom.
     snackBarTheme: SnackBarThemeData(
-      backgroundColor: scheme.surfaceContainerHigh,
-      contentTextStyle: TextStyle(color: scheme.onSurface),
+      backgroundColor: sel,
+      contentTextStyle: TextStyle(color: look.selectionFg, fontSize: 14),
+      actionTextColor: look.selectionFg,
       behavior: SnackBarBehavior.floating,
+      insetPadding: const EdgeInsets.all(17),
+      shape: shape,
     ),
+    switchTheme: SwitchThemeData(
+      trackColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? accent : fg.withValues(alpha: .15)),
+      thumbColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? bg : fg.withValues(alpha: .7)),
+      trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: fg,
+        iconColor: accent,
+        side: BorderSide(color: fg.withValues(alpha: .25)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radius)),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        minimumSize: const Size(0, 32),
+        textStyle: Typography.material2021().black.labelLarge!.copyWith(fontSize: 14, fontWeight: FontWeight.w500),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        foregroundColor: accent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radius)),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        minimumSize: const Size(0, 30),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+    ),
+    iconButtonTheme: IconButtonThemeData(
+      style: IconButton.styleFrom(
+        padding: const EdgeInsets.all(4),
+        minimumSize: const Size(28, 28),
+        iconSize: 18,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(small)),
+      ),
+    ),
+    dividerTheme: DividerThemeData(color: fg.withValues(alpha: .12), space: 1, thickness: 1),
   );
 }

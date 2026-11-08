@@ -22,10 +22,13 @@ String _hexOf(Color c) => '#${(c.toARGB32() & 0xffffff).toRadixString(16).padLef
 /// and font being edited.
 /// [base]: new theme from this theme; [edit]: edit this custom theme;
 /// [wallpaper]: new theme from this picture (a file); [initial]: preset
-/// values (Ask AI: `name`, `font`, and color keys as #rrggbb), on top of [base].
+/// values (Ask AI: `name`, `font`, and color keys as #rrggbb), on top of [base];
+/// [askWallpaper]: the picture on the Ask AI card (its cached thumbnail), shown
+/// behind the sample; the Ask page adds it to the saved theme, so the base's
+/// own wallpapers are only an extra then (off by default).
 class EditorPage extends StatefulWidget {
-  const EditorPage({super.key, this.base, this.edit, this.wallpaper, this.initial});
-  final String? base, edit, wallpaper;
+  const EditorPage({super.key, this.base, this.edit, this.wallpaper, this.initial, this.askWallpaper});
+  final String? base, edit, wallpaper, askWallpaper;
   final Map<String, String>? initial;
   @override
   State<EditorPage> createState() => _EditorPageState();
@@ -92,7 +95,7 @@ class _EditorPageState extends State<EditorPage> {
       fonts = List<String>.from(d['fonts'] as List);
       font = d['font'] as String?;
       if (!fonts.contains(font)) font = null;
-      copyWallpapers = d['copy_wallpapers'] == true;
+      copyWallpapers = d['copy_wallpapers'] == true && widget.askWallpaper == null;
       name.text = d['name'] as String? ?? '';
       _takeInitial();
     });
@@ -210,9 +213,11 @@ class _EditorPageState extends State<EditorPage> {
     if (!mounted) return;
     final shown = r['name'] as String? ?? n;
     final applyError = r['apply_error'] as String?;
-    app.notify(applyError != null
-        ? '$shown saved, but could not be applied: $applyError'
-        : '${editing ? 'Theme saved' : 'Theme created'}: $shown${r['applied'] == true ? ' (applied)' : ''}');
+    app.notify(
+      applyError != null
+          ? '$shown saved, but could not be applied: $applyError'
+          : '${editing ? 'Theme saved' : 'Theme created'}: $shown${r['applied'] == true ? ' (applied)' : ''}',
+    );
     app.changed();
     Navigator.of(context).pop(r['slug']);
   }
@@ -230,6 +235,8 @@ class _EditorPageState extends State<EditorPage> {
     if (d == null) return null;
     final own = d['sample_wallpaper'] as String?;
     if (own != null) return own;
+    final ask = widget.askWallpaper;
+    if (ask != null && ask.startsWith('/') && File(ask).existsSync()) return ask;
     if (editing || copyWallpapers) return d['base_wallpaper'] as String?;
     return null;
   }
@@ -240,92 +247,176 @@ class _EditorPageState extends State<EditorPage> {
     final title = d?['title'] as String? ?? (editing ? 'Edit theme' : 'New theme');
     Widget body;
     if (loadError != null) {
-      body = Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(loadError!)));
+      body = Center(
+        child: Padding(padding: const EdgeInsets.all(24), child: Text(loadError!)),
+      );
     } else if (d == null) {
       body = const Center(child: CircularProgressIndicator());
     } else {
-      body = LayoutBuilder(builder: (context, box) {
-        final wide = box.maxWidth >= _wideFrom;
-        final controls = _controls(context, d);
-        if (wide) {
-          final w = box.maxWidth * 0.45;
-          return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 0, 12),
-              child: SizedBox(width: w, height: w * 9 / 16, child: _sample(w * 9 / 16, large: true)),
-            ),
-            const SizedBox(width: 18),
-            Expanded(child: controls),
-          ]);
-        }
-        return Column(children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: SizedBox(height: 150, width: double.infinity, child: _sample(150)),
-          ),
-          Expanded(child: controls),
-        ]);
-      });
+      // The sample stays in view next to the controls: above them in a narrow
+      // window, large on the left of them in a wide one (the plugin's ed_set_width).
+      body = LayoutBuilder(
+        builder: (context, box) {
+          final wide = box.maxWidth >= _wideFrom;
+          final controls = _controls(context, d);
+          if (wide) {
+            final w = (box.maxWidth - 2 * _pad) * 0.45;
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(_pad, 4, 0, 0),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(width: w, height: w * 9 / 16, child: _sample()),
+                  const SizedBox(width: 18),
+                  Expanded(child: controls),
+                ],
+              ),
+            );
+          }
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(_pad, 4, _pad, 0),
+                child: SizedBox(height: 150, width: double.infinity, child: _sample()),
+              ),
+              const SizedBox(height: 8),
+              Expanded(child: controls),
+            ],
+          );
+        },
+      );
     }
     return Focus(
       focusNode: pageFocus,
       onKeyEvent: _onKey,
       child: SubPage(
         title: title,
-        body: Column(children: [
-          Expanded(child: body),
-          if (d != null) _actions(context),
-        ]),
+        section: false,
+        backTooltip: 'Back without saving (Esc)',
+        body: Column(
+          children: [
+            Expanded(child: body),
+            if (d != null) _actions(context),
+          ],
+        ),
       ),
     );
   }
 
+  static const _pad = 0.0; // the window frame already has its margin
+
+  /// The hint line, then Create and Create and apply side by side, equally
+  /// wide (Back or Esc leaves without saving).
   Widget _actions(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        if (hint.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Text(hint, style: TextStyle(color: hint.endsWith('…') ? scheme.onSurfaceVariant : scheme.error)),
+      padding: const EdgeInsets.fromLTRB(_pad, 6, _pad, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (hint.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                hint,
+                style: TextStyle(fontSize: 12.5, color: hint.endsWith('…') ? scheme.onSurfaceVariant : scheme.error),
+              ),
+            ),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: saving ? null : () => save(false),
+                  child: Text(editing ? 'Save' : 'Create'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: FilledButton(
+                  onPressed: saving ? null : () => save(true),
+                  child: Text(editing ? 'Save and apply' : 'Create and apply'),
+                ),
+              ),
+            ],
           ),
-        Row(children: [
-          TextButton(
-            onPressed: saving ? null : () => Navigator.maybePop(context),
-            child: const Text('Cancel'),
-          ),
-          const Spacer(),
-          OutlinedButton(
-            onPressed: saving ? null : () => save(false),
-            child: Text(editing ? 'Save' : 'Create'),
-          ),
-          const SizedBox(width: 8),
-          FilledButton(
-            onPressed: saving ? null : () => save(true),
-            child: Text(editing ? 'Save and apply' : 'Create and apply'),
-          ),
-        ]),
-      ]),
+        ],
+      ),
     );
   }
 
-  Widget _controls(BuildContext context, Map<String, dynamic> d) {
+  /// The plugin's order: the colors (main and terminal) in one list, then the
+  /// shades, bright variants and the base's own extras under "More colors".
+  (List<String>, List<String>) _keyGroups(Map<String, dynamic> d) {
     final groups = d['editable_keys'] as Map;
-    List<String> keys(String group) => [for (final k in groups[group] as List) if (colors.containsKey(k)) k as String];
+    final all = <String>[
+      for (final g in ['main', 'terminal', 'more'])
+        for (final k in (groups[g] as List? ?? const []))
+          if (colors.containsKey(k)) k as String,
+    ];
+    final first = [
+      for (final k in baseColorKeys)
+        if (all.contains(k)) k,
+    ];
+    const order = [
+      'dark_background',
+      'darker_background',
+      'lighter_background',
+      'dark_foreground',
+      'light_foreground',
+      'bright_foreground',
+      'bright_red',
+      'bright_yellow',
+      'bright_green',
+      'bright_cyan',
+      'bright_blue',
+      'bright_magenta',
+    ];
+    final more = [
+      for (final k in order)
+        if (all.contains(k)) k,
+      for (final k in all)
+        if (!baseColorKeys.contains(k) && !order.contains(k)) k,
+    ];
+    return (first, more.toSet().toList());
+  }
+
+  Widget _controls(BuildContext context, Map<String, dynamic> d) {
+    final (main, more) = _keyGroups(d);
     final baseName = d['base_name'] as String? ?? 'the base theme';
     final count = (d['base_wallpapers'] as num?)?.toInt() ?? 0;
     final fromPicture = widget.wallpaper != null;
-    final text = Theme.of(context).textTheme;
+    final scheme = Theme.of(context).colorScheme;
+    final heading = TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: scheme.onSurface);
+    String wallLabel, wallTip;
+    if (widget.askWallpaper != null && !fromPicture) {
+      wallLabel = "Also $baseName's wallpapers";
+      wallTip =
+          "The picture from the Ask AI card is always included; on: also $baseName's $count wallpapers. "
+          "Change them later on the new theme's wallpaper page.";
+    } else if (fromPicture) {
+      wallLabel = "Also $baseName's wallpapers";
+      wallTip =
+          "${_fileName(widget.wallpaper!)} is always included; on: also $baseName's $count. "
+          "Change them later on the new theme's wallpaper page.";
+    } else {
+      wallLabel = 'Take over its wallpapers ($count)';
+      wallTip =
+          "Copies of $baseName's $count visible wallpapers. Add, hide or delete them later on the new "
+          "theme's wallpaper page.";
+    }
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      padding: const EdgeInsets.fromLTRB(_pad, 0, _pad + 4, 12),
       children: [
+        // Name and font as compact rows (explanations in tooltips), so the
+        // colors still start on the first screen at the default size.
         _row(
           'Name',
           SizedBox(
-            width: 240,
+            width: 180,
             child: Tooltip(
-              message: editing ? 'Renaming keeps its wallpapers, favorites and other settings' : 'Shown in the theme list',
+              message: editing
+                  ? 'Renaming keeps its wallpapers, favorites and other settings'
+                  : 'Shown in the theme list',
               child: TextField(
                 controller: name,
                 focusNode: nameFocus,
@@ -339,11 +430,13 @@ class _EditorPageState extends State<EditorPage> {
         _row(
           'Font',
           Tooltip(
-            message: 'The monospace font (terminals, editors). It is switched when this theme is applied, '
+            message:
+                'The monospace font (terminals, editors). It is switched when this theme is applied, '
                 'and back to your own font with other themes.',
             child: DropdownButton<String?>(
               value: font,
               isDense: true,
+              underline: const SizedBox.shrink(),
               items: [
                 const DropdownMenuItem<String?>(value: null, child: Text('Keep the current font')),
                 for (final f in fonts) DropdownMenuItem<String?>(value: f, child: Text(f)),
@@ -353,28 +446,39 @@ class _EditorPageState extends State<EditorPage> {
           ),
         ),
         if (!editing)
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            dense: true,
-            title: Text(fromPicture ? "Also $baseName's wallpapers" : "Copy the base theme's wallpapers ($count)"),
-            subtitle: Text(fromPicture
-                ? "${_fileName(widget.wallpaper!)} is always included. Change them later on the new theme's wallpaper page."
-                : "Copies of $baseName's visible wallpapers. Add, hide or delete them later on the new theme's wallpaper page."),
-            value: copyWallpapers,
-            onChanged: (v) => setState(() => copyWallpapers = v),
+          _row(
+            wallLabel,
+            Tooltip(
+              message: wallTip,
+              child: Switch(value: copyWallpapers, onChanged: (v) => setState(() => copyWallpapers = v)),
+            ),
           ),
-        const SizedBox(height: 8),
-        Text('Colors', style: text.titleSmall),
-        for (final k in keys('main')) _colorRow(k),
-        const SizedBox(height: 8),
-        Text('Terminal colors', style: text.titleSmall),
-        for (final k in keys('terminal')) _colorRow(k),
-        ExpansionTile(
-          tilePadding: EdgeInsets.zero,
-          childrenPadding: EdgeInsets.zero,
-          title: Text('More colors', style: text.titleSmall),
-          subtitle: const Text('These follow the colors above until you change them here.'),
-          children: [for (final k in keys('more')) _colorRow(k)],
+        const SizedBox(height: 10),
+        Text('Colors', style: heading),
+        const SizedBox(height: 4),
+        for (final k in main) _colorRow(k),
+        Theme(
+          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+          child: ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            childrenPadding: EdgeInsets.zero,
+            dense: true,
+            controlAffinity: ListTileControlAffinity.leading,
+            title: Text('More colors: shades and bright variants', style: heading),
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    'These follow the colors above until you change them here.',
+                    style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+                  ),
+                ),
+              ),
+              for (final k in more) _colorRow(k),
+            ],
+          ),
         ),
       ],
     );
@@ -383,8 +487,16 @@ class _EditorPageState extends State<EditorPage> {
   static String _fileName(String path) => path.substring(path.lastIndexOf('/') + 1);
 
   Widget _row(String label, Widget control) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 4),
-    child: Row(children: [Expanded(child: Text(label)), control]),
+    padding: const EdgeInsets.symmetric(vertical: 3),
+    child: SizedBox(
+      height: 36,
+      child: Row(
+        children: [
+          Expanded(child: Text(label, overflow: TextOverflow.ellipsis)),
+          control,
+        ],
+      ),
+    ),
   );
 
   Widget _colorRow(String key) {
@@ -392,64 +504,76 @@ class _EditorPageState extends State<EditorPage> {
     final controller = hex[key]!;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(children: [
-        Tooltip(
-          message: 'Pick a color',
-          child: InkWell(
-            borderRadius: BorderRadius.circular(6),
-            onTap: () => pick(key),
-            child: Container(
-              width: 34,
-              height: 26,
-              decoration: BoxDecoration(
-                color: _color(colors[key]!),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: scheme.onSurface.withValues(alpha: .4)),
+      child: Row(
+        children: [
+          Tooltip(
+            message: 'Pick a color',
+            child: InkWell(
+              borderRadius: BorderRadius.circular(6),
+              onTap: () => pick(key),
+              child: Container(
+                width: 34,
+                height: 26,
+                decoration: BoxDecoration(
+                  color: _color(colors[key]!),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: scheme.onSurface.withValues(alpha: .4)),
+                ),
               ),
             ),
           ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(child: Text(labels[key] ?? colorLabel(key), overflow: TextOverflow.ellipsis)),
-        SizedBox(
-          width: 96,
-          child: Focus(
-            onFocusChange: (has) {
-              if (!has && mounted && controller.text.trim().toLowerCase() != colors[key]) setColor(key, controller.text);
-            },
-            child: ValueListenableBuilder<TextEditingValue>(
-              valueListenable: controller,
-              builder: (context, value, _) {
-                var t = value.text.trim();
-                if (!t.startsWith('#')) t = '#$t';
-                return TextField(
-                  controller: controller,
-                  maxLength: 7,
-                  style: const TextStyle(fontFamily: 'monospace'),
-                  inputFormatters: [FilteringTextInputFormatter.allow(RegExp('[#0-9a-fA-F]'))],
-                  decoration: InputDecoration(
-                    isDense: true,
-                    counterText: '',
-                    errorText: _hexRe.hasMatch(t) ? null : '#rrggbb',
-                  ),
-                  onSubmitted: (v) => setColor(key, v),
-                );
+          const SizedBox(width: 10),
+          Expanded(child: Text(labels[key] ?? colorLabel(key), overflow: TextOverflow.ellipsis)),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 92,
+            child: Focus(
+              onFocusChange: (has) {
+                if (!has && mounted && controller.text.trim().toLowerCase() != colors[key]) {
+                  setColor(key, controller.text);
+                }
               },
+              child: ValueListenableBuilder<TextEditingValue>(
+                valueListenable: controller,
+                builder: (context, value, _) {
+                  var t = value.text.trim();
+                  if (!t.startsWith('#')) t = '#$t';
+                  return TextField(
+                    controller: controller,
+                    maxLength: 7,
+                    style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp('[#0-9a-fA-F]'))],
+                    decoration: InputDecoration(
+                      isDense: true,
+                      counterText: '',
+                      errorText: _hexRe.hasMatch(t) ? null : '#rrggbb',
+                    ),
+                    onSubmitted: (v) => setColor(key, v),
+                  );
+                },
+              ),
             ),
           ),
-        ),
-      ]),
+        ],
+      ),
     );
   }
 
-  /// The sample: a small desktop in the colors and font being edited.
-  Widget _sample(double height, {bool large = false}) {
+  /// The sample (the plugin's build_sample): a small desktop in the colors
+  /// and font being edited — the wallpaper, a bar with the workspaces and the
+  /// clock, and an editor window with the accent border.
+  Widget _sample() {
     final c = {for (final e in colors.entries) e.key: _color(e.value)};
     Color k(String key, [String fallback = 'foreground']) => c[key] ?? c[fallback] ?? Colors.grey;
     final family = font ?? data?['system_font'] as String?;
-    final size = large ? (height / 16).clamp(11.0, 22.0) : 11.0;
-    TextStyle s(String key, {double? fontSize}) =>
-        TextStyle(color: k(key), fontFamily: family ?? 'monospace', fontSize: fontSize ?? size, height: 1.3);
+    const size = 11.0;
+    TextStyle s(String key, {double fontSize = size}) => TextStyle(
+      color: k(key),
+      fontFamily: family ?? 'monospace',
+      fontFamilyFallback: const ['monospace'],
+      fontSize: fontSize,
+      height: 1.3,
+    );
     TextSpan t(String text, String key) => TextSpan(text: text, style: s(key));
     Widget line(List<TextSpan> spans) =>
         Text.rich(TextSpan(children: spans), maxLines: 1, overflow: TextOverflow.ellipsis, softWrap: false);
@@ -458,66 +582,82 @@ class _EditorPageState extends State<EditorPage> {
       borderRadius: BorderRadius.circular(10),
       child: Container(
         color: k('darker_background', 'background'),
-        child: Stack(fit: StackFit.expand, children: [
-          if (wall != null)
-            Image.file(File(wall), fit: BoxFit.cover, cacheWidth: 1280, errorBuilder: (_, _, _) => const SizedBox()),
-          Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Container(
-              color: k('background').withValues(alpha: .94),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-              child: Row(children: [
-                Expanded(child: line([t('● ', 'accent'), t('2 ', 'foreground'), t('3  4', 'muted')])),
-                Text('12:30', style: s('foreground')),
-              ]),
-            ),
-            Expanded(
-              child: Container(
-                margin: const EdgeInsets.fromLTRB(18, 8, 18, 10),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: k('background').withValues(alpha: .97),
-                  border: Border.all(color: k('accent'), width: 2),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: SingleChildScrollView(
-                  physics: const NeverScrollableScrollPhysics(),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('~/code/hello.py — nvim', style: s('muted', fontSize: size - 1), maxLines: 1),
-                    line([t('def', 'magenta'), t(' ', 'foreground'), t('greet', 'blue'), t('(name):', 'foreground')]),
-                    line([t("    # say hello, in the theme's colors", 'muted')]),
-                    line([
-                      t('    ', 'foreground'), t('print', 'yellow'), t('(', 'foreground'), t('"hello"', 'green'),
-                      t(', ', 'foreground'), t('42', 'orange'), t(', ', 'foreground'), t('True', 'cyan'),
-                      t(')', 'foreground'),
-                    ]),
-                    Container(
-                      margin: const EdgeInsets.symmetric(vertical: 1),
-                      padding: const EdgeInsets.symmetric(horizontal: 6),
-                      decoration: BoxDecoration(color: k('selection'), borderRadius: BorderRadius.circular(3)),
-                      child: Text('selected line', style: s('foreground'), maxLines: 1),
-                    ),
-                    line([
-                      t('~/code', 'cyan'), t(' ❯ ', 'accent'), t('maprisma-theme apply  ', 'foreground'),
-                      t('✗ 1 error', 'red'),
-                    ]),
-                    if (large) ...[
-                      const SizedBox(height: 6),
-                      Row(children: [
-                        for (final key in ['red', 'green', 'yellow', 'blue', 'magenta', 'cyan'])
-                          Expanded(
-                            child: Column(children: [
-                              Container(height: size * .8, color: k(key)),
-                              Container(height: size * .8, color: k('bright_$key', key)),
-                            ]),
-                          ),
-                      ]),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (wall != null)
+              Image.file(File(wall), fit: BoxFit.cover, cacheWidth: 1280, errorBuilder: (_, _, _) => const SizedBox()),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  color: k('background').withValues(alpha: .94),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                  child: Row(
+                    children: [
+                      Expanded(child: line([t('● ', 'accent'), t('2 ', 'foreground'), t('3  4', 'muted')])),
+                      Text('12:30', style: s('foreground')),
                     ],
-                  ]),
+                  ),
                 ),
-              ),
+                Flexible(
+                  child: Container(
+                    margin: const EdgeInsets.fromLTRB(18, 8, 18, 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: k('background').withValues(alpha: .97),
+                      border: Border.all(color: k('accent'), width: 2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: SingleChildScrollView(
+                      physics: const NeverScrollableScrollPhysics(),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 2),
+                            child: Text('~/code/hello.py — nvim', style: s('muted', fontSize: 10), maxLines: 1),
+                          ),
+                          line([
+                            t('def', 'magenta'),
+                            t(' ', 'foreground'),
+                            t('greet', 'blue'),
+                            t('(name):', 'foreground'),
+                          ]),
+                          line([t("    # say hello, in the theme's colors", 'muted')]),
+                          line([
+                            t('    ', 'foreground'),
+                            t('print', 'yellow'),
+                            t('(', 'foreground'),
+                            t('"hello"', 'green'),
+                            t(', ', 'foreground'),
+                            t('42', 'orange'),
+                            t(', ', 'foreground'),
+                            t('True', 'cyan'),
+                            t(')', 'foreground'),
+                          ]),
+                          Container(
+                            margin: const EdgeInsets.symmetric(vertical: 1),
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                            decoration: BoxDecoration(color: k('selection'), borderRadius: BorderRadius.circular(3)),
+                            child: Text('selected line', style: s('foreground'), maxLines: 1),
+                          ),
+                          line([
+                            t('~/code', 'cyan'),
+                            t(' ❯ ', 'accent'),
+                            t('maprisma-theme apply  ', 'foreground'),
+                            t('✗ 1 error', 'red'),
+                          ]),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ]),
-        ]),
+          ],
+        ),
       ),
     );
   }
@@ -551,9 +691,9 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
     });
   }
 
-  void _square(Offset p, Size size) => _update(hsv
-      .withSaturation((p.dx / size.width).clamp(0.0, 1.0))
-      .withValue(1 - (p.dy / size.height).clamp(0.0, 1.0)));
+  void _square(Offset p, Size size) => _update(
+    hsv.withSaturation((p.dx / size.width).clamp(0.0, 1.0)).withValue(1 - (p.dy / size.height).clamp(0.0, 1.0)),
+  );
 
   void _hue(Offset p, double width) => _update(hsv.withHue((p.dx / width).clamp(0.0, 1.0) * 359.9));
 
@@ -570,60 +710,65 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
       title: Text(widget.label),
       content: SizedBox(
         width: size.width,
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          GestureDetector(
-            onPanDown: (e) => _square(e.localPosition, size),
-            onPanUpdate: (e) => _square(e.localPosition, size),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: CustomPaint(size: size, painter: _SquarePainter(hsv)),
-            ),
-          ),
-          const SizedBox(height: 12),
-          GestureDetector(
-            onPanDown: (e) => _hue(e.localPosition, size.width),
-            onPanUpdate: (e) => _hue(e.localPosition, size.width),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: CustomPaint(size: Size(size.width, 20), painter: _HuePainter(hsv.hue)),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(children: [
-            Tooltip(
-              message: 'Before',
-              child: Container(
-                width: 34,
-                height: 26,
-                decoration: swatch(_color(widget.initial), const BorderRadius.horizontal(left: Radius.circular(6))),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            GestureDetector(
+              onPanDown: (e) => _square(e.localPosition, size),
+              onPanUpdate: (e) => _square(e.localPosition, size),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: CustomPaint(size: size, painter: _SquarePainter(hsv)),
               ),
             ),
-            Tooltip(
-              message: 'Now',
-              child: Container(
-                width: 34,
-                height: 26,
-                decoration: swatch(hsv.toColor(), const BorderRadius.horizontal(right: Radius.circular(6))),
+            const SizedBox(height: 12),
+            GestureDetector(
+              onPanDown: (e) => _hue(e.localPosition, size.width),
+              onPanUpdate: (e) => _hue(e.localPosition, size.width),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: CustomPaint(size: Size(size.width, 20), painter: _HuePainter(hsv.hue)),
               ),
             ),
-            const Spacer(),
-            SizedBox(
-              width: 110,
-              child: TextField(
-                controller: field,
-                maxLength: 7,
-                style: const TextStyle(fontFamily: 'monospace'),
-                inputFormatters: [FilteringTextInputFormatter.allow(RegExp('[#0-9a-fA-F]'))],
-                decoration: const InputDecoration(isDense: true, counterText: ''),
-                onChanged: (v) {
-                  final t = v.startsWith('#') ? v : '#$v';
-                  if (_hexRe.hasMatch(t)) setState(() => hsv = HSVColor.fromColor(_color(t)));
-                },
-                onSubmitted: (_) => Navigator.pop(context, value),
-              ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Tooltip(
+                  message: 'Before',
+                  child: Container(
+                    width: 34,
+                    height: 26,
+                    decoration: swatch(_color(widget.initial), const BorderRadius.horizontal(left: Radius.circular(6))),
+                  ),
+                ),
+                Tooltip(
+                  message: 'Now',
+                  child: Container(
+                    width: 34,
+                    height: 26,
+                    decoration: swatch(hsv.toColor(), const BorderRadius.horizontal(right: Radius.circular(6))),
+                  ),
+                ),
+                const Spacer(),
+                SizedBox(
+                  width: 110,
+                  child: TextField(
+                    controller: field,
+                    maxLength: 7,
+                    style: const TextStyle(fontFamily: 'monospace'),
+                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp('[#0-9a-fA-F]'))],
+                    decoration: const InputDecoration(isDense: true, counterText: ''),
+                    onChanged: (v) {
+                      final t = v.startsWith('#') ? v : '#$v';
+                      if (_hexRe.hasMatch(t)) setState(() => hsv = HSVColor.fromColor(_color(t)));
+                    },
+                    onSubmitted: (_) => Navigator.pop(context, value),
+                  ),
+                ),
+              ],
             ),
-          ]),
-        ]),
+          ],
+        ),
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
@@ -654,8 +799,22 @@ class _SquarePainter extends CustomPainter {
         ).createShader(rect),
     );
     final at = Offset(hsv.saturation * size.width, (1 - hsv.value) * size.height);
-    canvas.drawCircle(at, 7, Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 2.5);
-    canvas.drawCircle(at, 8.5, Paint()..color = Colors.black54..style = PaintingStyle.stroke..strokeWidth = 1);
+    canvas.drawCircle(
+      at,
+      7,
+      Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.5,
+    );
+    canvas.drawCircle(
+      at,
+      8.5,
+      Paint()
+        ..color = Colors.black54
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1,
+    );
   }
 
   @override
@@ -671,14 +830,19 @@ class _HuePainter extends CustomPainter {
     canvas.drawRect(
       rect,
       Paint()
-        ..shader = LinearGradient(colors: [
-          for (var h = 0; h <= 360; h += 60) HSVColor.fromAHSV(1, h == 360 ? 359.9 : h.toDouble(), 1, 1).toColor(),
-        ]).createShader(rect),
+        ..shader = LinearGradient(
+          colors: [
+            for (var h = 0; h <= 360; h += 60) HSVColor.fromAHSV(1, h == 360 ? 359.9 : h.toDouble(), 1, 1).toColor(),
+          ],
+        ).createShader(rect),
     );
     final x = hue / 360 * size.width;
     canvas.drawRect(
       Rect.fromLTWH(x - 3, 0, 6, size.height),
-      Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 2,
+      Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2,
     );
   }
 

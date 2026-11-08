@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../app.dart';
+import '../theme.dart';
 import '../widgets.dart';
 import '../window.dart';
 
@@ -71,79 +71,94 @@ class _InfoPageState extends State<InfoPage> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return CallbackShortcuts(
-      bindings: {
-        const SingleActivator(LogicalKeyboardKey.escape): () => Navigator.maybePop(context),
-        const SingleActivator(LogicalKeyboardKey.backspace): () => Navigator.maybePop(context),
-      },
-      child: Focus(
+    final look = Look.of(context);
+    return SubPage(
+      title: 'Information',
+      body: Focus(
         autofocus: true,
-        child: SubPage(
-          title: 'Information',
-          body: loading
-              ? const Center(child: CircularProgressIndicator())
-              : ListView(
-                  padding: const EdgeInsets.all(14),
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: Text('MORE PLUGINS BY THE SAME AUTHOR',
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1, color: scheme.onSurfaceVariant)),
-                    ),
-                    LayoutBuilder(
-                      builder: (context, box) {
-                        final width = (box.maxWidth - 8) / 2;
-                        return Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [for (final p in plugins) SizedBox(width: width, child: _card(context, p))],
-                        );
-                      },
-                    ),
-                  ],
-                ),
-        ),
+        child: loading
+            ? const Center(child: CircularProgressIndicator())
+            : ListView(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Text('MORE PLUGINS BY THE SAME AUTHOR',
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1, color: look.dim)),
+                  ),
+                  LayoutBuilder(
+                    builder: (context, box) {
+                      final width = (box.maxWidth - 8) / 2;
+                      return Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [for (final p in plugins) SizedBox(width: width, child: _Card(plugin: p, onOpen: () => openCard(p)))],
+                      );
+                    },
+                  ),
+                ],
+              ),
       ),
     );
   }
+}
 
-  Widget _card(BuildContext context, Map p) {
-    final scheme = Theme.of(context).colorScheme;
+/// A plugin card as more_plugins.py draws it: the glyph in an accent box,
+/// the name, a line of explanation, the open mark; accent border on hover.
+class _Card extends StatefulWidget {
+  const _Card({required this.plugin, required this.onOpen});
+  final Map plugin;
+  final VoidCallback onOpen;
+  @override
+  State<_Card> createState() => _CardState();
+}
+
+class _CardState extends State<_Card> {
+  bool hover = false;
+  @override
+  Widget build(BuildContext context) {
+    final look = Look.of(context);
+    final r = corners(context).clamp(0, 8).toDouble();
+    final p = widget.plugin;
     final name = '${p['name']}';
     return Tooltip(
       message: 'Open $name in the Omarchy Plugin Marketplace',
-      child: Card(
-        margin: EdgeInsets.zero,
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: () => openCard(p),
-          child: Padding(
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => setState(() => hover = true),
+        onExit: (_) => setState(() => hover = false),
+        child: GestureDetector(
+          onTap: widget.onOpen,
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 62),
             padding: const EdgeInsets.all(8),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(color: scheme.primary.withValues(alpha: .16), borderRadius: BorderRadius.circular(5)),
-                  child: Icon(_icons[p['id']] ?? Icons.inventory_2_outlined, size: 19, color: scheme.primary),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(name, maxLines: 1, overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                      Text('${p['summary']}', maxLines: 3, overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
-                    ],
-                  ),
-                ),
-                Icon(Icons.open_in_new, size: 14, color: scheme.onSurfaceVariant),
-              ],
+            decoration: BoxDecoration(
+              color: look.fg.withValues(alpha: hover ? .08 : .03),
+              border: Border.all(color: hover ? look.accent : look.fg.withValues(alpha: .16)),
+              borderRadius: BorderRadius.circular(r),
             ),
+            child: Row(children: [
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(color: look.accent.withValues(alpha: .16), borderRadius: BorderRadius.circular(5)),
+                child: Icon(_icons[p['id']] ?? Icons.inventory_2_outlined, size: 17, color: look.accent),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: look.fg)),
+                  const SizedBox(height: 2),
+                  Text('${p['summary']}', maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: look.dim)),
+                ]),
+              ),
+              Align(
+                alignment: Alignment.topCenter,
+                child: Icon(Icons.open_in_new, size: 11, color: hover ? look.accent : look.dim),
+              ),
+            ]),
           ),
         ),
       ),

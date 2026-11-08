@@ -17,7 +17,7 @@ const defaultSettings = <String, dynamic>{
   'ask_ai_helper': null,
   'ask_prompts': null,
   'maprisma_hints': true,
-  'header_order': ['ask', 'import', 'hidden', 'presets', 'info'],
+  'header_order': ['import', 'hidden', 'presets', 'ask', 'info'], // the plugin's header_order.DEFAULT
   'own_font': null,
   'apps': null, // null = every installed app; else a list of app ids (apps.dart)
   'show_hidden': false,
@@ -59,11 +59,12 @@ final class Settings {
   }
 
   /// Reset to defaults keeps shortcuts, favorites, hidden themes, the day
-  /// and night themes (as the plugin).
+  /// and night themes (as the plugin); the header button order and the
+  /// screenshot key and folder go back to their defaults too.
   Map<String, dynamic> reset() {
     final raw = readJsonMap(paths.settingsFile);
     final keep = <String, dynamic>{
-      for (final k in ['size', 'ask_ai', 'ask_ai_helper', 'ask_prompts', 'own_font', 'apps', 'header_order', 'screenshot_dir'])
+      for (final k in ['size', 'ask_ai', 'ask_ai_helper', 'ask_prompts', 'own_font', 'apps'])
         if (raw.containsKey(k)) k: raw[k],
     };
     final old = raw['schedule'] is Map ? Map<String, dynamic>.from(raw['schedule']) : <String, dynamic>{};

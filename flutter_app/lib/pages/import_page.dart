@@ -5,159 +5,245 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../app.dart';
+import '../theme.dart';
 import '../widgets.dart';
 
-/// Import themes: the omarchy.org gallery (git themes, applied on COSMIC
-/// through their colors.toml) and cosmic-themes.org (native COSMIC themes).
-/// Each tab is a searchable grid; a tile's ☰ menu installs, installs and
-/// applies, or opens the theme's page in the browser.
-class ImportPage extends StatelessWidget {
+/// Import themes, as the plugin's import page: the omarchy.org gallery (git
+/// themes, applied on COSMIC through their colors.toml) and, as a second
+/// source, cosmic-themes.org (native COSMIC themes). A search field and the
+/// reload button, a hint, then the themes as tiles; a tile's ☰ menu installs,
+/// installs and applies, or opens the theme's page. Typing searches, ↓ or
+/// Enter goes from the field to the tiles, the arrows move, Enter, Space or
+/// the Menu key open a tile's menu, ← from the left column, Backspace or Esc
+/// go back.
+class ImportPage extends StatefulWidget {
   const ImportPage({super.key});
-
   @override
-  Widget build(BuildContext context) => DefaultTabController(
-    length: 2,
-    child: CallbackShortcuts(
-      bindings: {
-        const SingleActivator(LogicalKeyboardKey.escape): () => Navigator.maybePop(context),
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Import themes'),
-          bottom: const TabBar(tabs: [Tab(text: 'omarchy.org'), Tab(text: 'cosmic-themes.org')]),
-        ),
-        body: const TabBarView(children: [_OmarchyTab(), _CosmicTab()]),
-      ),
-    ),
-  );
+  State<ImportPage> createState() => _ImportPageState();
 }
 
-/// The search field both tabs use; Esc clears it, then leaves the page.
-class _SearchField extends StatelessWidget {
-  const _SearchField({required this.controller, required this.hint, this.trailing});
+class _ImportPageState extends State<ImportPage> {
+  int tab = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final look = Look.of(context);
+    final r = corners(context);
+    Widget tabButton(int i, String label) {
+      final on = tab == i;
+      return Padding(
+        padding: const EdgeInsets.only(right: 6),
+        child: OutlinedButton(
+          onPressed: () => setState(() => tab = i),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: on ? look.accent : look.fg,
+            backgroundColor: on ? look.accent.withValues(alpha: .08) : Colors.transparent,
+            side: BorderSide(color: on ? look.accent : look.fg.withValues(alpha: .25), width: on ? 2 : 1),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(r)),
+          ),
+          child: Text(label),
+        ),
+      );
+    }
+
+    return SubPage(
+      title: tab == 0 ? 'Import themes — omarchy.org' : 'Import themes — cosmic-themes.org',
+      section: false,
+      backTooltip: 'Back to themes (Left, Backspace or Esc)',
+      actions: [tabButton(0, 'omarchy.org'), tabButton(1, 'cosmic-themes.org')],
+      body: IndexedStack(index: tab, children: [_OmarchyTab(active: tab == 0), _CosmicTab(active: tab == 1)]),
+    );
+  }
+}
+
+/// The search field with the reload button (or the sort) beside it.
+class _Toolbar extends StatelessWidget {
+  const _Toolbar({required this.controller, required this.focus, required this.hint, required this.onKey, this.trailing});
   final TextEditingController controller;
+  final FocusNode focus;
   final String hint;
+  final FocusOnKeyEventCallback onKey;
   final Widget? trailing;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
-    child: Row(
-      children: [
-        Expanded(
-          child: CallbackShortcuts(
-            bindings: {
-              const SingleActivator(LogicalKeyboardKey.escape): () {
-                if (controller.text.isNotEmpty) {
-                  controller.clear();
-                } else {
-                  Navigator.maybePop(context);
-                }
-              },
-            },
-            child: TextField(
-              controller: controller,
-              autofocus: true,
-              maxLength: 100,
-              decoration: InputDecoration(
-                isDense: true,
-                counterText: '',
-                prefixIcon: const Icon(Icons.search),
-                hintText: hint,
-                border: const OutlineInputBorder(),
-                suffixIcon: ListenableBuilder(
-                  listenable: controller,
-                  builder: (_, _) => controller.text.isEmpty
-                      ? const SizedBox.shrink()
-                      : IconButton(tooltip: 'Clear', icon: const Icon(Icons.close), onPressed: controller.clear),
-                ),
-              ),
-            ),
-          ),
+  Widget build(BuildContext context) => Row(children: [
+    Expanded(
+      child: Focus(
+        onKeyEvent: onKey,
+        child: TextField(
+          controller: controller,
+          focusNode: focus,
+          maxLength: 100,
+          style: const TextStyle(fontSize: 14),
+          decoration: InputDecoration(counterText: '', prefixIcon: const Icon(Icons.search, size: 18), hintText: hint),
         ),
-        if (trailing != null) ...[const SizedBox(width: 10), trailing!],
-      ],
+      ),
     ),
-  );
+    if (trailing != null) ...[const SizedBox(width: 8), trailing!],
+  ]);
 }
 
-/// One gallery theme: preview, name, tags and the ☰ menu.
-class _ImportTile extends StatelessWidget {
-  const _ImportTile({
-    super.key,
-    required this.name,
-    required this.preview,
-    required this.tags,
-    required this.menu,
-    required this.busy,
-    this.subtitle,
-  });
-  final String name;
-  final String? subtitle;
-  final Widget preview;
-  final List<Widget> tags;
-  final List<PopupMenuEntry<VoidCallback>> Function() menu;
-  final bool busy;
+/// The tiles of one source with the keyboard of the plugin's import page.
+mixin _Gallery<T extends StatefulWidget> on State<T> {
+  late final MaprismaThemeAppState app;
+  final search = TextEditingController();
+  final fieldFocus = FocusNode();
+  final gridFocus = FocusNode();
+  final scroll = ScrollController();
+  final menuKeys = <Object, GlobalKey<PopupMenuButtonState<VoidCallback>>>{};
+  final tileKeys = <Object, GlobalKey>{};
+  int selected = 0, columns = 2;
+
+  List<Map<String, dynamic>> get items;
+  Object idOf(Map<String, dynamic> t);
 
   @override
-  Widget build(BuildContext context) => Card(
-    clipBehavior: Clip.antiAlias,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Expanded(
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              preview,
-              if (busy) const ColoredBox(color: Color(0x66000000), child: Center(child: CircularProgressIndicator())),
-            ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(10, 6, 2, 6),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600)),
-                    if (subtitle != null && subtitle!.isNotEmpty)
-                      Text(subtitle!, maxLines: 1, overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
-                    if (tags.isNotEmpty) Wrap(spacing: 4, runSpacing: 2, children: tags),
-                  ],
-                ),
+  void initState() {
+    super.initState();
+    app = AppScope.read(context);
+  }
+
+  @override
+  void dispose() {
+    search.dispose();
+    fieldFocus.dispose();
+    gridFocus.dispose();
+    scroll.dispose();
+    super.dispose();
+  }
+
+  void select(int i) {
+    final list = items;
+    if (list.isEmpty) return;
+    setState(() => selected = i.clamp(0, list.length - 1));
+    final ctx = tileKeys[idOf(list[selected])]?.currentContext;
+    if (ctx != null) Scrollable.ensureVisible(ctx, alignment: .5, duration: const Duration(milliseconds: 100));
+  }
+
+  void openMenu() {
+    final list = items;
+    if (selected < list.length) menuKeys[idOf(list[selected])]?.currentState?.showButtonMenu();
+  }
+
+  KeyEventResult onFieldKey(FocusNode node, KeyEvent e) {
+    if (e is! KeyDownEvent) return KeyEventResult.ignored;
+    final key = e.logicalKey;
+    if ((key == LogicalKeyboardKey.arrowDown || key == LogicalKeyboardKey.enter) && items.isNotEmpty) {
+      gridFocus.requestFocus();
+      select(0);
+      return KeyEventResult.handled;
+    }
+    if ((key == LogicalKeyboardKey.arrowLeft || key == LogicalKeyboardKey.backspace) && search.text.isEmpty) {
+      Navigator.of(context).maybePop();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  KeyEventResult onGridKey(FocusNode node, KeyEvent e) {
+    if (e is! KeyDownEvent && e is! KeyRepeatEvent) return KeyEventResult.ignored;
+    final n = items.length;
+    switch (e.logicalKey) {
+      case LogicalKeyboardKey.enter || LogicalKeyboardKey.numpadEnter || LogicalKeyboardKey.space || LogicalKeyboardKey.contextMenu:
+        openMenu();
+      case LogicalKeyboardKey.arrowRight:
+        select(selected + 1);
+      case LogicalKeyboardKey.arrowLeft:
+        if (selected % columns == 0) {
+          Navigator.of(context).maybePop();
+        } else {
+          select(selected - 1);
+        }
+      case LogicalKeyboardKey.arrowDown:
+        if (selected + columns < n) select(selected + columns);
+      case LogicalKeyboardKey.arrowUp:
+        if (selected < columns) {
+          fieldFocus.requestFocus();
+        } else {
+          select(selected - columns);
+        }
+      case LogicalKeyboardKey.pageDown:
+        select(selected + 4 * columns);
+      case LogicalKeyboardKey.pageUp:
+        select(selected - 4 * columns);
+      case LogicalKeyboardKey.home:
+        select(0);
+      case LogicalKeyboardKey.end:
+        select(n - 1);
+      case LogicalKeyboardKey.backspace:
+        Navigator.of(context).maybePop();
+      default:
+        // Typing anywhere on the page searches.
+        final ch = e.character;
+        if (ch == null || ch.length != 1 || ch.codeUnitAt(0) < 32 || ch.codeUnitAt(0) == 127) return KeyEventResult.ignored;
+        search.text += ch;
+        search.selection = TextSelection.collapsed(offset: search.text.length);
+        fieldFocus.requestFocus();
+    }
+    return KeyEventResult.handled;
+  }
+
+  /// The grid of [tile]s under the toolbar and the hint.
+  Widget gallery({required Widget toolbar, required String hint, required Widget Function(int i, bool selected) tile,
+      Widget? empty, Widget? footer}) {
+    final list = items;
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      toolbar,
+      const SizedBox(height: 8),
+      Text(hint, style: hintStyle(context)),
+      const SizedBox(height: 8),
+      Expanded(
+        child: Focus(
+          focusNode: gridFocus,
+          onKeyEvent: onGridKey,
+          onFocusChange: (_) => setState(() {}),
+          child: LayoutBuilder(builder: (context, box) {
+            columns = gridColumns(box.maxWidth);
+            if (list.isEmpty) return Align(alignment: Alignment.topLeft, child: empty ?? const SizedBox());
+            return TileGrid(
+              controller: scroll,
+              count: list.length,
+              columns: columns,
+              footer: footer,
+              builder: (context, i) => KeyedSubtree(
+                key: tileKeys.putIfAbsent(idOf(list[i]), () => GlobalKey()),
+                child: tile(i, gridFocus.hasFocus && i == selected),
               ),
-              PopupMenuButton<VoidCallback>(
-                tooltip: 'Menu',
-                icon: const Icon(Icons.menu),
-                enabled: !busy,
-                itemBuilder: (_) => menu(),
-                onSelected: (f) => f(),
-              ),
-            ],
-          ),
+            );
+          }),
         ),
-      ],
-    ),
-  );
+      ),
+    ]);
+  }
+
+  /// One gallery theme as the plugin's tile: preview, “installed”, ☰, name.
+  Widget themeTile(int i, bool isSelected,
+      {required Widget picture, required String name, required List<PopupMenuEntry<VoidCallback>> Function() menu,
+      bool installed = false, bool busy = false, List<Widget> extraBadges = const [], String? tooltip}) {
+    final t = items[i];
+    final menuKey = menuKeys.putIfAbsent(idOf(t), () => GlobalKey());
+    return PluginTile(
+      selected: isSelected,
+      tooltip: tooltip,
+      onTap: () {
+        gridFocus.requestFocus();
+        select(i);
+      },
+      onSecondaryTap: () => menuKey.currentState?.showButtonMenu(),
+      picture: Stack(fit: StackFit.expand, children: [
+        picture,
+        if (busy) const ColoredBox(color: Color(0x66000000), child: Center(child: CircularProgressIndicator())),
+      ]),
+      menu: TileMenuButton(menuKey: menuKey, tooltip: 'Theme actions (Enter)', enabled: !busy, menu: menu),
+      bottomLeft: [if (installed) const TileBadge('installed'), ...extraBadges],
+      captionText: name,
+    );
+  }
 }
 
-Widget _grid(int count, Widget Function(BuildContext, int) builder, {ScrollController? controller}) => LayoutBuilder(
-  builder: (context, box) => GridView.builder(
-    controller: controller,
-    padding: const EdgeInsets.all(14),
-    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-      crossAxisCount: (box.maxWidth / 300).floor().clamp(2, 4),
-      mainAxisSpacing: 12,
-      crossAxisSpacing: 12,
-      childAspectRatio: 1.25,
-    ),
-    itemCount: count,
-    itemBuilder: builder,
-  ),
+Widget _noPicture(BuildContext context) => ColoredBox(
+  color: Look.of(context).fg.withValues(alpha: .06),
+  child: Icon(Icons.image_outlined, color: Look.of(context).muted),
 );
 
 /// Installs through [method]; tells how it went and lets the other pages
@@ -170,25 +256,38 @@ Future<bool> _install(MaprismaThemeAppState app, String method, Map<String, dyna
   if (r['apply_error'] != null) {
     app.notify('$name installed, but not applied: ${r['apply_error']}');
   } else {
-    app.notify(r['applied'] == true ? '$name installed and applied' : '$name installed');
+    app.notify(r['applied'] == true ? 'Theme installed and applied: $name' : 'Theme installed: $name');
   }
   return true;
+}
+
+Future<void> _open(MaprismaThemeAppState app, Object? url) async {
+  final r = await app.run('import.open', {'url': url});
+  if (r != null && r['opened'] != true) {
+    app.notify("No default web browser is set, so theme pages can't be opened.");
+  }
+}
+
+Future<void> _apply(MaprismaThemeAppState app, String slug, String name) async {
+  final r = await app.run('themes.apply', {'slug': slug});
+  if (r == null) return;
+  app.notify('Theme applied: $name');
+  app.changed();
 }
 
 // --- omarchy.org ---------------------------------------------------------------
 
 class _OmarchyTab extends StatefulWidget {
-  const _OmarchyTab();
+  const _OmarchyTab({required this.active});
+  final bool active;
   @override
   State<_OmarchyTab> createState() => _OmarchyTabState();
 }
 
-class _OmarchyTabState extends State<_OmarchyTab> with AutomaticKeepAliveClientMixin {
-  late final MaprismaThemeAppState app;
-  final search = TextEditingController();
+class _OmarchyTabState extends State<_OmarchyTab> with _Gallery<_OmarchyTab> {
   List<Map<String, dynamic>> themes = [];
   bool loading = true;
-  String? error;
+  String? error, status;
   final busy = <String>{};
 
   /// slug → preview path ('' while loading or when there is none).
@@ -197,20 +296,22 @@ class _OmarchyTabState extends State<_OmarchyTab> with AutomaticKeepAliveClientM
   var _running = 0;
 
   @override
-  bool get wantKeepAlive => true;
+  Object idOf(Map<String, dynamic> t) => t['slug'] as String;
 
   @override
   void initState() {
     super.initState();
-    app = AppScope.read(context);
-    search.addListener(() => setState(() {}));
+    search.addListener(() => setState(() => selected = 0));
     load();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && widget.active) fieldFocus.requestFocus();
+    });
   }
 
   @override
-  void dispose() {
-    search.dispose();
-    super.dispose();
+  void didUpdateWidget(_OmarchyTab old) {
+    super.didUpdateWidget(old);
+    if (widget.active && !old.active) fieldFocus.requestFocus();
   }
 
   Future<void> load({bool force = false}) async {
@@ -228,11 +329,11 @@ class _OmarchyTabState extends State<_OmarchyTab> with AutomaticKeepAliveClientM
         }
         loading = false;
       });
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       setState(() {
         loading = false;
-        error = 'Could not load the theme list from omarchy.org.';
+        error = 'Could not load the theme list: ${errorText(e)}';
       });
     }
   }
@@ -259,21 +360,26 @@ class _OmarchyTabState extends State<_OmarchyTab> with AutomaticKeepAliveClientM
     }
   }
 
-  List<Map<String, dynamic>> get shown {
+  @override
+  List<Map<String, dynamic>> get items {
     final q = search.text.trim().toLowerCase();
     return [
       for (final t in themes)
-        if (q.isEmpty || (t['name'] as String).toLowerCase().contains(q) || (t['repo'] as String).toLowerCase().contains(q)) t,
+        if (q.isEmpty || '${t['name']}'.toLowerCase().contains(q) || '${t['repo']}'.toLowerCase().contains(q)) t,
     ];
   }
 
   Future<void> install(Map<String, dynamic> t, bool apply) async {
     final slug = t['slug'] as String;
-    setState(() => busy.add(slug));
+    setState(() {
+      busy.add(slug);
+      status = 'Installing ${t['name']}…';
+    });
     final ok = await _install(app, 'import.omarchy_install', {'name': slug}, t['name'] as String, apply);
     if (!mounted) return;
     setState(() {
       busy.remove(slug);
+      status = null;
       if (ok) t['installed'] = true;
     });
   }
@@ -281,51 +387,60 @@ class _OmarchyTabState extends State<_OmarchyTab> with AutomaticKeepAliveClientM
   List<PopupMenuEntry<VoidCallback>> menu(Map<String, dynamic> t) {
     final installed = t['installed'] == true;
     return [
-      item(Icons.download_outlined, 'Install', () => install(t, false), enabled: !installed),
-      item(Icons.check_circle_outline, 'Install and apply', () => install(t, true), enabled: !installed),
-      const PopupMenuDivider(),
-      item(Icons.open_in_new, 'Open page in browser', () => app.run('import.open', {'url': t['repo']})),
+      if (installed) ...[
+        item(Icons.check, 'Installed', () {}, enabled: false),
+        item(Icons.play_arrow, 'Apply theme', () => _apply(app, t['slug'] as String, '${t['name']}')),
+      ] else ...[
+        item(Icons.download_outlined, 'Install', () => install(t, false),
+            tooltip: 'git clone into ~/.config/maprisma-theme/themes/${t['slug']}'),
+        item(Icons.play_arrow, 'Install and apply', () => install(t, true)),
+      ],
+      menuLine(),
+      item(Icons.public, 'Open theme page', () => _open(app, t['repo']), tooltip: '${t['repo']}'),
     ];
   }
 
   @override
   Widget build(BuildContext context) {
-    super.build(context);
-    final scheme = Theme.of(context).colorScheme;
-    final list = shown;
-    return Column(
-      children: [
-        _SearchField(
-          controller: search,
-          hint: themes.isEmpty ? 'Search' : 'Search ${themes.length} themes',
-          trailing: IconButton(tooltip: 'Reload the list', icon: const Icon(Icons.refresh), onPressed: () => load(force: true)),
+    final hint = status ??
+        error ??
+        (loading
+            ? 'Loading themes from omarchy.org…'
+            : "${themes.length} themes from omarchy.org. Enter opens a theme's menu: install, install and apply, or open its page.");
+    return gallery(
+      toolbar: _Toolbar(
+        controller: search,
+        focus: fieldFocus,
+        hint: 'Search themes',
+        onKey: onFieldKey,
+        trailing: Tooltip(
+          message: 'Reload the list from omarchy.org',
+          child: OutlinedButton(onPressed: () => load(force: true), child: const Icon(Icons.refresh, size: 18)),
         ),
-        Expanded(
-          child: loading
-              ? const Center(child: CircularProgressIndicator())
-              : error != null && themes.isEmpty
-              ? Center(child: Text(error!))
-              : list.isEmpty
-              ? Center(child: Text('No theme matches “${search.text.trim()}”.'))
-              : _grid(list.length, (context, i) {
-                  final t = list[i];
-                  final slug = t['slug'] as String;
-                  wantPreview(slug);
-                  final path = previews[slug] ?? '';
-                  return _ImportTile(
-                    key: ValueKey(slug),
-                    name: t['name'] as String,
-                    busy: busy.contains(slug),
-                    preview: path.isEmpty
-                        ? ColoredBox(color: scheme.surfaceContainerHighest, child: const Icon(Icons.image_outlined))
-                        : Image.file(File(path), fit: BoxFit.cover, cacheWidth: 600,
-                            errorBuilder: (_, _, _) => ColoredBox(color: scheme.surfaceContainerHighest)),
-                    tags: [if (t['installed'] == true) Tag(label: 'installed', color: scheme.primary)],
-                    menu: () => menu(t),
-                  );
-                }),
-        ),
-      ],
+      ),
+      hint: hint,
+      empty: loading
+          ? const Center(child: CircularProgressIndicator())
+          : themes.isEmpty
+          ? null
+          : Text('No theme matches “${search.text.trim()}”.', style: hintStyle(context)),
+      tile: (i, isSelected) {
+        final t = items[i];
+        final slug = t['slug'] as String;
+        wantPreview(slug);
+        final path = previews[slug] ?? '';
+        return themeTile(
+          i,
+          isSelected,
+          name: '${t['name']}',
+          installed: t['installed'] == true,
+          busy: busy.contains(slug),
+          menu: () => menu(t),
+          picture: path.isEmpty
+              ? _noPicture(context)
+              : Image.file(File(path), fit: BoxFit.cover, cacheWidth: 640, errorBuilder: (_, _, _) => _noPicture(context)),
+        );
+      },
     );
   }
 }
@@ -333,15 +448,13 @@ class _OmarchyTabState extends State<_OmarchyTab> with AutomaticKeepAliveClientM
 // --- cosmic-themes.org ---------------------------------------------------------
 
 class _CosmicTab extends StatefulWidget {
-  const _CosmicTab();
+  const _CosmicTab({required this.active});
+  final bool active;
   @override
   State<_CosmicTab> createState() => _CosmicTabState();
 }
 
-class _CosmicTabState extends State<_CosmicTab> with AutomaticKeepAliveClientMixin {
-  late final MaprismaThemeAppState app;
-  final search = TextEditingController();
-  final scroll = ScrollController();
+class _CosmicTabState extends State<_CosmicTab> with _Gallery<_CosmicTab> {
   List<Map<String, dynamic>> themes = [];
   List<Map> sorts = const [
     {'value': 'popular', 'label': 'Popular'},
@@ -350,20 +463,22 @@ class _CosmicTabState extends State<_CosmicTab> with AutomaticKeepAliveClientMix
   ];
   String sort = 'popular';
   int? nextPage;
-  bool loading = true, loadingMore = false;
-  String? error;
+  bool loading = true, loadingMore = false, started = false;
+  String? error, status;
   final busy = <int>{};
   Timer? _debounce;
   String _lastSearch = '';
   int _generation = 0;
 
   @override
-  bool get wantKeepAlive => true;
+  Object idOf(Map<String, dynamic> t) => t['id'] as int;
+
+  @override
+  List<Map<String, dynamic>> get items => themes;
 
   @override
   void initState() {
     super.initState();
-    app = AppScope.read(context);
     search.addListener(() {
       if (search.text.trim() == _lastSearch) return;
       _debounce?.cancel();
@@ -372,14 +487,28 @@ class _CosmicTabState extends State<_CosmicTab> with AutomaticKeepAliveClientMix
     scroll.addListener(() {
       if (scroll.position.extentAfter < 400) more();
     });
+    if (widget.active) _start();
+  }
+
+  @override
+  void didUpdateWidget(_CosmicTab old) {
+    super.didUpdateWidget(old);
+    if (widget.active && !old.active) {
+      _start();
+      fieldFocus.requestFocus();
+    }
+  }
+
+  /// Only once the tab is opened: no request to cosmic-themes.org before.
+  void _start() {
+    if (started) return;
+    started = true;
     load();
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
-    search.dispose();
-    scroll.dispose();
     super.dispose();
   }
 
@@ -394,6 +523,7 @@ class _CosmicTabState extends State<_CosmicTab> with AutomaticKeepAliveClientMix
     setState(() {
       loading = true;
       error = null;
+      selected = 0;
     });
     try {
       final r = await app.call('import.cosmic_list', _params);
@@ -406,11 +536,11 @@ class _CosmicTabState extends State<_CosmicTab> with AutomaticKeepAliveClientMix
         loading = false;
       });
       if (scroll.hasClients) scroll.jumpTo(0);
-    } catch (_) {
+    } catch (e) {
       if (!mounted || gen != _generation) return;
       setState(() {
         loading = false;
-        error = 'Could not load the theme list from cosmic-themes.org.';
+        error = 'Could not load the theme list: ${errorText(e)}';
       });
     }
   }
@@ -442,38 +572,62 @@ class _CosmicTabState extends State<_CosmicTab> with AutomaticKeepAliveClientMix
 
   Future<void> install(Map<String, dynamic> t, bool apply) async {
     final id = t['id'] as int;
-    setState(() => busy.add(id));
+    setState(() {
+      busy.add(id);
+      status = 'Installing ${t['name']}…';
+    });
     final ok = await _install(app, 'import.cosmic_install', {'id': id}, t['name'] as String, apply);
     if (!mounted) return;
     setState(() {
       busy.remove(id);
+      status = null;
       if (ok) t['installed'] = true;
     });
   }
 
   List<PopupMenuEntry<VoidCallback>> menu(Map<String, dynamic> t) {
     final installed = t['installed'] == true;
+    final slug = t['slug'];
     return [
-      item(Icons.download_outlined, 'Install', () => install(t, false), enabled: !installed),
-      item(Icons.check_circle_outline, 'Install and apply', () => install(t, true), enabled: !installed),
-      const PopupMenuDivider(),
-      item(Icons.open_in_new, 'Open page in browser', () => app.run('import.open', {'url': t['page']})),
+      if (installed) ...[
+        item(Icons.check, 'Installed', () {}, enabled: false),
+        if (slug is String) item(Icons.play_arrow, 'Apply theme', () => _apply(app, slug, '${t['name']}')),
+      ] else ...[
+        item(Icons.download_outlined, 'Install', () => install(t, false)),
+        item(Icons.play_arrow, 'Install and apply', () => install(t, true)),
+      ],
+      menuLine(),
+      item(Icons.public, 'Open theme page', () => _open(app, t['page']), tooltip: '${t['page']}'),
     ];
   }
 
   @override
   Widget build(BuildContext context) {
-    super.build(context);
-    final scheme = Theme.of(context).colorScheme;
-    return Column(
-      children: [
-        _SearchField(
-          controller: search,
-          hint: 'Search cosmic-themes.org',
-          trailing: DropdownButton<String>(
+    final look = Look.of(context);
+    final hint = status ??
+        error ??
+        (loading
+            ? 'Loading themes from cosmic-themes.org…'
+            : "Native COSMIC themes from cosmic-themes.org. Enter opens a theme's menu: install, install and apply, or open its page.");
+    return gallery(
+      toolbar: _Toolbar(
+        controller: search,
+        focus: fieldFocus,
+        hint: 'Search cosmic-themes.org',
+        onKey: onFieldKey,
+        trailing: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            border: Border.all(color: look.fg.withValues(alpha: .25)),
+            borderRadius: BorderRadius.circular(corners(context)),
+          ),
+          child: DropdownButton<String>(
             value: sorts.any((s) => s['value'] == sort) ? sort : null,
             hint: const Text('Sort'),
+            isDense: true,
+            dropdownColor: look.bg,
             underline: const SizedBox.shrink(),
+            style: Theme.of(context).textTheme.bodyMedium!.copyWith(fontSize: 13, color: look.fg),
             items: [for (final s in sorts) DropdownMenuItem(value: '${s['value']}', child: Text('${s['label']}'))],
             onChanged: (v) {
               if (v == null || v == sort) return;
@@ -482,34 +636,31 @@ class _CosmicTabState extends State<_CosmicTab> with AutomaticKeepAliveClientMix
             },
           ),
         ),
-        Expanded(
-          child: loading
-              ? const Center(child: CircularProgressIndicator())
-              : error != null
-              ? Center(child: Text(error!))
-              : themes.isEmpty
-              ? Center(child: Text(search.text.trim().isEmpty ? 'No themes found.' : 'No theme matches “${search.text.trim()}”.'))
-              : _grid(themes.length + (loadingMore ? 1 : 0), controller: scroll, (context, i) {
-                  if (i >= themes.length) return const Center(child: CircularProgressIndicator());
-                  final t = themes[i];
-                  final id = t['id'] as int;
-                  final author = '${t['author'] ?? ''}';
-                  final downloads = t['downloads'] as int? ?? 0;
-                  return _ImportTile(
-                    key: ValueKey(id),
-                    name: t['name'] as String,
-                    subtitle: [if (author.isNotEmpty) author, '$downloads downloads'].join(' · '),
-                    busy: busy.contains(id),
-                    preview: ColorPreview(colors: (t['preview'] as Map?) ?? const {}, title: t['name'] as String),
-                    tags: [
-                      if (t['installed'] == true) Tag(label: 'installed', color: scheme.primary),
-                      Tag(label: t['dark'] == true ? 'dark' : 'light'),
-                    ],
-                    menu: () => menu(t),
-                  );
-                }),
-        ),
-      ],
+      ),
+      hint: hint,
+      empty: loading
+          ? const Center(child: CircularProgressIndicator())
+          : error != null
+          ? null
+          : Text(search.text.trim().isEmpty ? 'No themes found.' : 'No theme matches “${search.text.trim()}”.',
+              style: hintStyle(context)),
+      footer: loadingMore ? const Padding(padding: EdgeInsets.all(12), child: Center(child: CircularProgressIndicator())) : null,
+      tile: (i, isSelected) {
+        final t = themes[i];
+        final author = '${t['author'] ?? ''}';
+        final downloads = t['downloads'] as int? ?? 0;
+        return themeTile(
+          i,
+          isSelected,
+          name: '${t['name']}',
+          tooltip: [if (author.isNotEmpty) 'by $author', '$downloads downloads'].join(' · '),
+          installed: t['installed'] == true,
+          busy: busy.contains(t['id']),
+          extraBadges: [TileBadge(t['dark'] == true ? 'dark' : 'light')],
+          menu: () => menu(t),
+          picture: ColorPreview(colors: (t['preview'] as Map?) ?? const {}, title: '${t['name']}'),
+        );
+      },
     );
   }
 }

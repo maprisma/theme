@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:maprisma_theme_core/maprisma_theme_core.dart' show Paths, Posix, ServiceError;
 
 import '../app.dart';
+import '../theme.dart';
 import '../widgets.dart';
 import '../window.dart';
 import 'editor_page.dart';
@@ -63,7 +64,7 @@ class _WallpapersPageState extends State<WallpapersPage> {
 
   Map<String, dynamic>? data;
   Map<int, String> workspaces = {};
-  bool showHidden = false, dragging = false, busy = false;
+  bool dragging = false, busy = false;
   String filter = '';
   int selected = 0, columns = 3;
   bool previewing = false;
@@ -135,7 +136,7 @@ class _WallpapersPageState extends State<WallpapersPage> {
 
   List<Map<String, dynamic>> get wallpapers => [
     for (final w in (data?['wallpapers'] as List?) ?? const [])
-      if ((showHidden || w['hidden'] != true) &&
+      if ((app.showHidden || w['hidden'] != true) &&
           (filter.isEmpty || '${w['name']}'.toLowerCase().contains(filter.toLowerCase())))
         Map<String, dynamic>.from(w as Map),
   ];
@@ -261,10 +262,24 @@ class _WallpapersPageState extends State<WallpapersPage> {
 
   Future<void> showOnWorkspaces(Map w) async {
     final name = '${w['name']}';
-    final picked = await pickWorkspaces(context, 'Show $name on workspace…', workspacesOf(name).toSet());
-    if (picked == null) return;
+    final anchor = rectOf(_menuKeys[w['path']] ?? GlobalKey());
+    if (anchor == null) return;
+    final mine = workspacesOf(name).toSet();
+    final others = {for (final e in workspaces.entries) if (e.value != name) e.key: e.value};
+    final ws = await showWorkspaceMenu(
+      context,
+      anchor: anchor,
+      title: 'Show on workspace',
+      mine: mine,
+      others: others,
+      namesOthers: false,
+      clearLabel: mine.isEmpty ? null : 'Not on any workspace',
+      tooltipOf: (ws) => 'Workspace $ws: ${mine.contains(ws) ? 'shows this wallpaper (click to clear)' : others[ws] != null ? 'shows ${others[ws]} (click to use this one)' : 'use this wallpaper'}',
+    );
+    if (ws == null || !mounted) return;
+    final wanted = ws == 0 ? <int>{} : (mine.contains(ws) ? ({...mine}..remove(ws)) : {...mine, ws});
     final r = await _try('auto.set_workspace_wallpaper',
-        {'slug': widget.slug, 'name': name, 'workspaces': picked.toList()..sort()},
+        {'slug': widget.slug, 'name': name, 'workspaces': wanted.toList()..sort()},
         'Could not change the workspace wallpaper');
     if (r == null) return;
     load();
@@ -322,31 +337,27 @@ class _WallpapersPageState extends State<WallpapersPage> {
     return [
       if (isCurrent && !hidden) item(Icons.wallpaper_outlined, 'Set as background', () => setBackground(w)),
       if (!hidden)
-        item(Icons.visibility_outlined, 'Preview on desktop ($previewSeconds s)',
-            () => startPreview(w['path'] as String, seconds: previewSeconds)),
-      if (!hidden) item(Icons.palette_outlined, 'New theme from this wallpaper…', () => newTheme(w)),
+        item(Icons.visibility_outlined, 'Preview on desktop', () => startPreview(w['path'] as String, seconds: previewSeconds),
+            tooltip: 'Shows it for $previewSeconds seconds; or hold Space on the tile'),
       if (!hidden)
-        item(Icons.grid_view_outlined, ws.isEmpty ? 'Show on workspace…' : 'On workspace ${ws.join(', ')}…',
-            () => showOnWorkspaces(w)),
-      const PopupMenuDivider(),
-      hidden
-          ? item(Icons.visibility_outlined, 'Unhide', () => setHidden(w, false))
-          : item(Icons.visibility_off_outlined, 'Hide', () => setHidden(w, true)),
-      const PopupMenuDivider(),
-      if (w['deletable'] == true)
-        item(Icons.delete_outline, 'Delete…', () => delete(w))
+        item(Icons.palette_outlined, 'New theme from this wallpaper…', () => newTheme(w),
+            tooltip: "A theme in this picture's colors, with this wallpaper"),
+      if (!hidden)
+        item(Icons.grid_view, ws.isEmpty ? 'Show on workspace…' : 'On workspace ${ws.join(', ')}…', () => showOnWorkspaces(w),
+            end: Icons.chevron_right,
+            tooltip: 'This wallpaper appears whenever you switch to that workspace'
+                '${isCurrent ? '' : ' (while this theme is applied)'}'),
+      menuLine(),
+      if (hidden)
+        item(Icons.visibility_outlined, 'Unhide', () => setHidden(w, false), tooltip: 'Show it again here and in the rotation')
       else
-        PopupMenuItem<VoidCallback>(
-          enabled: false,
-          child: Tooltip(
-            message: '${w['locked_reason'] ?? ''}',
-            child: const Row(children: [
-              Icon(Icons.lock_outline, size: 18),
-              SizedBox(width: 12),
-              Text("Can't delete: hide instead"),
-            ]),
-          ),
-        ),
+        item(Icons.visibility_off_outlined, 'Hide', () => setHidden(w, true),
+            tooltip: 'Keep it out of the rotation and the next-wallpaper step; the file stays'),
+      menuLine(),
+      if (w['deletable'] == true)
+        item(Icons.delete_outline, 'Delete…', () => delete(w), destructive: true)
+      else
+        item(Icons.lock_outline, "Can't delete: hide instead", () {}, enabled: false, tooltip: '${w['locked_reason'] ?? ''}'),
     ];
   }
 
@@ -419,7 +430,9 @@ class _WallpapersPageState extends State<WallpapersPage> {
       case LogicalKeyboardKey.enter || LogicalKeyboardKey.numpadEnter || LogicalKeyboardKey.contextMenu:
         openTile(selected);
       case LogicalKeyboardKey.escape:
-        if (filter.isNotEmpty) {
+        if (previewing) {
+          stopPreview();
+        } else if (filter.isNotEmpty) {
           setState(() => filter = '');
         } else {
           Navigator.of(context).maybePop();
@@ -453,51 +466,40 @@ class _WallpapersPageState extends State<WallpapersPage> {
     child: Container(color: scheme.surfaceContainerHighest, child: const Center(child: Icon(Icons.broken_image_outlined))),
   );
 
+  /// The first tile: choose image files; drops and pastes anywhere on the
+  /// page land here too (it lights up while something is dragged over).
   Widget addTile(bool selectedTile) {
-    final scheme = Theme.of(context).colorScheme;
-    final lit = dragging || selectedTile;
+    final look = Look.of(context);
     final empty = wallpapers.isEmpty;
-    return Tooltip(
-      message: 'Choose image files (Enter), drag them anywhere onto this page, or paste an image or file with Ctrl+V. '
-          'HEIC photos are converted. Stored in ${data?['folder'] ?? 'your wallpaper folder for this theme'}.',
-      child: InkWell(
-        onTap: () {
-          focus.requestFocus();
-          select(0);
-          choose();
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Column(children: [
-          Expanded(
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              decoration: BoxDecoration(
-                color: dragging ? scheme.primary.withValues(alpha: .18) : scheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: lit ? scheme.primary : scheme.outlineVariant, width: lit ? 2 : 1),
-              ),
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(busy ? Icons.hourglass_top : Icons.add, size: 32, color: lit ? scheme.primary : null),
-                    const SizedBox(height: 6),
-                    Text(
-                      '${empty ? 'No wallpapers yet. ' : ''}Drop images here, paste with Ctrl+V or click to choose',
-                      textAlign: TextAlign.center,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ]),
-                ),
-              ),
+    final lit = dragging;
+    return PluginTile(
+      dashed: true,
+      lit: lit,
+      selected: selectedTile,
+      tooltip: 'Choose image files (Enter), drag them anywhere onto this page, or paste an image or file with Ctrl+V. '
+          'HEIC photos are converted. ${data?['system'] == true ? 'Stored in your wallpaper folder for this theme, next to its own wallpapers.' : "Stored in the theme's user wallpaper folder."}',
+      onTap: () {
+        focus.requestFocus();
+        select(0);
+        choose();
+      },
+      picture: Padding(
+        padding: const EdgeInsets.all(6),
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(busy ? Icons.hourglass_top : Icons.add, size: 32, color: lit || selectedTile ? look.accent : look.muted),
+          const SizedBox(height: 6),
+          Flexible(
+            child: Text(
+              '${empty ? 'No wallpapers yet. ' : ''}Drop images here, paste with Ctrl+V or click to choose',
+              textAlign: TextAlign.center,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 13, color: look.muted),
             ),
           ),
-          const SizedBox(height: 4),
-          const Text('Add wallpapers…', maxLines: 1, overflow: TextOverflow.ellipsis),
         ]),
       ),
+      captionText: 'Add wallpapers…',
     );
   }
 
@@ -514,122 +516,86 @@ class _WallpapersPageState extends State<WallpapersPage> {
             File(w['path'] as String),
             key: ValueKey(w['path']),
             fit: BoxFit.cover,
-            cacheWidth: 480,
+            cacheWidth: 640,
             filterQuality: FilterQuality.medium,
             errorBuilder: (_, _, _) => brokenPicture(scheme),
           );
-    return Opacity(
-      opacity: hidden ? .45 : 1,
-      child: GestureDetector(
-        onTap: () {
-          focus.requestFocus();
-          select(index);
-        },
-        onSecondaryTap: () => menuKey.currentState?.showButtonMenu(),
-        child: Column(children: [
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: selectedTile ? scheme.primary : Colors.transparent, width: 2),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Stack(fit: StackFit.expand, children: [
-                  picture,
-                  Positioned(
-                    top: 2,
-                    right: 2,
-                    child: Material(
-                      color: scheme.surface.withValues(alpha: .7),
-                      shape: const CircleBorder(),
-                      child: PopupMenuButton<VoidCallback>(
-                        key: menuKey,
-                        tooltip: 'Wallpaper actions (Enter)',
-                        icon: const Icon(Icons.menu, size: 18),
-                        itemBuilder: (_) => menuFor(w),
-                        onSelected: (action) => action(),
-                      ),
-                    ),
-                  ),
-                  if (ws.isNotEmpty)
-                    Positioned(
-                      top: 6,
-                      left: 6,
-                      child: Tooltip(
-                        message: 'Shown on workspace ${ws.join(', ')}',
-                        child: Tag(label: 'ws ${ws.join(' · ')}', color: scheme.primary),
-                      ),
-                    ),
-                  if (hidden || w['shown'] == true)
-                    Positioned(
-                      bottom: 6,
-                      left: 6,
-                      child: Tag(label: hidden ? 'hidden' : 'on the desktop', color: hidden ? null : scheme.tertiary),
-                    ),
-                ]),
-              ),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text('${w['name']}', maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center),
-        ]),
-      ),
+    return PluginTile(
+      picture: picture,
+      captionText: '${w['name']}',
+      selected: selectedTile,
+      dimmed: hidden,
+      onTap: () {
+        focus.requestFocus();
+        select(index);
+      },
+      onSecondaryTap: () => menuKey.currentState?.showButtonMenu(),
+      menu: TileMenuButton(menuKey: menuKey, tooltip: 'Wallpaper actions (Enter)', menu: () => menuFor(w)),
+      topLeft: [
+        if (ws.isNotEmpty)
+          TileBadge('ws ${ws.join(' · ')}', kind: BadgeKind.workspace, tooltip: 'Shown on workspace ${ws.join(', ')}'),
+      ],
+      bottomLeft: [if (hidden) const TileBadge('hidden')],
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    AppScope.of(context); // the header's eye button shows hidden wallpapers too
     final list = tiles;
     final title = '$themeName — wallpapers${filter.isEmpty ? '' : ' — $filter'}';
-    final hiddenCount = ((data?['wallpapers'] as List?) ?? const []).where((w) => w['hidden'] == true).length;
     return SubPage(
       title: title,
-      actions: [
-        IconButton(
-          tooltip: showHidden ? 'Hide hidden wallpapers' : 'Show hidden wallpapers ($hiddenCount)',
-          icon: Icon(showHidden ? Icons.visibility : Icons.visibility_off_outlined),
-          onPressed: () => setState(() {
-            showHidden = !showHidden;
-            selected = 0;
-          }),
-        ),
-        IconButton(
-          tooltip: 'Add the image copied to the clipboard (from the web or the file manager) — Ctrl+V',
-          icon: const Icon(Icons.content_paste),
-          onPressed: busy ? null : paste,
-        ),
-        IconButton(tooltip: 'Search the web (Ctrl+F)', icon: const Icon(Icons.travel_explore), onPressed: openSearch),
-      ],
+      section: false,
+      backTooltip: 'Back to themes (Left, Backspace or Esc)',
       body: Focus(
         focusNode: focus,
         autofocus: true,
         onKeyEvent: onKey,
         child: data == null
             ? const Center(child: CircularProgressIndicator())
-            : LayoutBuilder(builder: (context, box) {
-                columns = (box.maxWidth / 230).floor().clamp(2, 4);
-                if (list.isEmpty) return Center(child: Text('No wallpaper matches “$filter”'));
-                return GridView.builder(
-                  controller: scroll,
-                  padding: const EdgeInsets.all(12),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: columns,
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    childAspectRatio: 16 / 11,
+            : Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                Wrap(spacing: 8, runSpacing: 6, children: [
+                  OutlineAction(
+                    icon: Icons.content_paste,
+                    label: 'Paste image (Ctrl+V)',
+                    tooltip: 'Add the image copied to the clipboard (from the web or the file manager)'
+                        '${data?['system'] == true ? ' — stored in your per-theme folder' : ''}',
+                    onPressed: busy ? null : paste,
                   ),
-                  itemCount: list.length,
-                  itemBuilder: (context, i) {
-                    final t = list[i];
-                    final key = _tileKeys.putIfAbsent(t == null ? '+' : t['path'] as String, () => GlobalKey());
-                    return KeyedSubtree(
-                      key: key,
-                      child: t == null ? addTile(i == selected) : wallpaperTile(t, i, i == selected),
+                  OutlineAction(
+                    icon: Icons.search,
+                    label: 'Search the web',
+                    tooltip: 'Find wallpapers on wallhaven.cc (Ctrl+F)',
+                    onPressed: openSearch,
+                  ),
+                ]),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: LayoutBuilder(builder: (context, box) {
+                    columns = gridColumns(box.maxWidth);
+                    if (list.isEmpty) {
+                      return Align(
+                        alignment: Alignment.topLeft,
+                        child: Text('No wallpaper matches “$filter”', style: hintStyle(context)),
+                      );
+                    }
+                    return TileGrid(
+                      controller: scroll,
+                      count: list.length,
+                      columns: columns,
+                      builder: (context, i) {
+                        final t = list[i];
+                        final key = _tileKeys.putIfAbsent(t == null ? '+' : t['path'] as String, () => GlobalKey());
+                        return KeyedSubtree(
+                          key: key,
+                          child: t == null ? addTile(i == selected) : wallpaperTile(t, i, i == selected),
+                        );
+                      },
                     );
-                  },
-                );
-              }),
+                  }),
+                ),
+              ]),
       ),
     );
   }

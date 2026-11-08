@@ -543,4 +543,103 @@ void main() {
       }
     },
   );
+
+  test('default layout per limit fills workspaces without their own', () async {
+    await call('workspaces.set', {'maxWindows': 3});
+    await call('workspaces.set', {'defaultLimit': 3, 'defaultMode': 'tiled'});
+    await call('workspaces.set', {'workspace': 2, 'mode': 'floating'});
+    await call('workspaces.set', {'workspace': 4, 'limit': 1});
+    final s = loadWorkspaces(e.core.ctx);
+    expect(effectiveMode(s, 1), 'tiled');
+    expect(effectiveMode(s, 2), 'floating');
+    expect(effectiveMode(s, 4), 'default');
+    expect(effectiveMode(s, 0), 'tiled');
+    expect(effectiveLimit(s, 4), 1);
+    final tiling = readJsonMap(e.paths.automationFile)['tiling'] as Map;
+    expect(tiling['floating'], [2]);
+    expect(tiling['tiled'], [1, 3, 5, 6, 7, 8, 9, 10]);
+    // mode null: back to the default layout; defaultMode null: Native.
+    await call('workspaces.set', {'workspace': 2, 'mode': null});
+    expect(effectiveMode(loadWorkspaces(e.core.ctx), 2), 'tiled');
+    await call('workspaces.set', {'defaultLimit': 3, 'defaultMode': null});
+    expect(effectiveMode(loadWorkspaces(e.core.ctx), 2), 'default');
+    await expectLater(
+      call('workspaces.set', {'defaultLimit': 5, 'defaultMode': 'tiled'}),
+      throwsA(isA<RouteError>()),
+    );
+    await expectLater(
+      call('workspaces.set', {'defaultLimit': 2, 'defaultMode': 'columns'}),
+      throwsA(isA<RouteError>()),
+    );
+  });
+
+  test('bulk actions keep App Presets and undo', () async {
+    saveWorkspaces(e.core.ctx, {
+      'maxWindows': 2,
+      'workspaceCaps': {'1': 3},
+      'workspaceModes': {'1': 'tiled', '2': 'floating'},
+      'workspaceLayouts': {
+        '1': {
+          'apps': ['editor'],
+          'autostart': false,
+        },
+      },
+    });
+    await call('workspaces.bulk', {'action': 'reset_all'});
+    var s = loadWorkspaces(e.core.ctx);
+    expect(s['workspaceCaps'], isEmpty);
+    expect(s['workspaceModes'], isEmpty);
+    expect((s['workspaceLayouts'] as Map).keys, ['1']);
+    final r = await call('workspaces.bulk', {'action': 'remove_all'});
+    s = loadWorkspaces(e.core.ctx);
+    expect((s['workspaceModes'] as Map).values.toSet(), {'default'});
+    expect((s['workspaceModes'] as Map).length, 10);
+    await call('presets.undo', {'receipt': r['receipt']});
+    expect(loadWorkspaces(e.core.ctx)['workspaceModes'], isEmpty);
+    await expectLater(
+      call('workspaces.bulk', {'action': 'swap'}),
+      throwsA(isA<RouteError>()),
+    );
+    await call('apppresets.remove_all');
+    expect(loadWorkspaces(e.core.ctx)['workspaceLayouts'], isEmpty);
+  });
+
+  test('looks: theme, colours and wallpaper per workspace', () async {
+    final one = e.addTheme('one', accent: '#111111');
+    final two = e.addTheme(
+      'two',
+      accent: '#222222',
+      wallpapers: ['a.png', 'b.png'],
+    );
+    e.core.ctx.current.save(slug: 'one', wallpaper: '$one/backgrounds/1.png');
+    await call('workspaces.set', {'workspace': 3, 'limit': 4, 'mode': 'tiled'});
+    var r = await call('workspaces.set_look', {'workspace': 3, 'theme': 'two'});
+    expect(r['receipt'], isNotNull);
+    await call('workspaces.set_look', {'workspace': 3, 'wallpaper': 'b.png'});
+    final looks = (await call('workspaces.looks'))['workspaces'] as Map;
+    expect(looks.keys.length, 11);
+    expect(looks['1']['theme'], 'one');
+    expect(looks['1']['colors']['accent'], '#111111');
+    expect(looks['3']['theme'], 'two');
+    expect(looks['3']['own_theme'], 'two');
+    expect(looks['3']['colors']['accent'], '#222222');
+    expect(looks['3']['wallpaper'], '$two/backgrounds/b.png');
+    expect(looks['3']['limit'], 4);
+    expect(looks['3']['mode'], 'tiled');
+    expect(looks['3']['own_mode'], true);
+    expect(looks['0']['own_theme'], isNull);
+    await expectLater(
+      call('workspaces.set_look', {'workspace': 3, 'wallpaper': 'zz.png'}),
+      throwsA(isA<RouteError>()),
+    );
+    await expectLater(
+      call('workspaces.set_look', {'workspace': 3, 'wallpaper': '../x.png'}),
+      throwsA(isA<RouteError>()),
+    );
+    // Clearing the theme, then Undo brings it back.
+    r = await call('workspaces.set_look', {'workspace': 3, 'theme': null});
+    expect((await call('auto.workspace_themes'))['themes'], isEmpty);
+    await call('presets.undo', {'receipt': r['receipt'], 'appearance': true});
+    expect((await call('auto.workspace_themes'))['themes'], {'3': 'two'});
+  });
 }

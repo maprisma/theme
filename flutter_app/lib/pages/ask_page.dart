@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:maprisma_theme_core/maprisma_theme_core.dart' show colorLabel, maxNameLength;
 
 import '../app.dart';
 import '../backend.dart' show ServiceError;
@@ -49,7 +50,12 @@ final class _Card {
   List<Map> walls = const [];
   int wall = 0;
   String? wallNote;
-  bool searching = false, refining = false;
+  bool searching = false, refining = false, loadingPicture = false;
+
+  /// A catalog theme is not installed: its colors (and, while it has no
+  /// search phrase, its wallpaper) come from its omarchy.org preview.
+  Map? catalogColors;
+  String? catalogPicture;
   TextEditingController? refine;
   TextEditingController? search;
   Object token = Object();
@@ -76,7 +82,10 @@ class _AskPageState extends State<AskPage> {
   Map<String, dynamic> get settings => app.settings;
   bool get enabled => settings['ask_ai'] == true;
   bool get hints => settings['maprisma_hints'] != false;
-  List<Map<String, dynamic>> get ready => [for (final h in helpers) if (h['signed_in'] == true) h];
+  List<Map<String, dynamic>> get ready => [
+    for (final h in helpers)
+      if (h['signed_in'] == true) h,
+  ];
   Map<String, dynamic>? get chosen => ready.where((h) => h['id'] == helper).firstOrNull;
 
   List<String>? get ownPrompts {
@@ -257,8 +266,8 @@ class _AskPageState extends State<AskPage> {
               child: Tooltip(
                 message: 'Drag to reorder (Alt+↑/↓)',
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  child: Text('⠿', style: TextStyle(fontSize: 16, color: scheme.onSurfaceVariant)),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Icon(Icons.drag_indicator, size: 16, color: scheme.onSurfaceVariant),
                 ),
               ),
             ),
@@ -274,7 +283,10 @@ class _AskPageState extends State<AskPage> {
                   : null,
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 4),
-                child: Tooltip(message: text, child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis)),
+                child: Tooltip(
+                  message: text,
+                  child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis),
+                ),
               ),
             ),
           ),
@@ -334,7 +346,7 @@ class _AskPageState extends State<AskPage> {
                 visualDensity: VisualDensity.compact,
                 iconSize: 18,
                 onPressed: () => _storePrompts(null),
-                icon: const Text('↺', style: TextStyle(fontSize: 18)),
+                icon: const Icon(Icons.undo, size: 16),
               ),
             )
           else
@@ -352,14 +364,16 @@ class _AskPageState extends State<AskPage> {
     try {
       final r = await app.call('import.omarchy_list');
       final list = r['themes'] ?? r['catalog'] ?? r['items'];
-      catalog = [if (list is List) for (final e in list) if (e is Map) e];
+      catalog = [
+        if (list is List)
+          for (final e in list)
+            if (e is Map) e,
+      ];
     } catch (_) {
       catalog = []; // no network or no import module: installed themes still work
     }
     return catalog!;
   }
-
-  Map? _catalogEntry(String? slug) => catalog?.where((e) => (e['slug'] ?? e['name']) == slug).firstOrNull;
 
   Future<void> _ask({_Card? parent, String? words}) async {
     final h = chosen;
@@ -414,6 +428,7 @@ class _AskPageState extends State<AskPage> {
       });
       for (final card in found) {
         _searchWalls(card);
+        if (card.c['kind'] == 'catalog') _catalogLook(card);
       }
     } catch (e) {
       if (mounted) setState(() => status = 'No answer: ${_why(e)}');
@@ -471,7 +486,11 @@ class _AskPageState extends State<AskPage> {
       try {
         final r = await app.call('wallhaven.search', {'query': phrase, 'page': 1});
         final list = r['results'] ?? r['items'] ?? r['wallpapers'];
-        results = [if (list is List) for (final e in list) if (e is Map) e];
+        results = [
+          if (list is List)
+            for (final e in list)
+              if (e is Map) e,
+        ];
       } catch (e) {
         note = '$e'.contains('unknown_route')
             ? 'The wallpaper search is not available in this version.'
@@ -499,14 +518,37 @@ class _AskPageState extends State<AskPage> {
     if (card.walls.isEmpty) return;
     final item = card.walls[card.wall];
     if (_thumb(item) != null) return;
+    setState(() => card.loadingPicture = true);
     try {
       final r = await app.call('wallhaven.thumb', {
-        'item': {for (final e in item.entries) if (e.key != 'added' && e.key != 'thumb_path') '${e.key}': e.value},
+        'item': {
+          for (final e in item.entries)
+            if (e.key != 'added' && e.key != 'thumb_path') '${e.key}': e.value,
+        },
       });
       final path = r['path'];
       if (path is String && mounted) setState(() => item['thumb_path'] = path);
     } catch (_) {
       // no picture: the card shows the colors only
+    }
+    if (mounted) setState(() => card.loadingPicture = false);
+  }
+
+  /// The colors of a catalog theme from its omarchy.org preview picture (the
+  /// core fetches and checks it), and that picture as its wallpaper.
+  Future<void> _catalogLook(_Card card) async {
+    try {
+      final r = await app.call('import.omarchy_preview', {'slug': card.c['theme']});
+      final path = r['path'];
+      if (path is! String || !mounted) return;
+      final colors = await app.call('custom.from_wallpaper', {'path': path});
+      if (!mounted) return;
+      setState(() {
+        card.catalogColors = colors['colors'] is Map ? colors['colors'] as Map : null;
+        card.catalogPicture = path;
+      });
+    } catch (_) {
+      // offline: the card shows the font line only
     }
   }
 
@@ -566,11 +608,17 @@ class _AskPageState extends State<AskPage> {
           for (final e in ((c['changes'] as Map?) ?? const {}).entries) '${e.key}': '${e.value}',
         };
         final wall = _chosenWall(card);
+        final picture = card.walls.isEmpty ? null : _thumb(card.walls[card.wall]);
         // Nothing is saved until you save; a system theme is never changed: a copy.
         // The editor gives back the saved theme's slug (null: not saved).
         final saved = await Navigator.of(context).push<Object?>(
           MaterialPageRoute(
-            builder: (_) => EditorPage(base: edit ? null : slug, edit: edit ? slug : null, initial: initial),
+            builder: (_) => EditorPage(
+              base: edit ? null : slug,
+              edit: edit ? slug : null,
+              initial: initial,
+              askWallpaper: wall == null ? null : picture,
+            ),
           ),
         );
         if (saved is String && saved.isNotEmpty && wall != null) {
@@ -584,7 +632,10 @@ class _AskPageState extends State<AskPage> {
   Map<String, dynamic>? _chosenWall(_Card card) {
     if (card.walls.isEmpty || card.wall < 0 || card.wall >= card.walls.length) return null;
     final item = card.walls[card.wall];
-    return {for (final e in item.entries) if (e.key != 'added' && e.key != 'thumb_path') '${e.key}': e.value};
+    return {
+      for (final e in item.entries)
+        if (e.key != 'added' && e.key != 'thumb_path') '${e.key}': e.value,
+    };
   }
 
   /// Adds the card's wallpaper to [slug]; shown right away when [slug] is the
@@ -613,160 +664,102 @@ class _AskPageState extends State<AskPage> {
   // --- cards ------------------------------------------------------------------------------
 
   Map _colorsOf(_Card card) {
-    final c = card.c['colors'];
+    final c = card.c['colors'] ?? card.catalogColors;
     return c is Map && c.isNotEmpty ? c : app.colors;
   }
 
-  Widget _card(_Card card, ColorScheme scheme) {
+  /// Title, subtitle and reason (the plugin's ask_card_texts): after your own
+  /// wallpaper search the title is that search (a new theme takes it as its
+  /// name), and the reason says it is your search.
+  (String, String, String) _texts(_Card card) {
     final c = card.c;
-    final colors = _colorsOf(card);
-    final mine = c['query_by_user'] == true && c['wallpaper_query'] is String;
-    final kind = switch (c['kind']) {
+    final query = c['wallpaper_query'] is String ? c['wallpaper_query'] as String : '';
+    final mine = c['query_by_user'] == true && query.isNotEmpty;
+    var kind = switch (c['kind']) {
       'catalog' => 'From omarchy.org',
       'installed' => 'Installed theme, as it is',
       _ => c['mode'] == 'edit' ? 'Edit ${c['base_name']}' : 'New theme from ${c['base_name']}',
     };
-    final reason = mine ? 'Wallpaper: your search “${c['wallpaper_query']}”' : '${c['summary'] ?? ''}';
-    String? picture = card.walls.isNotEmpty ? _thumb(card.walls[card.wall]) : null;
-    if (picture == null && c['kind'] == 'catalog' && c['wallpaper_query'] == null) {
-      final entry = _catalogEntry(c['theme'] as String?);
-      if (entry != null) picture = _thumb(entry);
+    if (!mine) return ('${c['name']}', kind, '${c['summary'] ?? ''}');
+    var title = query[0].toUpperCase() + query.substring(1);
+    final agentName = c.putIfAbsent('agent_name', () => c['name']);
+    if (c['kind'] == 'custom' && c['mode'] != 'edit') {
+      // The editor's name, within its rules; else the agent's name stays.
+      final name = (title.length > maxNameLength ? title.substring(0, maxNameLength) : title).trim();
+      title = RegExp('[A-Za-z0-9]').hasMatch(name) ? name : '$agentName';
+      c['name'] = title;
+    } else if (c['kind'] == 'catalog') {
+      kind = '$kind · ${c['name']}'; // the theme's name stays
     }
+    return (title, kind, 'Wallpaper: your search “$query”');
+  }
+
+  String? _busyText(_Card card) {
+    if (card.refining) return 'Refining with ${chosen?['name'] ?? 'the helper'}…';
+    if (card.loadingPicture) return 'Loading the picture…';
+    if (card.searching) return 'Searching wallpapers…';
+    return null;
+  }
+
+  Widget _card(_Card card, ColorScheme scheme, double previewW) {
+    final c = card.c;
+    final colors = _colorsOf(card);
+    final hint = TextStyle(fontSize: 12, color: scheme.onSurfaceVariant);
+    final (title, kind, reason) = _texts(card);
+    String? picture = card.walls.isNotEmpty ? _thumb(card.walls[card.wall]) : null;
+    if (picture == null && c['kind'] == 'catalog' && c['wallpaper_query'] == null) picture = card.catalogPicture;
+    final busy = _busyText(card);
     return Container(
       decoration: BoxDecoration(
         color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(corners(context)),
+        borderRadius: BorderRadius.circular(corners(context).clamp(0, 10)),
         border: Border.all(color: scheme.outlineVariant),
       ),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            '${c['name']}',
+            title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+            style: const TextStyle(fontWeight: FontWeight.w700),
           ),
-          Text(
-            kind,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
-          ),
-          const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(corners(context) * .6),
-            child: AspectRatio(
-              aspectRatio: 16 / 9,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  _LookAlike(colors: colors, wallpaper: picture),
-                  if (card.searching || card.refining)
-                    Container(
-                      color: Colors.black38,
-                      alignment: Alignment.center,
+          const SizedBox(height: 2),
+          Text(kind, maxLines: 1, overflow: TextOverflow.ellipsis, style: hint),
+          const SizedBox(height: 6),
+          SizedBox(
+            height: previewW * 9 / 16,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                _LookAlike(colors: colors, wallpaper: picture),
+                if (busy != null)
+                  Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(8)),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                          const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
                           const SizedBox(width: 8),
-                          Text(
-                            card.refining ? 'Refining…' : 'Searching wallpapers…',
-                            style: const TextStyle(color: Colors.white),
+                          Flexible(
+                            child: Text(busy, style: const TextStyle(color: Colors.white, fontSize: 12)),
                           ),
                         ],
                       ),
                     ),
-                ],
-              ),
+                  ),
+              ],
             ),
           ),
-          if (c['wallpaper_query'] is String)
-            Row(
-              children: [
-                IconButton(
-                  tooltip: 'Previous wallpaper',
-                  onPressed: card.walls.length > 1 ? () => _stepWall(card, -1) : null,
-                  icon: const Text('‹', style: TextStyle(fontSize: 20)),
-                ),
-                Expanded(
-                  child: Text(
-                    card.wallNote ?? '“${c['wallpaper_query']}” · ${card.wall + 1}/${card.walls.length}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Next wallpaper',
-                  onPressed: card.walls.length > 1 ? () => _stepWall(card, 1) : null,
-                  icon: const Text('›', style: TextStyle(fontSize: 20)),
-                ),
-              ],
-            ),
           const SizedBox(height: 6),
-          _strip(c, colors, scheme),
-          if (reason.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Text(reason, style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
-          ],
-          if (card.search != null) ...[
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: card.search,
-                    autofocus: true,
-                    maxLength: 100,
-                    decoration: const InputDecoration(
-                      isDense: true,
-                      counterText: '',
-                      hintText: 'Search wallpapers, e.g. “husky snow”',
-                    ),
-                    onSubmitted: (_) => _ownSearch(card),
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Search wallpapers (no tokens)',
-                  onPressed: () => _ownSearch(card),
-                  icon: const Icon(Icons.search),
-                ),
-              ],
-            ),
-          ],
-          if (card.refine != null) ...[
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: card.refine,
-                    autofocus: true,
-                    maxLength: _maxRequest,
-                    decoration: InputDecoration(
-                      isDense: true,
-                      counterText: '',
-                      hintText: c['wallpaper_query'] is String
-                          ? 'How should it change? e.g. “warmer”, “another picture like ${c['wallpaper_query']}”'
-                          : 'How should it change? e.g. “warmer”, “another wallpaper”',
-                    ),
-                    onSubmitted: (t) {
-                      if (t.trim().isNotEmpty) _ask(parent: card, words: t);
-                    },
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Refine…',
-                  onPressed: asking ? null : () => _ask(parent: card, words: card.refine!.text),
-                  icon: const Icon(Icons.send),
-                ),
-              ],
-            ),
-          ],
+          _strip(c, colors, scheme, card),
+          if (card.search != null) ...[const SizedBox(height: 4), _searchRow(card)],
+          if (c['wallpaper_query'] is String) _wallRow(card, scheme),
+          if (reason.isNotEmpty) ...[const SizedBox(height: 4), Text(reason, style: hint)],
           const SizedBox(height: 8),
           Wrap(
             spacing: 6,
@@ -774,45 +767,163 @@ class _AskPageState extends State<AskPage> {
             children: [
               Builder(
                 builder: (b) => FilledButton.icon(
+                  style: _small,
                   onPressed: () => _use(card, b),
-                  icon: const Icon(Icons.check, size: 18),
+                  icon: const Icon(Icons.check, size: 16),
                   label: const Text('Use'),
                 ),
               ),
               OutlinedButton.icon(
+                style: _small,
                 onPressed: () => _reject(card),
-                icon: const Icon(Icons.close, size: 18),
+                icon: const Icon(Icons.close, size: 16),
                 label: const Text('Not this'),
               ),
               OutlinedButton.icon(
-                onPressed: asking ? null : () => setState(() => card.refine ??= TextEditingController()),
-                icon: const Icon(Icons.edit_outlined, size: 18),
+                style: _small,
+                onPressed: () => setState(() => card.refine ??= TextEditingController()),
+                icon: const Icon(Icons.edit_outlined, size: 16),
                 label: const Text('Refine…'),
               ),
               OutlinedButton.icon(
-                onPressed: () => setState(() {
-                  if (card.search == null) {
-                    card.search = TextEditingController(text: '${c['wallpaper_query'] ?? ''}');
-                  } else {
-                    card.search!.dispose();
-                    card.search = null;
-                  }
-                }),
-                icon: const Icon(Icons.image_outlined, size: 18),
+                style: _small,
+                onPressed: () => _wallpaperButton(card),
+                icon: const Icon(Icons.image_outlined, size: 16),
                 label: const Text('Wallpaper…'),
               ),
             ],
           ),
+          if (card.refine != null) ...[const SizedBox(height: 6), _refineRow(card)],
         ],
       ),
     );
   }
 
-  /// Background and text, the eight terminal colors and the font.
-  Widget _strip(Map c, Map colors, ColorScheme scheme) {
+  static final _small = ButtonStyle(
+    visualDensity: VisualDensity.compact,
+    padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 10)),
+  );
+
+  /// Wallpaper…: opens your own search for this card (no tokens); a second
+  /// click searches new words, or closes it again.
+  void _wallpaperButton(_Card card) {
+    final open = card.search;
+    if (open == null) {
+      setState(() => card.search = TextEditingController(text: '${card.c['wallpaper_query'] ?? ''}'));
+      return;
+    }
+    final words = _tidy(open.text);
+    if (words.isNotEmpty && words != card.c['wallpaper_query']) {
+      _ownSearch(card);
+    } else {
+      setState(() {
+        open.dispose();
+        card.search = null;
+      });
+    }
+  }
+
+  Widget _searchRow(_Card card) => Row(
+    children: [
+      Expanded(
+        child: TextField(
+          controller: card.search,
+          autofocus: true,
+          maxLength: 100,
+          style: const TextStyle(fontSize: 13),
+          decoration: const InputDecoration(
+            isDense: true,
+            counterText: '',
+            hintText: 'Search wallpapers, e.g. “husky snow”',
+          ),
+          onSubmitted: (_) => _ownSearch(card),
+        ),
+      ),
+      const SizedBox(width: 6),
+      IconButton.filledTonal(
+        tooltip: 'Search wallpapers (no tokens)',
+        visualDensity: VisualDensity.compact,
+        onPressed: () => _ownSearch(card),
+        icon: const Icon(Icons.search, size: 18),
+      ),
+    ],
+  );
+
+  Widget _refineRow(_Card card) {
+    final query = card.c['wallpaper_query'];
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: card.refine,
+            autofocus: true,
+            maxLength: _maxRequest,
+            style: const TextStyle(fontSize: 13),
+            decoration: InputDecoration(
+              isDense: true,
+              counterText: '',
+              hintText: query is String
+                  ? 'How should it change? e.g. “warmer”, “another picture like $query”'
+                  : 'How should it change? e.g. “warmer”, “another wallpaper”',
+            ),
+            onSubmitted: (t) {
+              if (t.trim().isNotEmpty) _ask(parent: card, words: t);
+            },
+          ),
+        ),
+        const SizedBox(width: 6),
+        IconButton.filledTonal(
+          tooltip: 'Refine…',
+          visualDensity: VisualDensity.compact,
+          onPressed: asking || chosen == null
+              ? null
+              : () {
+                  if (card.refine!.text.trim().isNotEmpty) _ask(parent: card, words: card.refine!.text);
+                },
+          icon: const Icon(Icons.send, size: 18),
+        ),
+      ],
+    );
+  }
+
+  /// ‹ "phrase" · n/24 ›: the wallhaven search's pictures, no tokens.
+  Widget _wallRow(_Card card, ColorScheme scheme) {
+    final c = card.c;
+    const tight = VisualDensity(horizontal: -4, vertical: -4);
+    return Row(
+      children: [
+        IconButton(
+          tooltip: 'Previous wallpaper',
+          visualDensity: tight,
+          onPressed: card.walls.length > 1 ? () => _stepWall(card, -1) : null,
+          icon: const Icon(Icons.chevron_left, size: 20),
+        ),
+        const SizedBox(width: 4),
+        Expanded(
+          child: Text(
+            card.wallNote ?? '“${c['wallpaper_query']}” · ${card.wall + 1}/${card.walls.length}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+          ),
+        ),
+        IconButton(
+          tooltip: 'Next wallpaper',
+          visualDensity: tight,
+          onPressed: card.walls.length > 1 ? () => _stepWall(card, 1) : null,
+          icon: const Icon(Icons.chevron_right, size: 20),
+        ),
+      ],
+    );
+  }
+
+  /// Background and text (outlined, so black on black still shows), the
+  /// eight terminal colors and the font: what the preview can't show clearly.
+  Widget _strip(Map c, Map colors, ColorScheme scheme, _Card card) {
     final frame = hexColor(colors, 'foreground') ?? scheme.outline;
+    final known = c['colors'] is Map || card.catalogColors != null;
     Widget swatch(String key, {bool outline = false}) => Tooltip(
-      message: '$key ${colors[key]}',
+      message: '${colorLabel(key)} ${colors[key]}',
       child: Container(
         width: 16,
         height: 16,
@@ -825,7 +936,7 @@ class _AskPageState extends State<AskPage> {
     );
     return Row(
       children: [
-        if (c['kind'] != 'catalog' || c['colors'] is Map) ...[
+        if (known) ...[
           swatch('background', outline: true),
           swatch('foreground', outline: true),
           const SizedBox(width: 6),
@@ -835,9 +946,7 @@ class _AskPageState extends State<AskPage> {
         ],
         Expanded(
           child: Text(
-            c['font'] is String
-                ? '${c['font']}'
-                : (c['kind'] == 'catalog' ? 'Its own colors and font' : 'Keep the current font'),
+            c['font'] is String ? '${c['font']}' : (c['kind'] == 'catalog' ? 'Its own font' : 'Keep the current font'),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
@@ -853,7 +962,7 @@ class _AskPageState extends State<AskPage> {
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
       color: scheme.surfaceContainerLow,
-      borderRadius: BorderRadius.circular(corners(context)),
+      borderRadius: BorderRadius.circular(corners(context).clamp(0, 10)),
       border: Border.all(color: scheme.outlineVariant),
     ),
     child: child,
@@ -876,81 +985,137 @@ class _AskPageState extends State<AskPage> {
     ),
   );
 
+  static String _helperName(Map h) => '${h['name']}${h['local'] == true ? ' · on this PC' : ''}';
+
+  /// Helper: [name ▾] … [?]: the drop-down as wide as its name, the ? at the
+  /// right edge (as the plugin's helper row).
   Widget _helperRow(ColorScheme scheme) {
     final list = ready;
-    final anyReady = list.isNotEmpty;
+    final current = chosen;
+    final radius = BorderRadius.circular(corners(context).clamp(0, 6));
     return Row(
       children: [
-        // Accent when a helper is ready, a dot while none is signed in.
-        anyReady
-            ? Icon(Icons.auto_awesome, size: 18, color: scheme.primary)
-            : Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(color: scheme.onSurfaceVariant, shape: BoxShape.circle),
-              ),
-        const SizedBox(width: 8),
         const Text('Helper:'),
         const SizedBox(width: 8),
-        if (anyReady)
-          Flexible(
-            child: DropdownButton<String>(
-              value: chosen?['id'] as String?,
-              isExpanded: true,
-              underline: const SizedBox.shrink(),
-              items: [
+        Expanded(
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: PopupMenuButton<String>(
+              tooltip: current == null ? 'No helper ready' : _helperName(current),
+              enabled: list.isNotEmpty && !asking,
+              onSelected: _chooseHelper,
+              position: PopupMenuPosition.under,
+              itemBuilder: (_) => [
                 for (final h in list)
-                  DropdownMenuItem(
+                  CheckedPopupMenuItem(
                     value: h['id'] as String,
-                    child: Text(
-                      '${h['name']}${h['local'] == true ? ' · on this PC' : ''}',
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    checked: h['id'] == helper,
+                    child: Text(_helperName(h)),
                   ),
               ],
-              onChanged: asking ? null : _chooseHelper,
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(10, 6, 6, 6),
+                decoration: BoxDecoration(color: scheme.surfaceContainerHighest, borderRadius: radius),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        current == null ? '—' : _helperName(current),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(Icons.expand_more, size: 18, color: scheme.onSurfaceVariant),
+                  ],
+                ),
+              ),
             ),
-          )
-        else
-          const Spacer(),
+          ),
+        ),
+        const SizedBox(width: 8),
         if (hints)
-          IconButton(
+          IconButton.outlined(
             tooltip: 'Easy AI setup with Maprisma',
             visualDensity: VisualDensity.compact,
             isSelected: showNote,
+            style: ButtonStyle(shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: radius))),
             onPressed: () => setState(() => showNote = !showNote),
-            icon: const Icon(Icons.help_outline, size: 18),
+            icon: const Icon(Icons.info_outline, size: 18),
           ),
       ],
     );
   }
 
-  /// Installed agents that are not signed in yet: their own sign-in in a terminal.
+  /// No helper ready: what to do, and the sign-in of installed agents that
+  /// are not signed in yet (their own command, in a terminal).
   Widget _signIns(ColorScheme scheme) {
     final waiting = [
       for (final h in helpers)
         if (h['installed'] == true && h['signed_in'] != true && '${h['login']}'.isNotEmpty) h,
     ];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 6,
+        children: [
+          for (final h in waiting)
+            OutlinedButton.icon(
+              onPressed: () async {
+                final r = await app.run('ask.signin', {'command': h['id']}, 'No terminal found for the sign-in');
+                if (r != null) app.notify('Sign in in the terminal, then come back here.');
+              },
+              icon: const Icon(Icons.login, size: 16),
+              label: Text('Sign in to ${h['name']}'),
+            ),
+          TextButton.icon(
+            onPressed: _load,
+            icon: const Icon(Icons.refresh, size: 16),
+            label: const Text('Check again'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _requestRow(ColorScheme scheme) {
+    final h = chosen;
+    return Row(
       children: [
-        Text(_noHelper, style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant)),
-        const SizedBox(height: 6),
-        Wrap(
-          spacing: 8,
-          runSpacing: 6,
-          children: [
-            for (final h in waiting)
-              OutlinedButton.icon(
-                onPressed: () async {
-                  final r = await app.run('ask.signin', {'command': h['id']}, 'No terminal found for the sign-in');
-                  if (r != null) app.notify('Sign in in the terminal, then come back here.');
-                },
-                icon: const Icon(Icons.login, size: 16),
-                label: Text('Sign in to ${h['name']}'),
-              ),
-            TextButton.icon(onPressed: _load, icon: const Icon(Icons.refresh, size: 16), label: const Text('Check again')),
-          ],
+        Expanded(
+          child: TextField(
+            controller: request,
+            focusNode: _field,
+            autofocus: true,
+            maxLength: _maxRequest,
+            decoration: const InputDecoration(
+              counterText: '',
+              hintText: 'What do you want? e.g. “blue borders, red text and a dog wallpaper”',
+            ),
+            onSubmitted: (_) => _ask(),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Tooltip(
+          message: 'Asks once; uses your plan or tokens only now.',
+          child: FilledButton.icon(
+            onPressed: h != null && !asking ? () => _ask() : null,
+            icon: const Icon(Icons.send, size: 16),
+            label: const Text('Ask'),
+          ),
+        ),
+        const SizedBox(width: 6),
+        IconButton.outlined(
+          tooltip: 'Save as suggestion',
+          style: ButtonStyle(
+            shape: WidgetStatePropertyAll(
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(corners(context).clamp(0, 6))),
+            ),
+          ),
+          onPressed: _savePrompt,
+          icon: const Icon(Icons.bookmark_add_outlined, size: 18),
         ),
       ],
     );
@@ -961,6 +1126,7 @@ class _AskPageState extends State<AskPage> {
     AppScope.of(context); // rebuild when the settings change
     final scheme = Theme.of(context).colorScheme;
     final h = chosen;
+    final hint = TextStyle(fontSize: 12, color: scheme.onSurfaceVariant);
     return SubPage(
       title: 'Ask AI',
       actions: [
@@ -975,12 +1141,13 @@ class _AskPageState extends State<AskPage> {
           ? const Center(child: CircularProgressIndicator())
           : LayoutBuilder(
               builder: (context, box) {
+                const pad = 0.0, gap = 12.0; // the window frame already has its margin
                 final columns = box.maxWidth >= 900 ? 3 : 1;
-                final cardW = (box.maxWidth - 32 - 12 * (columns - 1)) / columns;
+                final cardW = (box.maxWidth - 2 * pad - gap * (columns - 1)) / columns;
                 return ListView(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.fromLTRB(pad, 0, pad, 12),
                   children: [
-                    if (!enabled)
+                    if (!enabled) ...[
                       _box(
                         scheme,
                         Column(
@@ -992,85 +1159,55 @@ class _AskPageState extends State<AskPage> {
                           ],
                         ),
                       ),
+                      const SizedBox(height: 10),
+                    ],
                     if (enabled) ...[
+                      if (hints && showNote) ...[_note(scheme), const SizedBox(height: 10)],
                       _helperRow(scheme),
-                      if (hints && showNote) ...[const SizedBox(height: 6), _note(scheme), const SizedBox(height: 6)],
-                      if (h == null)
-                        _signIns(scheme)
-                      else
-                        Text(
-                          h['local'] == true
-                              ? 'On this PC: no tokens, nothing leaves it. Enter asks.'
-                              : 'Uses your ${h['name']} plan or tokens, only when you click Ask. Enter asks.',
-                          style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
-                        ),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: request,
-                              focusNode: _field,
-                              autofocus: true,
-                              maxLength: _maxRequest,
-                              decoration: const InputDecoration(
-                                counterText: '',
-                                hintText: 'What do you want? e.g. “blue borders, red text and a dog wallpaper”',
-                              ),
-                              onSubmitted: (_) => _ask(),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Tooltip(
-                            message: 'Asks once; uses your plan or tokens only now.',
-                            child: FilledButton.icon(
-                              onPressed: h != null && !asking ? () => _ask() : null,
-                              icon: const Icon(Icons.send, size: 18),
-                              label: const Text('Ask'),
-                            ),
-                          ),
-                          IconButton(
-                            tooltip: 'Save as suggestion',
-                            onPressed: _savePrompt,
-                            icon: const Icon(Icons.bookmark_add_outlined),
-                          ),
-                        ],
+                      const SizedBox(height: 6),
+                      Text(
+                        h == null
+                            ? _noHelper
+                            : h['local'] == true
+                            ? 'On this PC: no tokens, nothing leaves it. Enter asks.'
+                            : 'Uses your ${h['name']} plan or tokens, only when you click Ask. Enter asks.',
+                        style: hint,
                       ),
-                      const SizedBox(height: 10),
+                      if (h == null) _signIns(scheme),
+                      const SizedBox(height: 8),
+                      _requestRow(scheme),
+                      const SizedBox(height: 8),
                       _suggestions(scheme, box.maxWidth),
                       const SizedBox(height: 10),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           if (asking) ...[
-                            const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                            const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
                             const SizedBox(width: 8),
                           ],
-                          Expanded(
-                            child: SelectableText(
-                              status,
-                              style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant),
-                            ),
-                          ),
+                          Expanded(child: SelectableText(status, style: hint)),
                           if (!asking && (cards.isNotEmpty || status.isNotEmpty))
                             IconButton(
                               tooltip: 'Clear the results',
-                              visualDensity: VisualDensity.compact,
+                              visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
                               onPressed: () => setState(() {
                                 cards.clear();
                                 rejected.clear();
                                 status = '';
                                 _field.requestFocus();
                               }),
-                              icon: const Icon(Icons.clear_all, size: 18),
+                              icon: const Icon(Icons.cleaning_services_outlined, size: 16),
                             ),
                         ],
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 8),
                       Wrap(
-                        spacing: 12,
-                        runSpacing: 12,
-                        children: [for (final card in cards) SizedBox(width: cardW, child: _card(card, scheme))],
+                        spacing: gap,
+                        runSpacing: gap,
+                        children: [
+                          for (final card in cards) SizedBox(width: cardW, child: _card(card, scheme, cardW - 22)),
+                        ],
                       ),
                     ],
                   ],
@@ -1081,8 +1218,19 @@ class _AskPageState extends State<AskPage> {
   }
 }
 
-/// The candidate as it would look: its wallpaper (or background), two windows
-/// in its colors with the accent border, text lines and the terminal colors.
+const _gap = .035;
+
+/// The windows of a Master Left layout with three windows, as (x, y, w, h)
+/// in 0…1 (the plugin's preset_rects("master-left", 3)).
+const _rects = [
+  (_gap, _gap, (1 - 3 * _gap) / 2, 1 - 2 * _gap),
+  (2 * _gap + (1 - 3 * _gap) / 2, _gap, (1 - 3 * _gap) / 2, (1 - 3 * _gap) / 2),
+  (2 * _gap + (1 - 3 * _gap) / 2, 2 * _gap + (1 - 3 * _gap) / 2, (1 - 3 * _gap) / 2, (1 - 3 * _gap) / 2),
+];
+
+/// The candidate as it would look (the plugin's LookAlike): its wallpaper,
+/// a bar with the workspace dots and the clock, and three windows in its
+/// colors, the first one with the accent border.
 class _LookAlike extends StatelessWidget {
   const _LookAlike({required this.colors, this.wallpaper});
   final Map colors;
@@ -1090,81 +1238,72 @@ class _LookAlike extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = hexColor(colors, 'background') ?? Colors.black;
-    final fg = hexColor(colors, 'foreground') ?? Colors.white;
-    final accent = hexColor(colors, 'accent') ?? fg;
-    final muted = hexColor(colors, 'muted') ?? fg.withValues(alpha: .6);
-    final sel = hexColor(colors, 'selection') ?? accent.withValues(alpha: .3);
-    final dark = hexColor(colors, 'darker_background') ?? bg;
-    final palette = [for (final k in _paletteKeys) hexColor(colors, k) ?? fg];
-    Widget line(Color c, double w) => FractionallySizedBox(
-      widthFactor: w,
-      alignment: Alignment.centerLeft,
-      child: Container(height: 5, margin: const EdgeInsets.only(bottom: 5), color: c),
-    );
-    Widget window({required bool active, required List<Widget> body}) => Container(
-      decoration: BoxDecoration(
-        color: bg.withValues(alpha: .94),
-        border: Border.all(color: active ? accent : muted.withValues(alpha: .5), width: 2),
-        borderRadius: BorderRadius.circular(6),
+    final bg = hexColor(colors, 'background') ?? const Color(0xff1e1e2e);
+    final accent = hexColor(colors, 'accent') ?? const Color(0xff89b4fa);
+    final plain = ColoredBox(color: Color.alphaBlend(accent.withValues(alpha: .12), bg));
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (wallpaper != null)
+            Image.file(File(wallpaper!), fit: BoxFit.cover, cacheWidth: 960, errorBuilder: (_, _, _) => plain)
+          else
+            plain,
+          CustomPaint(painter: _LookPainter(colors)),
+        ],
       ),
-      padding: const EdgeInsets.all(8),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: body),
-    );
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        if (wallpaper != null)
-          Image.file(
-            File(wallpaper!),
-            fit: BoxFit.cover,
-            cacheWidth: 640,
-            errorBuilder: (_, _, _) => ColoredBox(color: dark),
-          )
-        else
-          ColoredBox(color: dark),
-        Padding(
-          padding: const EdgeInsets.all(10),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                flex: 3,
-                child: window(
-                  active: true,
-                  body: [
-                    Text('~ \$ ls', style: TextStyle(color: fg, fontFamily: 'monospace', fontSize: 11), maxLines: 1),
-                    const SizedBox(height: 6),
-                    line(fg, .8),
-                    Container(color: sel, child: line(fg, .5)),
-                    line(muted, .6),
-                    const Spacer(),
-                    Row(children: [for (final c in palette) Expanded(child: Container(height: 8, color: c))]),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                flex: 2,
-                child: Column(
-                  children: [
-                    Expanded(
-                      child: window(
-                        active: false,
-                        body: [line(palette[5], .7), line(palette[3], .5), line(palette[6], .8), line(muted, .4)],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Expanded(
-                      child: window(active: false, body: [line(palette[0], .6), line(palette[1], .8), line(fg, .5)]),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
+}
+
+class _LookPainter extends CustomPainter {
+  _LookPainter(this.colors);
+  final Map colors;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final bg = hexColor(colors, 'background') ?? const Color(0xff1e1e2e);
+    final fg = hexColor(colors, 'foreground') ?? const Color(0xffcdd6f4);
+    final accent = hexColor(colors, 'accent') ?? const Color(0xff89b4fa);
+    final width = size.width, height = size.height;
+    Paint fill(Color c, double a) => Paint()..color = c.withValues(alpha: a);
+    final k = width / 272 < 1 ? 1.0 : width / 272; // details grow with the preview
+    final bar = (height * .055).roundToDouble() < 7 ? 7.0 : (height * .055).roundToDouble();
+    canvas.drawRect(Rect.fromLTWH(0, 0, width, bar), fill(bg, .92));
+    for (var i = 0; i < 3; i++) {
+      canvas.drawCircle(Offset((6 + i * 7) * k, bar / 2), 2 * k, fill(i == 0 ? accent : fg, i == 0 ? .9 : .5));
+    }
+    canvas.drawRect(Rect.fromLTWH(width / 2 - 8 * k, bar / 2 - 1.2 * k, 16 * k, 2.4 * k), fill(fg, .6));
+    final top = bar + 2 * k, areaH = height - top;
+    for (var i = 0; i < _rects.length; i++) {
+      final (x, y, w, h) = _rects[i];
+      final r = Rect.fromLTWH(x * width, top + y * areaH, w * width, h * areaH);
+      final box = RRect.fromRectAndRadius(r, Radius.circular(4 * k));
+      canvas.drawRRect(box, fill(bg, .8)); // the wallpaper shows through a little
+      canvas.drawRRect(
+        box,
+        fill(i == 0 ? accent : fg, i == 0 ? .95 : .35)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = (i == 0 ? 2 : 1.2) * k,
+      );
+      // A title line and a few text lines, so it reads as a window.
+      final pad = r.width * .08 < 3 ? 3.0 : r.width * .08;
+      final line = 2.5 * k;
+      canvas.drawRect(
+        Rect.fromLTWH(r.left + pad, r.top + pad, r.width * .35 < 4 ? 4 : r.width * .35, line),
+        fill(i == 0 ? accent : fg, .55),
+      );
+      var lineY = r.top + pad + line * 3;
+      for (final part in const [.75, .6, .68, .4, .7, .55, .62, .3]) {
+        if (lineY + line > r.bottom - pad) break;
+        final w = (r.width - 2 * pad) * part;
+        canvas.drawRect(Rect.fromLTWH(r.left + pad, lineY, w < 4 ? 4 : w, line * .8), fill(fg, .25));
+        lineY += line * 2.6;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_LookPainter old) => old.colors != colors;
 }

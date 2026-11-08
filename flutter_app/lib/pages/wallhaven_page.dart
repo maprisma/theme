@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../app.dart';
+import '../theme.dart';
 import '../widgets.dart';
 import 'wallpapers_page.dart' show failText, previewSeconds;
 
@@ -218,16 +219,17 @@ class _WallhavenPageState extends State<WallhavenPage> {
     if (r != null && r['opened'] != true) app.notify('No web browser could be started (xdg-open).');
   }
 
-  List<PopupMenuEntry<VoidCallback>> menuFor(Map<String, dynamic> item) => [
-    if (item['added'] == true)
+  List<PopupMenuEntry<VoidCallback>> menuFor(Map<String, dynamic> w) => [
+    if (w['added'] == true)
       item_(Icons.check, 'Already added', null)
     else ...[
-      item_(Icons.add, 'Add to ${widget.themeName}', () => add(item)),
-      if (widget.current) item_(Icons.wallpaper_outlined, 'Add and set as background', () => add(item, set: true)),
+      item(Icons.add, 'Add to ${widget.themeName}', () => add(w), tooltip: 'Saved in ~/.config/maprisma-theme/backgrounds/${widget.slug}/'),
+      if (widget.current) item_(Icons.wallpaper_outlined, 'Add and set as background', () => add(w, set: true)),
     ],
-    item_(Icons.visibility_outlined, 'Preview on desktop ($previewSeconds s)', () => preview(item, seconds: previewSeconds)),
-    const PopupMenuDivider(),
-    item_(Icons.open_in_browser, 'Open on $_source', () => openPage(item)),
+    item(Icons.visibility_outlined, 'Preview on desktop', () => preview(w, seconds: previewSeconds),
+        tooltip: 'Loads the full image and shows it for $previewSeconds seconds; or hold Space on the tile'),
+    menuLine(),
+    item(Icons.open_in_browser, 'Open on $_source', () => openPage(w), tooltip: '${w['page']}'),
   ];
 
   PopupMenuItem<VoidCallback> item_(IconData icon, String label, VoidCallback? action) =>
@@ -310,60 +312,28 @@ class _WallhavenPageState extends State<WallhavenPage> {
   // --- view ----------------------------------------------------------------------
 
   Widget tile(Map<String, dynamic> item, int index) {
-    final scheme = Theme.of(context).colorScheme;
+    final look = Look.of(context);
     final id = item['id'] as String;
     final menuKey = _menuKeys.putIfAbsent(id, () => GlobalKey());
     final thumb = thumbs[id];
-    final isSelected = index == selected && gridFocus.hasFocus;
-    return GestureDetector(
+    return PluginTile(
+      selected: index == selected && gridFocus.hasFocus,
       onTap: () {
         gridFocus.requestFocus();
         select(index);
       },
       onSecondaryTap: () => menuKey.currentState?.showButtonMenu(),
-      child: Column(children: [
-        Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: isSelected ? scheme.primary : Colors.transparent, width: 2),
+      // Thumbnails are header-checked by the core before they are handed over.
+      picture: thumb != null
+          ? Image.file(File(thumb), fit: BoxFit.cover, cacheWidth: 640,
+              errorBuilder: (_, _, _) => ColoredBox(color: look.fg.withValues(alpha: .06)))
+          : ColoredBox(
+              color: look.fg.withValues(alpha: .06),
+              child: thumbs.containsKey(id) ? Icon(Icons.image_not_supported_outlined, color: look.muted) : null,
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Stack(fit: StackFit.expand, children: [
-                // Thumbnails are header-checked by the core before they are handed over.
-                if (thumb != null)
-                  Image.file(File(thumb), fit: BoxFit.cover, cacheWidth: 480,
-                      errorBuilder: (_, _, _) => Container(color: scheme.surfaceContainerHighest))
-                else
-                  Container(
-                    color: scheme.surfaceContainerHighest,
-                    child: thumbs.containsKey(id) ? const Center(child: Icon(Icons.image_not_supported_outlined)) : null,
-                  ),
-                Positioned(
-                  top: 2,
-                  right: 2,
-                  child: Material(
-                    color: scheme.surface.withValues(alpha: .7),
-                    shape: const CircleBorder(),
-                    child: PopupMenuButton<VoidCallback>(
-                      key: menuKey,
-                      tooltip: 'Wallpaper actions (Enter)',
-                      icon: const Icon(Icons.menu, size: 18),
-                      itemBuilder: (_) => menuFor(item),
-                      onSelected: (action) => action(),
-                    ),
-                  ),
-                ),
-                if (item['added'] == true)
-                  Positioned(bottom: 6, left: 6, child: Tag(label: 'added', color: scheme.primary)),
-              ]),
-            ),
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text('${item['resolution']}'.replaceAll('x', ' × '), maxLines: 1, overflow: TextOverflow.ellipsis),
-      ]),
+      menu: TileMenuButton(menuKey: menuKey, tooltip: 'Wallpaper actions (Enter)', menu: () => menuFor(item)),
+      bottomLeft: [if (item['added'] == true) const TileBadge('added')],
+      captionText: '${item['resolution']}'.replaceAll('x', ' × '),
     );
   }
 
@@ -371,52 +341,40 @@ class _WallhavenPageState extends State<WallhavenPage> {
   Widget build(BuildContext context) {
     return SubPage(
       title: '${widget.themeName} — search wallpapers',
-      body: Column(children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
-          child: Focus(
-            onKeyEvent: onFieldKey,
-            child: TextField(
-              controller: field,
-              focusNode: fieldFocus,
-              maxLength: 100,
-              textInputAction: TextInputAction.search,
-              decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.search),
-                hintText: 'Search wallhaven.cc',
-                counterText: '',
-                isDense: true,
-              ),
-              onSubmitted: (_) => search(),
+      section: false,
+      backTooltip: 'Back to the wallpapers (Backspace or Esc)',
+      body: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Focus(
+          onKeyEvent: onFieldKey,
+          child: TextField(
+            controller: field,
+            focusNode: fieldFocus,
+            maxLength: 100,
+            textInputAction: TextInputAction.search,
+            decoration: const InputDecoration(
+              prefixIcon: Icon(Icons.search, size: 18),
+              hintText: 'Search, e.g. misty forest, neon city',
+              counterText: '',
             ),
+            onSubmitted: (_) => search(),
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Text(hint, style: Theme.of(context).textTheme.bodySmall),
-          ),
-        ),
+        const SizedBox(height: 8),
+        Text(hint, style: hintStyle(context)),
+        const SizedBox(height: 8),
         Expanded(
           child: Focus(
             focusNode: gridFocus,
             onKeyEvent: onGridKey,
             onFocusChange: (_) => setState(() {}),
             child: LayoutBuilder(builder: (context, box) {
-              columns = (box.maxWidth / 230).floor().clamp(2, 4);
-              return GridView.builder(
+              columns = gridColumns(box.maxWidth);
+              return TileGrid(
                 controller: scroll,
-                padding: const EdgeInsets.all(12),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: columns,
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                  childAspectRatio: 16 / 11,
-                ),
-                itemCount: results.length + (loading ? 1 : 0),
-                itemBuilder: (context, i) {
-                  if (i >= results.length) return const Center(child: CircularProgressIndicator());
+                count: results.length,
+                columns: columns,
+                footer: loading ? const Padding(padding: EdgeInsets.all(12), child: Center(child: CircularProgressIndicator())) : null,
+                builder: (context, i) {
                   final item = results[i];
                   return KeyedSubtree(
                     key: _tileKeys.putIfAbsent('${item['id']}', () => GlobalKey()),
