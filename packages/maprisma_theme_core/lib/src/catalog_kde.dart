@@ -113,8 +113,18 @@ Uri kdeListUri({String? search, String? sort, int page = 1}) => Uri.https(_apiHo
   if (search != null && search.isNotEmpty) 'search': search,
 });
 
-/// (themes, next page or null).
+/// (themes, next page or null). A page whose entries are all filtered out
+/// (archives, other files) is skipped, up to five, so a list never ends early
+/// with nothing to show and no way on.
 Future<(List<KdeStoreTheme>, int?)> fetchKdeList({String? search, String? sort, int page = 1}) async {
+  var (themes, next) = await _fetchKdePage(search: search, sort: sort, page: page);
+  for (var skipped = 0; themes.isEmpty && next != null && skipped < 5; skipped++) {
+    (themes, next) = await _fetchKdePage(search: search, sort: sort, page: next);
+  }
+  return (themes, next);
+}
+
+Future<(List<KdeStoreTheme>, int?)> _fetchKdePage({String? search, String? sort, required int page}) async {
   final reply = await netFetch(NetRequest(kdeListUri(search: search, sort: sort, page: page),
       hosts: {_apiHost}, maxBytes: maxKdeList, timeout: const Duration(seconds: 20)));
   if (reply == null || reply.status != 200) throw RouteError('offline', 'could not load the theme list from the KDE Store');
@@ -134,9 +144,12 @@ Future<(List<KdeStoreTheme>, int?)> fetchKdeList({String? search, String? sort, 
   return (themes, page * kdePageSize < total ? page + 1 : null);
 }
 
-/// Theme [id] from the last lists, else from the API.
-Future<KdeStoreTheme> kdeEntry(int id) async {
-  if (_seen[id] case final t?) return t;
+/// Theme [id] from the last lists, else from the API; [fresh]: from the API
+/// always (download links carry a token that expires).
+Future<KdeStoreTheme> kdeEntry(int id, {bool fresh = false}) async {
+  if (!fresh) {
+    if (_seen[id] case final t?) return t;
+  }
   final reply = await netFetch(NetRequest(Uri.https(_apiHost, '/ocs/v1/content/data/$id', {'format': 'json'}),
       hosts: {_apiHost}, maxBytes: maxKdeList, timeout: const Duration(seconds: 20)));
   if (reply == null || reply.status != 200) throw RouteError('offline', 'could not reach the KDE Store');
@@ -204,7 +217,7 @@ String? checkKdeColors(List<int> bytes) {
 /// Downloads theme [id]'s `.colors` (the file server answers with one
 /// redirect to the CDN, which is followed only to the CDN).
 Future<(String, KdeStoreTheme)> downloadKdeColors(int id) async {
-  final entry = await kdeEntry(id);
+  final entry = await kdeEntry(id, fresh: true);
   var reply = await netFetch(NetRequest(entry.download, hosts: {entry.download.host}, maxBytes: maxKdeColors,
       timeout: const Duration(seconds: 20)));
   if (reply != null && (reply.status == 301 || reply.status == 302 || reply.status == 303 || reply.status == 307)) {
@@ -236,6 +249,8 @@ Map<String, String> kdeSchemeColors(String text) {
   }
 
   put('selection', 'Colors:Selection', 'BackgroundNormal');
+  put('selection_background', 'Colors:Selection', 'BackgroundNormal');
+  put('selection_foreground', 'Colors:Selection', 'ForegroundNormal');
   put('muted', 'Colors:Window', 'ForegroundInactive');
   put('red', 'Colors:View', 'ForegroundNegative');
   put('green', 'Colors:View', 'ForegroundPositive');
@@ -243,6 +258,12 @@ Map<String, String> kdeSchemeColors(String text) {
   put('blue', 'Colors:View', 'ForegroundLink');
   put('magenta', 'Colors:View', 'ForegroundVisited');
   put('cyan', 'Colors:View', 'DecorationHover');
+  // A scheme without them still gives every app template its six colors:
+  // Breeze's (what Plasma itself falls back to).
+  const breeze = {'red': '#da4453', 'green': '#27ae60', 'yellow': '#f67400', 'blue': '#3daee9', 'magenta': '#9b59b6', 'cyan': '#1abc9c'};
+  for (final e in breeze.entries) {
+    out.putIfAbsent(e.key, () => e.value);
+  }
   return out;
 }
 

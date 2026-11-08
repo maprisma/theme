@@ -762,7 +762,14 @@ class _KdeTabState extends State<_KdeTab> with _Gallery<_KdeTab> {
   String _lastSearch = '';
   int _generation = 0;
   final previews = <int, String>{};
+
+  /// Previews that failed since the last load: tried again on the next one.
+  final _failed = <int>{};
   final _queue = <int>[];
+
+  /// The search and sort the shown list was loaded with (paging keeps them,
+  /// whatever the field says meanwhile).
+  Map<String, dynamic> _loaded = const {};
   int _running = 0;
 
   @override
@@ -812,6 +819,9 @@ class _KdeTabState extends State<_KdeTab> with _Gallery<_KdeTab> {
   Future<void> load() async {
     final gen = ++_generation;
     _lastSearch = search.text.trim();
+    final params = _params;
+    _loaded = params;
+    _failed.clear();
     setState(() {
       loading = true;
       loadingMore = false;
@@ -820,7 +830,7 @@ class _KdeTabState extends State<_KdeTab> with _Gallery<_KdeTab> {
       selected = 0;
     });
     try {
-      final r = await app.call('import.kde_list', _params);
+      final r = await app.call('import.kde_list', params);
       if (!mounted || gen != _generation) return;
       setState(() {
         themes = [for (final t in r['themes'] as List) Map<String, dynamic>.from(t as Map)];
@@ -846,7 +856,7 @@ class _KdeTabState extends State<_KdeTab> with _Gallery<_KdeTab> {
     final gen = _generation;
     setState(() => loadingMore = true);
     try {
-      final r = await app.call('import.kde_list', {..._params, 'page': page});
+      final r = await app.call('import.kde_list', {..._loaded, 'page': page});
       if (!mounted || gen != _generation) return;
       final have = {for (final t in themes) t['id']};
       setState(() {
@@ -872,7 +882,7 @@ class _KdeTabState extends State<_KdeTab> with _Gallery<_KdeTab> {
       previews[id] = cached;
       return;
     }
-    if (previews.containsKey(id)) return;
+    if (previews.containsKey(id) || _failed.contains(id)) return;
     previews[id] = '';
     _queue.add(id);
     scheduleMicrotask(_pump);
@@ -886,11 +896,18 @@ class _KdeTabState extends State<_KdeTab> with _Gallery<_KdeTab> {
       app
           .call('import.kde_preview', {'id': id})
           .then((r) {
-            if (mounted && r['path'] is String) {
+            if (!mounted) return;
+            if (r['path'] is String) {
               setState(() => previews[id] = r['path'] as String);
+            } else {
+              previews.remove(id);
+              _failed.add(id);
             }
           })
-          .catchError((_) {})
+          .catchError((_) {
+            previews.remove(id);
+            _failed.add(id);
+          })
           .whenComplete(() {
             _running--;
             if (mounted) _pump();

@@ -52,8 +52,15 @@ void main() {
     env.dispose();
   });
 
-  void list(List<Map<String, dynamic>> data, {int total = 3}) => answers['https://api.kde-look.org/ocs/v1/content/data?'] =
-      () => reply(200, utf8.encode(jsonEncode({'status': 'ok', 'totalitems': total, 'data': data})));
+  void list(List<Map<String, dynamic>> data, {int total = 3}) {
+    answers['https://api.kde-look.org/ocs/v1/content/data?'] =
+        () => reply(200, utf8.encode(jsonEncode({'status': 'ok', 'totalitems': total, 'data': data})));
+    // the detail of each (downloads always ask for it: its link expires)
+    for (final e in data) {
+      answers['https://api.kde-look.org/ocs/v1/content/data/${e['id']}?'] =
+          () => reply(200, utf8.encode(jsonEncode({'status': 'ok', 'data': [e]})));
+    }
+  }
 
   test('the list keeps single .colors files from the file servers only', () async {
     list([
@@ -99,6 +106,29 @@ void main() {
     await expectLater(call('import.kde_install', {'id': 7}), throwsA(isA<RouteError>().having((e) => e.code, 'code', 'exists')));
   });
 
+  test('downloads use a fresh link, not the one the list showed', () async {
+    list([entry(5, 'Old')]);
+    await call('import.kde_list');
+    final fresh = entry(5, 'Old')..['downloadlink1'] = 'https://files07.pling.com/api/files/download/j/new/x.colors';
+    answers['https://api.kde-look.org/ocs/v1/content/data/5?'] = () => reply(200, utf8.encode(jsonEncode({'status': 'ok', 'data': [fresh]})));
+    answers['https://files07.pling.com/'] = () => reply(200, utf8.encode(scheme));
+    expect((await call('import.kde_install', {'id': 5}))['slug'], 'old');
+    expect(requests.where((r) => r.startsWith('https://files06.')), isEmpty);
+  });
+
+  test('pages whose entries are all filtered out are skipped', () async {
+    var n = 0;
+    answers['https://api.kde-look.org/ocs/v1/content/data?'] = () {
+      n++;
+      final data = n == 1 ? [entry(1, 'Pack', file: 'a.tar.gz')] : [entry(2, 'Real')];
+      return reply(200, utf8.encode(jsonEncode({'status': 'ok', 'totalitems': 100, 'data': data})));
+    };
+    final r = await call('import.kde_list');
+    expect([for (final t in r['themes']) t['name']], ['Real']);
+    expect(r['next_page'], 3);
+    expect(Uri.parse(requests.last).queryParameters['page'], '1');
+  });
+
   test('a redirect anywhere else and a file that is no scheme are refused', () async {
     list([entry(8, 'Bad')]);
     await call('import.kde_list');
@@ -126,6 +156,13 @@ void main() {
     expect(c, containsPair('mode', 'dark'));
     expect(c, containsPair('magenta', '#c678dd'));
     expect(checkKdeColors(utf8.encode('[Colors:Window]\nBackgroundNormal=1,2,3\n')), isNull);
+    // selected text keeps its own color; a bare scheme still gets six palette colors
+    expect(kdeSchemeColors('$scheme\n[Colors:Selection]\nForegroundNormal=255,255,255\n'), containsPair('selection_foreground', '#ffffff'));
+    final bare = kdeSchemeColors('[Colors:Window]\nBackgroundNormal=250,250,250\nForegroundNormal=20,20,20\n');
+    expect(bare, containsPair('mode', 'light'));
+    for (final k in ['red', 'green', 'yellow', 'blue', 'magenta', 'cyan']) {
+      expect(isHex(bare[k]), isTrue, reason: k);
+    }
     expect(kdeOpenable('https://store.kde.org/p/123'), isTrue);
     expect(kdeOpenable('https://store.kde.org/p/123/evil'), isFalse);
   });
