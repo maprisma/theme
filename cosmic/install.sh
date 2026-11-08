@@ -7,10 +7,10 @@ maprisma_data="${XDG_DATA_HOME:-$HOME/.local/share}"
 maprisma_bin="$HOME/.local/bin"
 cargo build --release --offline
 install -Dm755 target/release/maprisma-theme-helper "$maprisma_bin/maprisma-theme-helper"
-install -Dm755 target/release/cosmic-maprisma-theme-applet "$maprisma_bin/cosmic-maprisma-theme-applet"
+install -Dm755 target/release/maprisma-theme-applet "$maprisma_bin/maprisma-theme-applet"
 mkdir -p "$maprisma_data/applications"
 # Quote the executable path according to the desktop entry specification.
-python3 - "$maprisma_bin/cosmic-maprisma-theme-applet" "applet/data/$maprisma_id.desktop" "$maprisma_data/applications/$maprisma_id.desktop" <<'PY'
+python3 - "$maprisma_bin/maprisma-theme-applet" "applet/data/$maprisma_id.desktop" "$maprisma_data/applications/$maprisma_id.desktop" <<'PY'
 import pathlib, sys
 exe, source, target = sys.argv[1:]
 quoted = '"' + ''.join('\\' + c if c in '\\"`$' else c for c in exe).replace('%', '%%') + '"'

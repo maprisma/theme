@@ -4,7 +4,7 @@
 #   tools/install-local [--no-build]
 #
 # ~/.local/lib/maprisma-theme      the Flutter bundle + bin/ (core CLI, helper, applet) + share/ (themes, templates)
-# ~/.local/bin/maprisma-theme{,-core,-helper}, cosmic-maprisma-theme-applet   links
+# ~/.local/bin/maprisma-theme{,-core,-helper}, maprisma-theme-applet   links
 # ~/.local/share/applications      the app's and the applet's desktop entries; icons under hicolor
 #
 # A running Flutter app maps its code from the bundle: never copy over it. The running copies are
@@ -25,11 +25,11 @@ if (( build )); then
   (cd "$root/cosmic" && cargo build --release --offline -q)
   mkdir -p "$bundle/bin"
   (cd "$root/packages/maprisma_theme_core" && dart compile exe bin/maprisma_theme_core.dart -o "$bundle/bin/maprisma-theme-core" >/dev/null)
-  install -m755 "$root/cosmic/target/release/maprisma-theme-helper" "$root/cosmic/target/release/cosmic-maprisma-theme-applet" "$bundle/bin/"
+  install -m755 "$root/cosmic/target/release/maprisma-theme-helper" "$root/cosmic/target/release/maprisma-theme-applet" "$bundle/bin/"
   rm -rf "$bundle/share" && mkdir -p "$bundle/share/maprisma-theme"
   cp -a "$root/themes" "$root/templates" "$bundle/share/maprisma-theme/"
 fi
-for f in maprisma-theme bin/maprisma-theme-core bin/maprisma-theme-helper bin/cosmic-maprisma-theme-applet share/maprisma-theme/themes; do
+for f in maprisma-theme bin/maprisma-theme-core bin/maprisma-theme-helper bin/maprisma-theme-applet share/maprisma-theme/themes; do
   [[ -e $bundle/$f ]] || { echo "missing in the build: $f" >&2; exit 1; }
 done
 
@@ -63,11 +63,11 @@ trap - EXIT
 
 mkdir -p "$bin" "$data/applications" "$data/icons/hicolor/scalable/apps"
 ln -sfn "$lib/maprisma-theme" "$bin/maprisma-theme"
-for b in maprisma-theme-core maprisma-theme-helper cosmic-maprisma-theme-applet; do ln -sfn "$lib/bin/$b" "$bin/$b"; done
+for b in maprisma-theme-core maprisma-theme-helper maprisma-theme-applet; do ln -sfn "$lib/bin/$b" "$bin/$b"; done
 install -m644 "$root/packaging/com.maprisma.Theme.desktop" "$data/applications/"
 install -m644 "$root/packaging/com.maprisma.Theme.svg" "$data/icons/hicolor/scalable/apps/"
 id=io.github.ubruckhaus.CosmicMaprismaTheme
-sed "s|^Exec=.*|Exec=$bin/cosmic-maprisma-theme-applet|" "$root/cosmic/applet/data/$id.desktop" > "$data/applications/$id.desktop"
+sed "s|^Exec=.*|Exec=$bin/maprisma-theme-applet|" "$root/cosmic/applet/data/$id.desktop" > "$data/applications/$id.desktop"
 install -m644 "$root/cosmic/applet/data/icons/$id-symbolic.svg" "$data/icons/hicolor/scalable/apps/"
 command -v gtk-update-icon-cache >/dev/null && gtk-update-icon-cache -f -t "$data/icons/hicolor" >/dev/null 2>&1 || true
 command -v update-desktop-database >/dev/null && update-desktop-database "$data/applications" >/dev/null 2>&1 || true

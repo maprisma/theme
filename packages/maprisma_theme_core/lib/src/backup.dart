@@ -314,7 +314,7 @@ Future<Map<String, dynamic>> health(Ctx ctx) async {
   final local = '${ctx.paths.home}/.local/bin';
   String? find(String name) =>
       Posix.instance.executable('$local/$name') && FileSystemEntity.isFileSync('$local/$name') ? '$local/$name' : which(name, ctx.environment);
-  final applet = find('cosmic-maprisma-theme-applet');
+  final applet = find('maprisma-theme-applet');
   final desktopFile = [
     '${ctx.paths.data}/applications/$appletId.desktop',
     '/usr/local/share/applications/$appletId.desktop',
