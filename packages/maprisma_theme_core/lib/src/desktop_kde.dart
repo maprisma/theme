@@ -62,6 +62,13 @@ final class KdeDesktop extends DesktopBase {
       if (n.trim().isNotEmpty) n.trim(),
   };
 
+  /// "r,g,b" (a KDE colour) as #rrggbb, or null.
+  static String? kdeRgbHex(String? v) {
+    final p = (v ?? '').split(',').map((s) => int.tryParse(s.trim())).toList();
+    if (p.length < 3 || p.take(3).any((c) => c == null || c < 0 || c > 255)) return null;
+    return '#${p.take(3).map((c) => c!.toRadixString(16).padLeft(2, '0')).join()}';
+  }
+
   /// The wm contract's workspaces with each one's real tiling state.
   Map<String, dynamic> withTiling(Map<String, dynamic> r) {
     if (r['workspaces'] is! List) return r;
@@ -75,6 +82,60 @@ final class KdeDesktop extends DesktopBase {
       ],
       'can_tile': krohnkiteInstalled,
     };
+  }
+
+  /// Gaps of tiled windows (Krohnkite: screen edges and between tiles) and
+  /// the active window's frame width (the maprisma-active-frame KWin script;
+  /// 0 = no frame), in logical pixels.
+  static const tileStyleKeys = {
+    'top': ('Script-krohnkite', 'screenGapTop', 0),
+    'right': ('Script-krohnkite', 'screenGapRight', 0),
+    'bottom': ('Script-krohnkite', 'screenGapBottom', 0),
+    'left': ('Script-krohnkite', 'screenGapLeft', 0),
+    'between': ('Script-krohnkite', 'screenGapBetween', 0),
+    'border': ('Script-maprisma-active-frame', 'borderWidth', 3),
+  };
+
+  Map<String, dynamic> tileStyle() {
+    final text = _text(_kwinrc);
+    return {
+      for (final e in tileStyleKeys.entries)
+        e.key: int.tryParse(iniValue(text, e.value.$1, e.value.$2) ?? '') ?? e.value.$3,
+      'can_tile': krohnkiteInstalled,
+    };
+  }
+
+  /// [json]: {top, right, bottom, left, between, border}, any subset, 0…200
+  /// (border 0…16). Krohnkite reads its settings when it starts, so it is
+  /// switched off and on again; the frame script re-reads by itself.
+  Future<Map<String, dynamic>> _setTileStyle(String json) async {
+    if (!krohnkiteInstalled) return {'error': 'not_available', 'message': 'Krohnkite is not installed'};
+    final Object? v;
+    try {
+      v = jsonDecode(json);
+    } on FormatException {
+      return {'error': 'bad_args'};
+    }
+    if (v is! Map) return {'error': 'bad_args'};
+    final old = tileStyle();
+    var krohnkite = false;
+    for (final e in tileStyleKeys.entries) {
+      final n = v[e.key];
+      if (n == null) continue;
+      if (n is! int || n < 0 || n > (e.key == 'border' ? 16 : 200)) return {'error': 'bad_args', 'message': e.key};
+      if (n == old[e.key]) continue;
+      if (!await _run(['kwriteconfig6', '--file', 'kwinrc', '--group', e.value.$1, '--key', e.value.$2, '$n'])) {
+        return {'error': 'unavailable', 'message': 'kwinrc could not be written'};
+      }
+      if (e.value.$1 == 'Script-krohnkite') krohnkite = true;
+    }
+    if (krohnkite && krohnkiteEnabled) {
+      await _run(['kwriteconfig6', '--file', 'kwinrc', '--group', 'Plugins', '--key', 'krohnkiteEnabled', 'false']);
+      await _run(['qdbus6', 'org.kde.KWin', '/KWin', 'reconfigure']);
+      await _run(['kwriteconfig6', '--file', 'kwinrc', '--group', 'Plugins', '--key', 'krohnkiteEnabled', 'true']);
+    }
+    await _run(['qdbus6', 'org.kde.KWin', '/KWin', 'reconfigure']);
+    return {'done': true, 'previous': old};
   }
 
   /// Tiling of workspace [index] on or off: its name leaves or joins
@@ -105,10 +166,10 @@ final class KdeDesktop extends DesktopBase {
     if (on || wasEnabled) {
       await _run(['kwriteconfig6', '--file', 'kwinrc', '--group', 'Plugins', '--key', 'krohnkiteEnabled', 'true']);
     }
-    // The focus-border KWin script (maprisma-kwin-scripts) frames the active
+    // The active-frame KWin script (maprisma-kwin-scripts) frames the active
     // window only where Krohnkite tiles; a script reads just its own group.
-    await _run(['kwriteconfig6', '--file', 'kwinrc', '--group', 'Script-maprisma-focus-border', '--key', 'tilingOn', '${on || wasEnabled}']);
-    await _run(['kwriteconfig6', '--file', 'kwinrc', '--group', 'Script-maprisma-focus-border', '--key', 'ignoreVDesktop', ignored.join(',')]);
+    await _run(['kwriteconfig6', '--file', 'kwinrc', '--group', 'Script-maprisma-active-frame', '--key', 'tilingOn', '${on || wasEnabled}']);
+    await _run(['kwriteconfig6', '--file', 'kwinrc', '--group', 'Script-maprisma-active-frame', '--key', 'ignoreVDesktop', ignored.join(',')]);
     await _run(['qdbus6', 'org.kde.KWin', '/KWin', 'reconfigure']);
     return {'done': true};
   }
@@ -209,6 +270,11 @@ final class KdeDesktop extends DesktopBase {
     if (iniValue(_text(_kdeglobals), 'General', 'ColorScheme') != name) return false;
     for (final other in kdeSchemeNames) {
       if (other != name) DesktopBase.deleteQuietly('$dir/$other.colors');
+    }
+    // The active window frame (maprisma-active-frame) in the theme's accent.
+    final focus = kdeRgbHex(iniValue(text, 'Colors:View', 'DecorationFocus'));
+    if (focus != null) {
+      await _run(['kwriteconfig6', '--file', 'kwinrc', '--group', 'Script-maprisma-active-frame', '--key', 'borderColor', focus]);
     }
     return true;
   }
@@ -411,6 +477,8 @@ print('maprisma-snapshot ' + JSON.stringify(r));
 
   @override
   Future<Map<String, dynamic>?> wm(List<String> args, {Duration timeout = const Duration(seconds: 20)}) async {
+    if (args.length == 1 && args[0] == 'tile-style') return tileStyle();
+    if (args.length == 2 && args[0] == 'set-tile-style') return _setTileStyle(args[1]);
     if (args.length == 3 && args[0] == 'set-tiling' && int.tryParse(args[1]) != null && (args[2] == 'on' || args[2] == 'off')) {
       return _setTiling(int.parse(args[1]), args[2] == 'on');
     }

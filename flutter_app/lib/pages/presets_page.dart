@@ -265,6 +265,74 @@ class _PresetsPageState extends State<PresetsPage> {
     }
   }
 
+  /// Gaps of tiled windows (screen edges, between tiles) and the active
+  /// window's frame width, applied at once with Undo.
+  Future<void> tileStyleDialog() async {
+    final now = await app!.run('tiling.style');
+    if (now == null || !mounted) return;
+    const fields = [
+      ('top', 'Gap top', 200),
+      ('right', 'Gap right', 200),
+      ('bottom', 'Gap bottom', 200),
+      ('left', 'Gap left', 200),
+      ('between', 'Gap between windows', 200),
+      ('border', 'Active window frame', 16),
+    ];
+    final values = {for (final f in fields) f.$1: (now[f.$1] as num?)?.toInt() ?? 0};
+    final result = await showDialog<Map<String, int>>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Tiling gaps & frame'),
+          content: SizedBox(
+            width: 360,
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              for (final f in fields)
+                Row(children: [
+                  Expanded(child: Text(f.$2)),
+                  IconButton(
+                    tooltip: 'Less',
+                    icon: const Icon(Icons.remove),
+                    onPressed: values[f.$1]! > 0 ? () => setState(() => values[f.$1] = values[f.$1]! - 1) : null,
+                  ),
+                  SizedBox(width: 56, child: Text('${values[f.$1]} px', textAlign: TextAlign.center)),
+                  IconButton(
+                    tooltip: 'More',
+                    icon: const Icon(Icons.add),
+                    onPressed: values[f.$1]! < f.$3 ? () => setState(() => values[f.$1] = values[f.$1]! + 1) : null,
+                  ),
+                ]),
+              const SizedBox(height: 8),
+              Text('The frame is drawn in the theme accent on tiled workspaces; 0 px hides it.',
+                  style: Theme.of(context).textTheme.bodySmall),
+            ]),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(context, Map.of(values)), child: const Text('Apply')),
+          ],
+        ),
+      ),
+    );
+    if (result == null || !mounted) return;
+    setState(() => busy = true);
+    try {
+      final r = await app!.run('tiling.style.set', result);
+      final previous = r?['previous'];
+      if (r != null) {
+        app!.notify('Gaps and frame applied',
+            undo: previous is Map
+                ? () => app!.run('tiling.style.set', {
+                      for (final f in fields)
+                        if (previous[f.$1] is num) f.$1: (previous[f.$1] as num).toInt(),
+                    })
+                : null);
+      }
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
   Future<void> setWs(int ws, Map<String, dynamic> params, String done, {bool tiling = false}) =>
       perform('workspaces.set', {if (ws > 0) 'workspace': ws, ...params}, done, tiling: tiling);
 
@@ -1437,6 +1505,12 @@ class _PresetsPageState extends State<PresetsPage> {
                     if (hasWorkspaces) tabButton(0, Icons.grid_view, 'Workspaces'),
                     if (hasApps) tabButton(1, Icons.apps, 'App Presets'),
                     tabButton(2, Icons.download_outlined, 'Save/Load Presets'),
+                    if (hasWorkspaces && app!.can('tiling') && app!.desktopId == 'kde')
+                      IconButton(
+                        tooltip: 'Gaps of tiled windows and the active window frame',
+                        icon: const Icon(Icons.border_outer),
+                        onPressed: busy ? null : tileStyleDialog,
+                      ),
                   ]),
                 ),
                 Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 8), child: hasWorkspaces && app!.can('tiling') && app!.can('windows') ? note() : Text('${hasWorkspaces ? 'Tiling and window limits' : 'Workspaces'} are not available on ${app!.desktopName} yet.')),

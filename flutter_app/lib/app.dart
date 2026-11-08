@@ -59,6 +59,7 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
   final navigator = GlobalKey<NavigatorState>();
   final messenger = GlobalKey<ScaffoldMessengerState>();
   final shotKey = GlobalKey();
+  String desktopId = 'cosmic';
   String desktopName = 'COSMIC';
   String terminalName = 'COSMIC Terminal';
   Set<String> _caps = {
@@ -72,6 +73,7 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
       final info = await call('desktop.info');
       if (!mounted || info['caps'] is! List) return;
       setState(() {
+        desktopId = info['id'] as String? ?? desktopId;
         desktopName = info['name'] as String? ?? desktopName;
         terminalName = info['terminal'] as String? ?? terminalName;
         _caps = Set<String>.from(info['caps'] as List);

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'apply.dart';
 import 'auto.dart';
 import 'context.dart';
@@ -199,6 +201,12 @@ Map<String, Handler> presetRoutes(Ctx ctx) {
     'workspaces.reset': (_) => change((s) {
       s.clear();
     }),
+    /// Gaps of tiled windows and the active window's frame width (KDE:
+    /// Krohnkite and the maprisma-active-frame script; wm `tile-style`).
+    'tiling.style': (_) async => _wmOrThrow(await ctx.desktop.wm(['tile-style'])),
+    /// {top, right, bottom, left, between, border}: any subset; returns
+    /// {done, previous} (previous: the values before, for Undo).
+    'tiling.style.set': (p) async => _wmOrThrow(await ctx.desktop.wm(['set-tile-style', jsonEncode(p)])),
     'workspaces.apply': (_) async {
       final receipt = undo.capture(ctx);
       await undo.captureDesktop(ctx, receipt);
@@ -360,4 +368,11 @@ Map<String, Handler> presetRoutes(Ctx ctx) {
     },
     'presets.autostart': (_) => autostartPresets(ctx),
   };
+}
+
+Map<String, dynamic> _wmOrThrow(Map<String, dynamic>? r) {
+  if (r == null) throw RouteError('unavailable', 'the desktop did not answer');
+  final e = r['error'];
+  if (e != null) throw RouteError('$e', '${r['message'] ?? e}');
+  return r;
 }
