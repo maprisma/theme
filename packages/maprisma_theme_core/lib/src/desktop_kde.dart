@@ -48,6 +48,13 @@ final class KdeDesktop extends DesktopBase {
 
   /// KWin through scripts (kwin_bridge.dart), opened on first use.
   KWinBridge? _bridge;
+
+  /// The bridge's scripts unloaded (the daemon at exit).
+  Future<void> close() async {
+    final b = _bridge;
+    _bridge = null;
+    await b?.dispose();
+  }
   KWinBridge? get bridge {
     if (_bridge != null) return _bridge;
     final bus = sessionBus(environment);

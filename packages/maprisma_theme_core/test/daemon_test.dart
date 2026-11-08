@@ -77,6 +77,16 @@ void main() {
       expect(kdeKeyId({'mods': ['CTRL', 'SUPER'], 'key': 'T'}), kdeKeyId({'mods': ['SUPER', 'CTRL'], 'key': 't'}));
     });
 
+    test('take and give back touch only the one borrowed sequence', () {
+      final a = [0x10000031, 0, 0, 0], b = [0x10000032, 0, 0, 0], chord = [0x04000041, 0x04000042, 0, 0];
+      // an action with A, B and a two-stroke chord: taking A keeps B and the chord whole
+      expect(withoutSeq([a, b, chord], a), [b, chord]);
+      // giving A back while B is still taken does not bring B back
+      expect(withSeq([chord], a), [chord, a]);
+      expect(withSeq([a, chord], a), [a, chord]); // already there: unchanged
+      expect(withoutSeq([[0x10000031]], a), isEmpty); // short and padded forms are the same
+    });
+
     test('owners: every component and service, ours left out', () {
       final owners = kdeKeyOwners('[kwin]\n_k_friendly_name=KWin\nSwitch to Desktop 1=Meta+1\\tCtrl+F1,Ctrl+F1,Switch to Desktop 1\n'
           'Window Close=none,Alt+F4,Close Window\n\n[services][org.kde.konsole.desktop]\n_launch=Ctrl+Alt+T\n\n'

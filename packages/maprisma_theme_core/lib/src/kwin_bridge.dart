@@ -163,8 +163,16 @@ class KWinBridge {
     String op,
     Map<String, dynamic> args, {
     Duration timeout = const Duration(seconds: 5),
-  }) => _serial(() async {
+  }) {
+    // The deadline counts from the call: a request that waited its time out
+    // behind others is never run late (a move or close after its caller
+    // gave up).
+    final started = DateTime.now();
+    return _serial(() async {
     if (_disposed) throw StateError('Bridge disposed');
+    final left = timeout - DateTime.now().difference(started);
+    if (left <= Duration.zero) throw TimeoutException('KWin $op (queued)', timeout);
+    timeout = left;
     final id = 'r${pid}_${_sequence++}';
     final plugin = 'maprisma_$id';
     final reply = Completer<Map<String, dynamic>>();
@@ -204,9 +212,10 @@ class KWinBridge {
     } finally {
       timer.cancel();
       _pending.remove(id);
-      await _clean(plugin, file);
+      await _clean(plugin, file).timeout(const Duration(seconds: 5), onTimeout: () {});
     }
   });
+  }
 
   /// Repeated calls share one broadcast stream and one compositor script.
   Stream<Map<String, dynamic>> watch() {

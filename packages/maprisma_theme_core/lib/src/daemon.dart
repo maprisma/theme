@@ -16,6 +16,7 @@ import 'package:dbus/dbus.dart';
 import 'context.dart';
 import 'core.dart';
 import 'desktop.dart';
+import 'desktop_kde.dart';
 import 'shortcuts_kde.dart';
 import 'store.dart';
 
@@ -285,7 +286,18 @@ final class _Menu extends DBusObject {
         if (kind == 'clicked') unawaited(items[id]?.$2?.call());
         return DBusMethodSuccessResponse();
       case 'EventGroup':
-        return DBusMethodSuccessResponse([DBusArray.int32(const [])]);
+        // a(isvu): each (id, event, data, time); unknown ids come back as errors
+        final errors = <int>[];
+        for (final e in c.values.first.asArray()) {
+          final f = e.asStruct();
+          final id = f[0].asInt32();
+          if (!items.containsKey(id)) {
+            errors.add(id);
+          } else if (f[1].asString() == 'clicked') {
+            unawaited(items[id]!.$2?.call());
+          }
+        }
+        return DBusMethodSuccessResponse([DBusArray.int32(errors)]);
       case 'AboutToShow':
         await d.refreshMenu();
         return DBusMethodSuccessResponse([const DBusBoolean(true)]);
@@ -368,10 +380,11 @@ final class Daemon {
       for (var j = queue.take(); j != null; j = queue.take()) {
         try {
           switch (j) {
+            // As the applet's runner: no job holds the queue longer than 60 s.
             case CoreJob(:final method, :final params):
-              await core.call(method, params);
+              await core.call(method, params).timeout(const Duration(seconds: 60));
             case OverflowJob(:final id, :final workspace):
-              await _overflow(id, workspace);
+              await _overflow(id, workspace).timeout(const Duration(seconds: 60));
           }
         } on Object catch (e) {
           stderr.writeln('maprisma-theme daemon: $e');
@@ -415,18 +428,32 @@ final class Daemon {
     unawaited(run(CoreJob('auto.step_background', {'direction': delta > 0 ? -1 : 1})));
   }
 
+  /// The menu from the core; when it changed, hosts are told (LayoutUpdated),
+  /// so a cached menu never maps a click to an old entry.
   Future<void> refreshMenu() async {
     try {
-      _menu.data = await core.call('auto.menu');
+      final data = await core.call('auto.menu').timeout(const Duration(seconds: 10));
+      if (jsonEncode(data) == jsonEncode(_menu.data)) return;
+      _menu.data = data;
       _menu.revision++;
+      if (_trayRegistered) {
+        await _menu.emitSignal('com.canonical.dbusmenu', 'LayoutUpdated', [DBusUint32(_menu.revision), const DBusInt32(0)]);
+      }
     } on Object {
       // keep the last menu
     }
   }
 
+  var _trayRegistered = false;
+
+  /// Exports the tray objects once, then (again after a tray host restart)
+  /// registers the item with the watcher.
   Future<void> _registerTray() async {
-    await bus.registerObject(_tray);
-    await bus.registerObject(_menu);
+    if (!_trayRegistered) {
+      await bus.registerObject(_tray);
+      await bus.registerObject(_menu);
+      _trayRegistered = true;
+    }
     final watcher = DBusRemoteObject(bus, name: 'org.kde.StatusNotifierWatcher', path: DBusObjectPath('/StatusNotifierWatcher'));
     await watcher.callMethod('org.kde.StatusNotifierWatcher', 'RegisterStatusNotifierItem', [DBusString(bus.uniqueName)]);
   }
@@ -448,8 +475,8 @@ final class Daemon {
         unawaited(_registerTray().catchError((_) {}));
       }
     }));
-    if (claimAutostart(ctx.environment) && automation['autostart'] == true) await run(CoreJob('presets.autostart'));
-    await _syncShortcuts();
+    if (claimAutostart(ctx.environment) && automation['autostart'] == true) unawaited(run(CoreJob('presets.autostart')));
+    unawaited(_syncShortcuts().catchError((_) {}));
     if (events != null) {
       _subs.add(events.listen((e) {
         _readAutomation();
@@ -507,13 +534,21 @@ Future<int> runDaemon(Map<String, String> environment) async {
   final daemon = Daemon(core, bus);
   await daemon.start(events: core.ctx.desktop.watch());
   final done = Completer<void>();
-  for (final sig in [ProcessSignal.sigterm, ProcessSignal.sigint]) {
-    sig.watch().listen((_) {
-      if (!done.isCompleted) done.complete();
-    });
-  }
+  final signals = [
+    for (final sig in [ProcessSignal.sigterm, ProcessSignal.sigint])
+      sig.watch().listen((_) {
+        if (!done.isCompleted) done.complete();
+      }),
+  ];
   await done.future;
-  await daemon.stop();
-  await bus.close();
+  for (final s in signals) {
+    await s.cancel();
+  }
+  // Cleanup gets a few seconds; the caller exits the process after it.
+  await Future.wait<void>([
+    daemon.stop(),
+    if (core.ctx.desktop case final KdeDesktop kde) kde.close(),
+    bus.close(),
+  ]).timeout(const Duration(seconds: 3), onTimeout: () => const []);
   return 0;
 }

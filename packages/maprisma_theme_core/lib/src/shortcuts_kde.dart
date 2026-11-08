@@ -210,19 +210,73 @@ final class KdeShortcutBinder implements ShortcutBinder {
   }
 }
 
-DBusArray _keys(List<int> codes) =>
-    DBusArray(DBusSignature('(ai)'), [for (final c in codes) DBusStruct([DBusArray.int32([c, 0, 0, 0])])]);
+/// A QKeySequence as kglobalaccel carries it: up to four strokes.
+typedef KeySeq = List<int>;
 
-List<int> _codes(DBusValue v) => [
+DBusArray _keys(List<KeySeq> seqs) => DBusArray(DBusSignature('(ai)'), [
+  for (final q in seqs) DBusStruct([DBusArray.int32([...q, 0, 0, 0, 0].take(4).toList())]),
+]);
+
+/// Every sequence whole (multi-stroke ones too).
+List<KeySeq> _seqs(DBusValue v) => [
   for (final s in v.asArray())
-    if (s is DBusStruct && s.children.isNotEmpty) s.children.first.asInt32Array().first,
+    if (s is DBusStruct && s.children.isNotEmpty) s.children.first.asInt32Array().toList(),
 ];
 
-/// Makes kglobalaccel match the desktop files of ours: registers and binds
-/// each, unbinds and forgets keys whose file is gone, takes a key from
-/// another action (remembered) and gives it back when ours goes. True when
-/// every call went through.
-Future<bool> syncKdeShortcuts(Paths paths, Map<String, String> environment, {DBusClient? client}) async {
+bool _sameSeq(KeySeq a, KeySeq b) {
+  for (var i = 0; i < 4; i++) {
+    if ((i < a.length ? a[i] : 0) != (i < b.length ? b[i] : 0)) return false;
+  }
+  return true;
+}
+
+/// One stroke [code] as a sequence.
+KeySeq _single(int code) => [code, 0, 0, 0];
+
+/// What a sync does with the wanted keys and the shadow records; pure, so
+/// tests check it. [taken] → sequences an other action keeps, [giveBack] →
+/// its sequences with ours added back.
+List<KeySeq> withoutSeq(List<KeySeq> keys, KeySeq q) => [for (final k in keys) if (!_sameSeq(k, q)) k];
+List<KeySeq> withSeq(List<KeySeq> keys, KeySeq q) => keys.any((k) => _sameSeq(k, q)) ? keys : [...keys, q];
+
+Future<void> _syncChain = Future.value();
+
+/// Makes kglobalaccel match the desktop files of ours. In order: ours no
+/// longer wanted are unbound; a key another action has is taken from it
+/// (only that one sequence, recorded in kde-shadowed.json before it is
+/// taken); ours are bound; recorded keys ours no longer use are given back,
+/// and a record goes only once kglobalaccel shows the key back. One sync at a
+/// time (in this process and across processes). True when every call went
+/// through.
+Future<bool> syncKdeShortcuts(Paths paths, Map<String, String> environment, {DBusClient? client}) {
+  final done = _syncChain.then((_) => _syncLocked(paths, environment, client));
+  _syncChain = done.then<void>((_) {}, onError: (Object _) {});
+  return done;
+}
+
+Future<bool> _syncLocked(Paths paths, Map<String, String> environment, DBusClient? client) async {
+  RandomAccessFile? lock;
+  try {
+    Directory(paths.runtime).createSync(recursive: true);
+    lock = File('${paths.runtime}/kde-shortcuts.lock').openSync(mode: FileMode.append);
+    await lock.lock(FileLock.blockingExclusive);
+  } on FileSystemException {
+    await lock?.close();
+    return false;
+  }
+  try {
+    return await _sync(paths, environment, client).timeout(const Duration(seconds: 30), onTimeout: () => false);
+  } finally {
+    try {
+      await lock.unlock();
+      await lock.close();
+    } on FileSystemException {
+      // closed with the process
+    }
+  }
+}
+
+Future<bool> _sync(Paths paths, Map<String, String> environment, DBusClient? client) async {
   final bus = client ?? sessionBus(environment);
   if (bus == null) return false;
   final apps = '${paths.data}/applications';
@@ -232,6 +286,8 @@ Future<bool> syncKdeShortcuts(Paths paths, Map<String, String> environment, {DBu
     Future<DBusMethodSuccessResponse> c(String m, List<DBusValue> args) => ga.callMethod('org.kde.KGlobalAccel', m, args);
     DBusArray id(String component, String action, [String cf = '', String af = '']) =>
         DBusArray.string([component, action, cf, af]);
+    Future<List<KeySeq>> keysOf(String component, String action) async =>
+        _seqs((await c('shortcutKeys', [id(component, action)])).values.first);
 
     final wanted = <String, (int, String, String)>{}; // file → (code, keyId, name)
     try {
@@ -247,13 +303,12 @@ Future<bool> syncKdeShortcuts(Paths paths, Map<String, String> environment, {DBu
     } on FileSystemException {
       // no folder: nothing wanted
     }
+    final wantedIds = {for (final w in wanted.values) w.$2};
 
-    // Ours that are registered but no longer wanted: unbind and forget.
-    final components = (await ga.callMethod('org.kde.KGlobalAccel', 'allComponents', [])).values.first.asArray();
+    // 1. Ours that are registered but no longer wanted: unbound and forgotten.
+    final components = (await c('allComponents', [])).values.first.asArray();
     for (final p in components) {
-      final path = p.asObjectPath().value;
-      final m = RegExp('^/component/${kdeKeyPrefix.replaceAll('-', '_')}(.*)_desktop\$').firstMatch(path);
-      if (m == null) continue;
+      if (!RegExp('^/component/${kdeKeyPrefix.replaceAll('-', '_')}.*_desktop\$').hasMatch(p.asObjectPath().value)) continue;
       final comp = DBusRemoteObject(bus, name: 'org.kde.kglobalaccel', path: p.asObjectPath());
       final unique = (await comp.getProperty('org.kde.kglobalaccel.Component', 'uniqueName')).asString();
       if (wanted.containsKey(unique)) continue;
@@ -261,38 +316,48 @@ Future<bool> syncKdeShortcuts(Paths paths, Map<String, String> environment, {DBu
       await c('unregister', [DBusString(unique), DBusString('_launch')]);
     }
 
-    // Keys others had: taken while ours wants them, given back after.
+    // 2. A key another action has: that one sequence is taken (recorded first).
     final shadow = readJsonMap(shadowFile);
-    final wantedIds = {for (final w in wanted.values) w.$2};
-    for (final k in [...shadow.keys]) {
-      if (wantedIds.contains(k)) continue;
-      final s = shadow[k];
-      if (s is Map && s['component'] is String && s['action'] is String && s['keys'] is List) {
-        await c('setForeignShortcutKeys', [
-          id(s['component'] as String, s['action'] as String),
-          _keys([for (final v in s['keys'] as List) if (v is int) v]),
-        ]);
-      }
-      shadow.remove(k);
-    }
     final owners = kdeKeyOwners(readSmall('${File(paths.cosmicConfig).parent.path}/kglobalshortcutsrc', limit: 2 * 1024 * 1024) ?? '');
     for (final w in wanted.values) {
       final other = owners[w.$2];
       if (other == null || shadow.containsKey(w.$2)) continue;
-      final otherId = id(other.$1, other.$2);
-      final keys = _codes((await c('shortcutKeys', [otherId])).values.first);
-      shadow[w.$2] = {'component': other.$1, 'action': other.$2, 'friendly': other.$3, 'keys': keys};
+      final keys = await keysOf(other.$1, other.$2);
+      final seq = _single(w.$1);
+      if (!keys.any((k) => _sameSeq(k, seq))) continue; // not really its key (any more)
+      shadow[w.$2] = {'component': other.$1, 'action': other.$2, 'friendly': other.$3, 'seq': seq};
       writeJson(shadowFile, shadow); // before the key is taken: never lost
-      await c('setForeignShortcutKeys', [otherId, _keys([for (final k in keys) if (k != w.$1) k])]);
+      await c('setForeignShortcutKeys', [id(other.$1, other.$2), _keys(withoutSeq(keys, seq))]);
     }
-    writeJson(shadowFile, shadow);
 
+    // 3. Ours bound (a changed key frees the old one here).
     for (final e in wanted.entries) {
       final aid = id(e.key, '_launch', 'Maprisma Theme', e.value.$3);
       await c('doRegister', [aid]);
-      await c('setForeignShortcutKeys', [aid, _keys([e.value.$1])]);
+      await c('setForeignShortcutKeys', [aid, _keys([_single(e.value.$1)])]);
     }
-    return true;
+
+    // 4. Recorded keys ours no longer uses: given back; the record goes only
+    // once the other action has the key again.
+    var allBack = true;
+    for (final k in [...shadow.keys]) {
+      if (wantedIds.contains(k)) continue;
+      final s = shadow[k];
+      if (s is! Map || s['component'] is! String || s['action'] is! String || s['seq'] is! List) {
+        shadow.remove(k);
+        continue;
+      }
+      final comp = s['component'] as String, action = s['action'] as String;
+      final seq = [for (final v in s['seq'] as List) if (v is int) v];
+      await c('setForeignShortcutKeys', [id(comp, action), _keys(withSeq(await keysOf(comp, action), seq))]);
+      if ((await keysOf(comp, action)).any((q) => _sameSeq(q, seq))) {
+        shadow.remove(k);
+      } else {
+        allBack = false;
+      }
+    }
+    writeJson(shadowFile, shadow);
+    return allBack;
   } on DBusMethodResponseException {
     return false;
   } on FileSystemException {

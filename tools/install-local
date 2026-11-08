@@ -74,7 +74,10 @@ command -v gtk-update-icon-cache >/dev/null && gtk-update-icon-cache -f -t "$dat
 command -v update-desktop-database >/dev/null && update-desktop-database "$data/applications" >/dev/null 2>&1 || true
 autostart="${XDG_CONFIG_HOME:-$HOME/.config}/autostart"
 mkdir -p "$autostart"
-sed "s|^Exec=.*|Exec=$bin/maprisma-theme-core daemon|" "$root/packaging/com.maprisma.Theme.Daemon.desktop" > "$autostart/com.maprisma.Theme.Daemon.desktop"
+# Exec quoted as the desktop entry spec says (a home folder with spaces or quotes still works).
+exe="$bin/maprisma-theme-core"
+exe=${exe//\\/\\\\}; exe=${exe//\"/\\\"}; exe=${exe//\`/\\\`}; exe=${exe//\$/\\\$}
+{ grep -v '^Exec=' "$root/packaging/com.maprisma.Theme.Daemon.desktop"; printf 'Exec="%s" daemon\n' "$exe"; } > "$autostart/com.maprisma.Theme.Daemon.desktop"
 # The daemon was stopped with the other running copies: start it again in a Plasma session.
 if [[ ":${XDG_CURRENT_DESKTOP:-}:" == *:KDE:* ]]; then
   setsid -f "$bin/maprisma-theme-core" daemon >/dev/null 2>&1 < /dev/null || true
