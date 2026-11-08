@@ -1115,7 +1115,7 @@ class _AskPageState extends State<AskPage> {
             ),
           ),
           onPressed: _savePrompt,
-          icon: const Icon(Icons.bookmark_add_outlined, size: 18),
+          icon: const Icon(Icons.bookmark_border, size: 18),
         ),
       ],
     );
