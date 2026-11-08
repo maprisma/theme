@@ -65,7 +65,12 @@ trap - EXIT
 mkdir -p "$bin" "$data/applications" "$data/icons/hicolor/scalable/apps"
 ln -sfn "$lib/maprisma-theme" "$bin/maprisma-theme"
 for b in maprisma-theme-core maprisma-theme-helper maprisma-theme-applet; do ln -sfn "$lib/bin/$b" "$bin/$b"; done
-install -m644 "$root/packaging/com.maprisma.Theme.desktop" "$data/applications/"
+# Exec with the full path, quoted: Plasma's own PATH has no ~/.local/bin.
+gui="$bin/maprisma-theme"
+gui=${gui//\\/\\\\}; gui=${gui//\"/\\\"}; gui=${gui//\`/\\\`}; gui=${gui//\$/\\\$}
+{ grep -v '^Exec=' "$root/packaging/com.maprisma.Theme.desktop"; printf 'Exec="%s"\n' "$gui"; } > "$data/applications/com.maprisma.Theme.desktop"
+# A hidden entry that shows or hides the window (panel icons, launchers).
+{ grep -vE '^(Exec|Name|Comment|NoDisplay)=' "$root/packaging/com.maprisma.Theme.desktop"; printf 'Name=Maprisma Theme\nComment=Show or hide Maprisma Theme\nNoDisplay=true\nExec="%s" --toggle\n' "$gui"; } > "$data/applications/com.maprisma.Theme.Toggle.desktop"
 install -m644 "$root/packaging/com.maprisma.Theme.svg" "$data/icons/hicolor/scalable/apps/"
 id=io.github.ubruckhaus.CosmicMaprismaTheme
 sed "s|^Exec=.*|Exec=$bin/maprisma-theme-applet|" "$root/cosmic/applet/data/$id.desktop" > "$data/applications/$id.desktop"
