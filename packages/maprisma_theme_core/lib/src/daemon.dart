@@ -412,7 +412,10 @@ final class Daemon {
       if (w['workspace'] is int && counts.containsKey(w['workspace'])) counts[w['workspace'] as int] = counts[w['workspace']]! + 1;
     }
     final dest = overflowTarget(source, counts, t);
-    if (dest != null) await ctx.desktop.wm(['move', id, '$dest']);
+    if (dest == null) return;
+    final moved = await ctx.desktop.wm(['move', id, '$dest']);
+    // The new window is what the user just opened: follow it to its workspace.
+    if (moved?['done'] == true) await ctx.desktop.wm(['activate', id]);
   }
 
   void toggleWindow() {
