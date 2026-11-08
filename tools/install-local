@@ -22,7 +22,7 @@ export PATH="${FLUTTER:-/mnt/Data/flutter/bin}:$PATH"
 bundle="$root/flutter_app/build/linux/x64/release/bundle"
 
 if (( build )); then
-  (cd "$root/flutter_app" && flutter build linux --release >/dev/null)
+  (cd "$root/flutter_app" && flutter build linux --release --no-tree-shake-icons >/dev/null)
   (cd "$root/cosmic" && cargo build --release --offline -q)
   mkdir -p "$bundle/bin"
   (cd "$root/packages/maprisma_theme_core" && dart compile exe bin/maprisma_theme_core.dart -o "$bundle/bin/maprisma-theme-core" >/dev/null)

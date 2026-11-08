@@ -314,6 +314,8 @@ class _ThemesPageState extends State<ThemesPage> {
     final key = e.logicalKey;
     final ctrl = HardwareKeyboard.instance.isControlPressed;
     final alt = HardwareKeyboard.instance.isAltPressed;
+    // Super+digit switches desktops: the digit is no filter text.
+    final meta = HardwareKeyboard.instance.isMetaPressed;
     if (key == LogicalKeyboardKey.escape) {
       if (filter.isNotEmpty) {
         setFilter('');
@@ -371,7 +373,7 @@ class _ThemesPageState extends State<ThemesPage> {
         return KeyEventResult.handled;
     }
     final ch = e.character;
-    if (!ctrl && !alt && ch != null && ch.length == 1 && ch.codeUnitAt(0) >= 32 && ch.codeUnitAt(0) != 127 &&
+    if (!ctrl && !alt && !meta && ch != null && ch.length == 1 && ch.codeUnitAt(0) >= 32 && ch.codeUnitAt(0) != 127 &&
         (ch != ' ' || filter.isNotEmpty)) {
       setFilter(filter + ch);
       return KeyEventResult.handled;
