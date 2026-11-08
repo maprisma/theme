@@ -31,12 +31,12 @@ String modeLabel(String mode) => switch (mode) {
   _ => 'Native',
 };
 
-/// Who tiles on [desktop]: COSMIC itself, on KDE Plasma the Krohnkite script.
-String tilerOf(String desktop) => desktop == 'KDE Plasma' ? 'Krohnkite' : desktop;
+/// Who tiles on [desktop]: COSMIC itself, on KDE Plasma the Maprisma Tiling script.
+String tilerOf(String desktop) => desktop == 'KDE Plasma' ? 'Maprisma Tiling' : desktop;
 
 String modeHint(String mode, [String desktop = 'COSMIC']) => switch (mode) {
   'tiled' => desktop == 'KDE Plasma'
-      ? 'Krohnkite tiles the windows of this workspace (its layout)'
+      ? 'Maprisma Tiling tiles the windows of this workspace (its layout)'
       : '${tilerOf(desktop)} tiles the windows: each new one splits the last along its longer side',
   'floating' => 'Tiling off: windows float where they open',
   _ => "Leaves ${tilerOf(desktop)}'s own tiling setting of the workspace as it is",

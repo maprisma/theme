@@ -1,11 +1,25 @@
 import 'dart:collection';
 import 'dart:io';
 
+import 'package:dbus/dbus.dart';
+import 'support.dart';
+
 import 'package:maprisma_theme_core/src/daemon.dart';
 import 'package:maprisma_theme_core/src/shortcuts_kde.dart';
 import 'package:test/test.dart';
 
 void main() {
+  test('native window limits skip even already queued overflow jobs', () async {
+    final env = TestEnv.create();
+    addTearDown(env.dispose);
+    env.desktop.enforcesWindowLimits = true;
+    final bus = DBusClient(DBusAddress('unix:path=${env.root.path}/unused-bus'));
+    addTearDown(bus.close);
+    final daemon = Daemon(env.core, bus);
+    await daemon.run(OverflowJob('new', 1));
+    expect(env.desktop.calls, isEmpty);
+  });
+
   group('window limits (the applet rule)', () {
     final t = TilingRules.fromJson({'active': true, 'default_limit': 2, 'limits': {'3': 1}});
     SplayTreeMap<int, int> c(Map<int, int> m) => SplayTreeMap.of(m);

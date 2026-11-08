@@ -669,6 +669,7 @@ void writeAutomation(Ctx ctx) {
     'tiling': tiling,
     'autostart': autostart,
   };
+  unawaited(Future<void>.sync(() => ctx.desktop.publishTilingAutomation(tiling)).catchError((Object _) {}));
   if (_jsonEqual(readJson(ctx.paths.automationFile), data)) return;
   writeJson(ctx.paths.automationFile, data);
 }

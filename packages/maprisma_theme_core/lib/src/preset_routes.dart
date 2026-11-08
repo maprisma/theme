@@ -202,7 +202,7 @@ Map<String, Handler> presetRoutes(Ctx ctx) {
       s.clear();
     }),
     /// Gaps of tiled windows and the active window's frame width (KDE:
-    /// Krohnkite and the maprisma-active-frame script; wm `tile-style`).
+    /// Maprisma Tiling script; wm `tile-style`).
     'tiling.style': (_) async => _wmOrThrow(await ctx.desktop.wm(['tile-style'])),
     /// {top, right, bottom, left, between, border, radius}: any subset; returns
     /// {done, previous} (previous: the values before, for Undo).

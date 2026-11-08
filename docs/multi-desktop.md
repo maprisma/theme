@@ -71,8 +71,7 @@ rows, "COSMIC Terminal" row → backend terminal name. Info page names the backe
 - Fonts: `kwriteconfig6 kdeglobals General fixed`; icons: `plasma-changeicons`.
 - Workspaces/windows: KWin D-Bus (`/VirtualDesktopManager`) + a small KWin script loaded on demand
   (`org.kde.KWin /Scripting loadScript`) that lists/moves/closes windows and reports events. Answers
-  the same `wm` JSON. Tiling: on when Krohnkite is installed+enabled (per workspace not available in
-  Krohnkite → `tiling` cap only global).
+  the same `wm` JSON. Tiling: available when Maprisma Tiling is installed; workspaces are excluded by 1-based index.
 - Shortcuts: kglobalaccel D-Bus (`setForeignShortcutKeys`), component `maprisma-theme`.
 - Panel: StatusNotifierItem tray icon (step 3); a Plasma widget is optional later.
 
@@ -107,8 +106,7 @@ Started by an XDG autostart entry.
   (profile selects scheme, preserve the user's profile, live reload is separate); fonts are serialized
   QFonts + settings notification; kglobalaccel needs registered actions plus a listener (or desktop-entry
   actions), not just `setForeignShortcutKeys`; KWin needs an explicit script↔D-Bus bridge (one
-  long-lived script, request ids, timeouts); Krohnkite has no external control API → `tiling` off on KDE
-  until shown to work.
+  long-lived script, request ids, timeouts); Maprisma Tiling re-reads its settings on KWin reconfigure.
 
 ## Steps (one branch each, tests green, Codex crosscheck before merge)
 
@@ -156,7 +154,7 @@ Started by an XDG autostart entry.
 - All D-Bus use goes through the backend's own environment (`DBUS_SESSION_BUS_ADDRESS`); tests have
   none, so they never reach the real session.
 - KDE caps: appearance, kdeScheme, wallpaper, terminal, fonts, icons, workspaces, windows, shortcuts.
-  Still not: `tiling` (no external control of KWin/Krohnkite tiling per desktop) and `panel`.
+  Per-workspace `tiling` uses Maprisma Tiling; `panel` remains unavailable. The script enforces window limits, so the daemon skips overflow moves.
 
 ## Who does what
 

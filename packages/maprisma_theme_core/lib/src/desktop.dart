@@ -58,6 +58,10 @@ abstract interface class Desktop {
   /// The desktop's own terminal, for texts ("COSMIC Terminal"), or null.
   String? get terminalName;
   Set<Cap> get caps;
+  /// The window manager handles overflow without daemon moves.
+  bool get enforcesWindowLimits;
+  /// Mirrors published limits into the backend; callers need not await it.
+  Future<void> publishTilingAutomation(Map<String, dynamic> tiling);
 
   /// Applies Omarchy-style [colors] (docs/cosmic-interface.md) as the desktop's theme.
   Future<bool> applyColors(Map<String, String> colors);
@@ -141,6 +145,12 @@ Map<String, dynamic> wmNotAvailable(String name) => {'error': 'not_available', '
 /// files on any desktop), fc-list fonts, the icon theme folders.
 abstract base class DesktopBase implements Desktop {
   DesktopBase(this.paths, this.environment);
+  @override
+  bool get enforcesWindowLimits => false;
+
+  @override
+  Future<void> publishTilingAutomation(Map<String, dynamic> tiling) async {}
+
   final Paths paths;
   final Map<String, String> environment;
 
@@ -277,6 +287,16 @@ final class FakeDesktop implements Desktop {
 
   /// False: current() is null, as on a desktop without a backend.
   final bool hasLook;
+
+  @override
+  bool enforcesWindowLimits = false;
+
+  @override
+  Future<void> publishTilingAutomation(Map<String, dynamic> tiling) async {
+    lastTilingAutomation = tiling;
+  }
+
+  Map<String, dynamic>? lastTilingAutomation;
 
   @override
   final String id;

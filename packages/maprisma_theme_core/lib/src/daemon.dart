@@ -396,6 +396,7 @@ final class Daemon {
   }
 
   Future<void> _overflow(String id, int source) async {
+    if (ctx.desktop.enforcesWindowLimits) return;
     _readAutomation();
     final t = tiling;
     if (!t.active) return;
@@ -484,7 +485,7 @@ final class Daemon {
       _subs.add(events.listen((e) {
         _readAutomation();
         for (final j in router.route(e,
-            workspaceEvents: automation['workspace_events'] == true, tilingActive: tiling.active, queue: queue)) {
+            workspaceEvents: automation['workspace_events'] == true, tilingActive: tiling.active && !ctx.desktop.enforcesWindowLimits, queue: queue)) {
           unawaited(run(j));
         }
       }));

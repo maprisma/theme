@@ -4,6 +4,7 @@ import 'package:maprisma_theme_core/maprisma_theme_core.dart';
 import 'package:maprisma_theme_core/src/desktop_kde.dart';
 import 'package:maprisma_theme_core/src/desktops.dart';
 import 'package:maprisma_theme_core/src/kde_formats.dart';
+import 'package:maprisma_theme_core/src/workspace_state.dart';
 import 'package:test/test.dart';
 
 import 'support.dart';
@@ -158,21 +159,55 @@ void main() {
     expect(logText(), contains('--key fixed --delete'));
   });
 
-  test('tiling through Krohnkite: the cap while it is installed, each workspace by its ignore list', () {
+  test('tiling through Maprisma Tiling: the cap while it is installed, each workspace by its ignore list', () {
     expect(kde.caps.contains(Cap.tiling), isFalse);
-    final script = Directory('${paths.data}/kwin/scripts/krohnkite')..createSync(recursive: true);
+    final script = Directory('${paths.data}/kwin/scripts/maprisma-tiling')..createSync(recursive: true);
     File('${script.path}/metadata.json').writeAsStringSync('{}');
     expect(kde.caps.contains(Cap.tiling), isTrue);
-    File('$config/kwinrc').writeAsStringSync('[Plugins]\nkrohnkiteEnabled=true\n\n[Script-krohnkite]\nignoreVDesktop=2, 4\n');
+    File('$config/kwinrc').writeAsStringSync('[Script-maprisma-tiling]\nuntiledDesktops=2, 4\n');
     final r = kde.withTiling({
-      'workspaces': [for (var i = 1; i <= 4; i++) {'index': i, 'name': '$i', 'tiling': false}],
+      'workspaces': [for (var i = 1; i <= 4; i++) {'index': i, 'name': 'same, name', 'tiling': false}],
       'can_tile': false,
     });
     expect([for (final w in r['workspaces']) w['tiling']], [true, false, true, false]);
     expect(r['can_tile'], isTrue);
-    // Krohnkite switched off: nothing tiles
-    File('$config/kwinrc').writeAsStringSync('[Plugins]\nkrohnkiteEnabled=false\n');
-    expect([for (final w in kde.withTiling(r)['workspaces']) w['tiling']], everyElement(isFalse));
+    // Empty exclusions: all workspaces tile
+    File('$config/kwinrc').writeAsStringSync('[Script-maprisma-tiling]\nuntiledDesktops=\n');
+    expect([for (final w in kde.withTiling(r)['workspaces']) w['tiling']], everyElement(isTrue));
+  });
+
+  test('automation changes publish workspace limits through the desktop hook', () async {
+    final env = TestEnv.create();
+    addTearDown(env.dispose);
+    saveWorkspaces(env.core.ctx, {'active': true, 'maxWindows': 3, 'workspaceCaps': {'2': 1}});
+    await Future<void>.delayed(Duration.zero);
+    expect(env.desktop.lastTilingAutomation?['active'], isTrue);
+    expect(env.desktop.lastTilingAutomation?['default_limit'], 3);
+    expect(env.desktop.lastTilingAutomation?['limits'], {'2': 1});
+  });
+
+  test('system data directories also provide Maprisma Tiling', () {
+    final dir = Directory('${root.path}/sys/kwin/scripts/maprisma-tiling')..createSync(recursive: true);
+    expect(kde.enforcesWindowLimits, isFalse);
+    File('${dir.path}/metadata.json').writeAsStringSync('{}');
+    expect(kde.caps, contains(Cap.tiling));
+    expect(kde.enforcesWindowLimits, isTrue);
+  });
+
+  test('limits are mirrored and cleared in order', () async {
+    final dir = Directory('${paths.data}/kwin/scripts/maprisma-tiling')..createSync(recursive: true);
+    File('${dir.path}/metadata.json').writeAsStringSync('{}');
+    expect(kde.enforcesWindowLimits, isTrue);
+    final first = kde.publishTilingAutomation({'active': true, 'default_limit': 2, 'limits': {'1': 2, '3': 3}});
+    final second = kde.publishTilingAutomation({'active': false, 'default_limit': 4, 'limits': {}});
+    await Future.wait([first, second]);
+    final text = logText();
+    expect(text, contains('--group Script-maprisma-tiling --key limitsActive true'));
+    expect(text, contains('--key defaultLimit 2'));
+    expect(text, contains('--key limits 1:2,3:3'));
+    expect(text, contains('--key limitsActive false'));
+    expect(text.indexOf('--key defaultLimit 4'), greaterThan(text.indexOf('--key defaultLimit 2')));
+    expect(text.split('org.kde.KWin /KWin reconfigure').length - 1, 2);
   });
 
   test('caps and the rest of the contract', () async {
@@ -251,18 +286,26 @@ void main() {
   test('colors: the frame colour is the accent, and KWin reloads it', () async {
     expect(await kde.applyColors(colors), isTrue);
     final text = logText();
-    expect(text, contains('kwriteconfig6 --file kwinrc --group Script-maprisma-active-frame --key borderColor #81a1c1'));
+    expect(text, contains('kwriteconfig6 --file kwinrc --group Script-maprisma-tiling --key borderColor #81a1c1'));
     expect(text.indexOf('org.kde.KWin /KWin reconfigure'), greaterThan(text.indexOf('borderColor')));
   });
 
+  test('tile style reads every setting from the tiling script group', () {
+    File('$config/kwinrc').writeAsStringSync('[Script-maprisma-tiling]\ngapTop=11\ngapRight=12\ngapBottom=13\ngapLeft=14\ngapBetween=15\nborderWidth=4\ncornerRadius=16\n');
+    expect(kde.tileStyle(), {'top': 11, 'right': 12, 'bottom': 13, 'left': 14, 'between': 15, 'border': 4, 'radius': 16, 'can_tile': false});
+  });
+
   test('tile style: a rejected request writes nothing', () async {
-    Directory('${root.path}/home/.local/share/kwin/scripts/krohnkite').createSync(recursive: true);
-    File('${root.path}/home/.local/share/kwin/scripts/krohnkite/metadata.json').writeAsStringSync('{}');
-    KdeDesktop.krohnkiteRestartPause = Duration.zero;
+    Directory('${root.path}/home/.local/share/kwin/scripts/maprisma-tiling').createSync(recursive: true);
+    File('${root.path}/home/.local/share/kwin/scripts/maprisma-tiling/metadata.json').writeAsStringSync('{}');
     expect((await kde.wm(['set-tile-style', '{"top":20,"radius":33}']))?['error'], 'bad_args');
     expect(logText(), isNot(contains('kwriteconfig6')));
     expect((await kde.wm(['set-tile-style', '{"top":20,"radius":12}']))?['done'], isTrue);
-    expect(logText(), contains('--key screenGapTop 20'));
-    expect(logText(), contains('--key cornerRadius 12'));
+    expect(logText(), contains('--key gapTop 20'));
+    expect(logText(), contains('--group Script-maprisma-tiling --key cornerRadius 12'));
+    expect(logText().split('org.kde.KWin /KWin reconfigure').length - 1, 1);
+    expect(kde.tileStyle(), {'top': 10, 'right': 10, 'bottom': 10, 'left': 10, 'between': 10, 'border': 3, 'radius': 10, 'can_tile': true});
+    final result = await kde.wm(['set-tile-style', '{"border":0}']);
+    expect((result?['previous'] as Map)['border'], 3);
   });
 }

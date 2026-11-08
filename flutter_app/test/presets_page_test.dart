@@ -13,6 +13,11 @@ import 'package:maprisma_theme_core/maprisma_theme_core.dart';
 /// With MAPRISMA_SHOTS=`folder` it also saves PNGs of the page (700 and
 /// 1300 px wide) to compare with the plugin's preview.png.
 void main() {
+  test('KDE names its tiler Maprisma Tiling', () {
+    expect(tilerOf('KDE Plasma'), 'Maprisma Tiling');
+    expect(tilerOf('COSMIC'), 'COSMIC');
+  });
+
   late Directory root;
   late CoreService core;
   late FakeDesktop desktop;
