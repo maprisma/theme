@@ -23,7 +23,7 @@ bundle="$root/flutter_app/build/linux/x64/release/bundle"
 
 if (( build )); then
   (cd "$root/flutter_app" && flutter build linux --release --no-tree-shake-icons >/dev/null)
-  (cd "$root/cosmic" && cargo build --release --offline -q)
+  (cd "$root/cosmic" && cargo build --release -q)   # fetches the crates on a fresh checkout
   mkdir -p "$bundle/bin"
   (cd "$root/packages/maprisma_theme_core" && dart compile exe bin/maprisma_theme_core.dart -o "$bundle/bin/maprisma-theme-core" >/dev/null)
   install -m755 "$root/cosmic/target/release/maprisma-theme-helper" "$root/cosmic/target/release/maprisma-theme-applet" "$bundle/bin/"
@@ -75,7 +75,10 @@ gui=${gui//\\/\\\\}; gui=${gui//\%/%%}
 { grep -vE '^(Exec|Name|Comment|NoDisplay)=' "$root/packaging/com.maprisma.Theme.desktop"; printf 'Name=Maprisma Theme\nComment=Show or hide Maprisma Theme\nNoDisplay=true\nExec="%s" --toggle\n' "$gui"; } > "$data/applications/com.maprisma.Theme.Toggle.desktop"
 install -m644 "$root/packaging/com.maprisma.Theme.svg" "$data/icons/hicolor/scalable/apps/"
 id=io.github.ubruckhaus.CosmicMaprismaTheme
-sed "s|^Exec=.*|Exec=$bin/maprisma-theme-applet|" "$root/cosmic/applet/data/$id.desktop" > "$data/applications/$id.desktop"
+applet="$bin/maprisma-theme-applet"   # quoted and escaped like the app's Exec above
+applet=${applet//\\/\\\\}; applet=${applet//\"/\\\"}; applet=${applet//\`/\\\`}; applet=${applet//\$/\\\$}
+applet=${applet//\\/\\\\}; applet=${applet//\%/%%}
+{ grep -v '^Exec=' "$root/cosmic/applet/data/$id.desktop"; printf 'Exec="%s"\n' "$applet"; } > "$data/applications/$id.desktop"
 install -m644 "$root/cosmic/applet/data/icons/$id-symbolic.svg" "$data/icons/hicolor/scalable/apps/"
 command -v gtk-update-icon-cache >/dev/null && gtk-update-icon-cache -f -t "$data/icons/hicolor" >/dev/null 2>&1 || true
 command -v update-desktop-database >/dev/null && update-desktop-database "$data/applications" >/dev/null 2>&1 || true

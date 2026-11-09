@@ -241,6 +241,22 @@ void main() {
       expect(Directory(env.paths.userThemes).listSync(), isEmpty);
     });
 
+    test('without setsid no clone starts (Codex round 7, 2026-11-09)', () async {
+      net.answer = (r) => reply(200, utf8.encode(fixture('omarchy-themes.html')));
+      final bin = Directory('${env.root.path}/bin')..createSync();
+      final log = '${env.root.path}/git-ran';
+      File('${bin.path}/git')
+        ..writeAsStringSync('#!/bin/sh\ntouch "$log"\n')
+        ..createSync();
+      Process.runSync('chmod', ['+x', '${bin.path}/git']);
+      env.core.ctx.environment['PATH'] = bin.path; // git, but no setsid
+      await expectLater(
+        call('import.omarchy_install', {'name': '909'}),
+        throwsA(isA<RouteError>().having((e) => e.code, 'code', 'no_setsid')),
+      );
+      expect(File(log).existsSync(), isFalse);
+    });
+
     test('a clone with more than 20000 files is refused (Codex round 2, 2026-11-09)', () async {
       net.answer = (r) => reply(200, utf8.encode(fixture('omarchy-themes.html')));
       final bin = Directory('${env.root.path}/bin')..createSync();

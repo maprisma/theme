@@ -211,9 +211,10 @@ Future<String> installOmarchyTheme(Ctx ctx, OmarchyTheme theme) async {
   // Its own process group (setsid execs git, so pid = group): a stopped clone
   // takes its transport and checkout helpers with it.
   final setsid = which('setsid', ctx.environment);
+  if (setsid == null) throw RouteError('no_setsid', 'setsid (util-linux) is needed to install themes');
   final (code, _) = await runBounded(
     [
-      ?setsid,
+      setsid,
       git,
       '-c',
       'core.hooksPath=/dev/null',
@@ -238,7 +239,7 @@ Future<String> installOmarchyTheme(Ctx ctx, OmarchyTheme theme) async {
     timeout: cloneTimeout,
     environment: env,
     stopWhen: () => treeTooLarge(tmp),
-    group: setsid != null,
+    group: true,
   );
   // A separate, time-limited `rm -rf` (no link followed): a huge tree never
   // holds up the core; what is left stays hidden (dot name) for the user.
