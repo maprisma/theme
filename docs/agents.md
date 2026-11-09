@@ -26,7 +26,7 @@ docs/plan.md says. English only: no i18n, no `_()`; use the plugin's English tex
   Helpers in `widgets.dart`: `item()` menu rows, `Tag`, `ColorPreview`, `confirm()`, `pickWorkspaces()`,
   `SubPage`. Native window: `window.dart` (AppWindow: hide, drops of files/images, dragging).
   Esc/Backspace on a sub page go back (Navigator.maybePop) unless a text field has focus.
-- Security as in the plugin: no shell, argv only, every subprocess/network read size- and time-bounded,
+- Security as in the plugin: argv only (one exception: launching an app goes through a fixed `/bin/sh -c` script in `launchers.dart` whose variable parts are passed as quoted arguments, never pasted into it), every subprocess/network read size- and time-bounded,
   HTTPS only with exact URL shapes, images header-checked before decoding (16384 px/side, 64 MP),
   untrusted text shown as plain text.
 - Tests: core tests in `packages/maprisma_theme_core/test/<module>_test.dart` using `test/support.dart`

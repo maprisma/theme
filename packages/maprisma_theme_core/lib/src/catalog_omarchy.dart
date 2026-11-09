@@ -85,14 +85,11 @@ Future<(List<OmarchyTheme>, DateTime)> loadOmarchyCatalog(Ctx ctx, {bool force =
     fetchedAt = DateTime.fromMillisecondsSinceEpoch(((data['fetched_at'] as num) * 1000).round());
     for (final item in data['themes'] as List) {
       if (item is! Map) continue;
-      final values = [for (final k in ['name', 'repo', 'slug', 'preview']) item[k]];
+      final values = [
+        for (final k in ['name', 'repo', 'slug', 'preview']) item[k],
+      ];
       if (values.any((v) => v is! String)) continue;
-      final e = OmarchyTheme(
-        plainText(values[0] as String, limit: 60),
-        values[1] as String,
-        values[2] as String,
-        values[3] as String,
-      );
+      final e = OmarchyTheme(plainText(values[0] as String, limit: 60), values[1] as String, values[2] as String, values[3] as String);
       // The cache is checked again like the page itself.
       if (e.name.trim().isNotEmpty && slugForRepo(e.repo) == e.slug && previewRe.hasMatch('/assets/themes/${e.preview}')) {
         cached.add(e);
@@ -138,8 +135,9 @@ Future<String?> omarchyPreview(Ctx ctx, OmarchyTheme theme) async {
     final age = ctx.clock().difference(File(path).lastModifiedSync());
     if (!age.isNegative && age < previewTtl) return path;
   }
-  final reply = await netFetch(NetRequest(Uri.parse('$omarchySite/assets/themes/${theme.preview}'),
-      hosts: _hosts, maxBytes: maxPreviewBytes));
+  final reply = await netFetch(
+    NetRequest(Uri.parse('$omarchySite/assets/themes/${theme.preview}'), hosts: _hosts, maxBytes: maxPreviewBytes),
+  );
   final data = reply?.status == 200 ? reply!.body : null;
   if (data == null || !isImageData(data) || imageBytesProblem(data) != null) return have ? path : null;
   try {
@@ -151,8 +149,32 @@ Future<String?> omarchyPreview(Ctx ctx, OmarchyTheme theme) async {
   return path;
 }
 
+/// Most a cloned theme may take on disk (a theme is a few files and wallpapers).
+const maxCloneBytes = 512 * 1024 * 1024;
+
+/// Bytes under [dir] (files only, links not followed); stops counting past [limit].
+int treeBytes(String dir, {int limit = maxCloneBytes}) {
+  var total = 0;
+  try {
+    for (final e in Directory(dir).listSync(recursive: true, followLinks: false)) {
+      if (e is File) {
+        try {
+          total += e.statSync().size;
+        } on FileSystemException {
+          continue;
+        }
+        if (total > limit) return total;
+      }
+    }
+  } on FileSystemException {
+    // not there (yet)
+  }
+  return total;
+}
+
 /// Clones [theme] into the user themes folder; the new folder's path.
-/// Never replaces a theme.
+/// Never replaces a theme. The clone stops when its folder passes
+/// [maxCloneBytes], so a huge repository can't fill the disk.
 Future<String> installOmarchyTheme(Ctx ctx, OmarchyTheme theme) async {
   final slug = slugForRepo(theme.repo);
   if (slug == null || slug != theme.slug) throw RouteError('bad_url', 'not a GitHub theme repository: ${theme.repo}');
@@ -181,16 +203,33 @@ Future<String> installOmarchyTheme(Ctx ctx, OmarchyTheme theme) async {
     'GIT_CONFIG_NOSYSTEM': '1',
     'GIT_PROTOCOL_FROM_USER': '0',
   };
-  final (code, _) = await runBounded([
-    git,
-    '-c', 'core.hooksPath=/dev/null',
-    '-c', 'protocol.allow=never',
-    '-c', 'protocol.https.allow=always',
-    '-c', 'credential.helper=',
-    '-c', 'submodule.recurse=false',
-    'clone', '--depth', '1', '--quiet', '--no-recurse-submodules', '--template=',
-    '--', theme.repo, tmp,
-  ], timeout: cloneTimeout, environment: env);
+  final (code, _) = await runBounded(
+    [
+      git,
+      '-c',
+      'core.hooksPath=/dev/null',
+      '-c',
+      'protocol.allow=never',
+      '-c',
+      'protocol.https.allow=always',
+      '-c',
+      'credential.helper=',
+      '-c',
+      'submodule.recurse=false',
+      'clone',
+      '--depth',
+      '1',
+      '--quiet',
+      '--no-recurse-submodules',
+      '--template=',
+      '--',
+      theme.repo,
+      tmp,
+    ],
+    timeout: cloneTimeout,
+    environment: env,
+    stopWhen: () => treeBytes(tmp) > maxCloneBytes,
+  );
   void cleanup() {
     final d = Directory(tmp);
     if (FileSystemEntity.typeSync(tmp, followLinks: false) == FileSystemEntityType.directory) {
@@ -204,7 +243,11 @@ Future<String> installOmarchyTheme(Ctx ctx, OmarchyTheme theme) async {
 
   if (code != 0) {
     cleanup();
-    throw RouteError('clone_failed', 'git clone failed for ${theme.repo}');
+    throw RouteError('clone_failed', 'git clone failed or the theme is too large (over 512 MiB): ${theme.repo}');
+  }
+  if (treeBytes(tmp) > maxCloneBytes) {
+    cleanup();
+    throw RouteError('too_large', 'the theme is too large (over 512 MiB): ${theme.repo}');
   }
   if (FileSystemEntity.typeSync(dest, followLinks: false) != FileSystemEntityType.notFound) {
     cleanup();

@@ -4,8 +4,10 @@ Goal: the same app on COSMIC and KDE Plasma, and open for a third desktop later,
 app. One Flutter UI, one Dart core; only a **desktop backend** differs. A new desktop costs one backend
 class (plus a color template), and every feature it cannot do is hidden, not broken.
 
-Status 2026-11-08: COSMIC only (`CosmicDesktop` is hard-wired in `core.dart`). The user now runs
-KDE Plasma 6.8 on CachyOS (Wayland). Nothing may regress on COSMIC.
+Status 2026-11-09: COSMIC and KDE Plasma; `core.dart` picks the backend with `selectDesktop` (KDE
+Plasma 6.8 on CachyOS, Wayland, is the test machine). Nothing may regress on COSMIC.
+
+(Before step 2 COSMIC was the only backend, hard-wired in `core.dart`.)
 
 ## What is already desktop-neutral
 

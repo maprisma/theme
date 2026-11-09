@@ -69,24 +69,21 @@ Future<String?> readBoundedText(
   Set<int> okCodes = const {0},
   Map<String, String>? environment,
 }) async {
-  final bytes = await readBoundedBytes(
-    command,
-    maxBytes: maxBytes,
-    timeout: timeout,
-    okCodes: okCodes,
-    environment: environment,
-  );
+  final bytes = await readBoundedBytes(command, maxBytes: maxBytes, timeout: timeout, okCodes: okCodes, environment: environment);
   return bytes == null ? null : utf8.decode(bytes, allowMalformed: true);
 }
 
 /// updates.run_bounded: (exit code, stdout + stderr) under one byte cap and
 /// one deadline; the code is null when the command could not start, ran
-/// too long or said too much (then it is killed).
+/// too long or said too much (then it is killed). [stopWhen], checked every
+/// half second while it runs, kills it too when it returns true (e.g. a
+/// clone whose folder grew too large).
 Future<(int?, String)> runBounded(
   List<String> command, {
   int maxBytes = 64 * 1024,
   Duration timeout = const Duration(seconds: 1),
   Map<String, String>? environment,
+  bool Function()? stopWhen,
 }) async {
   Process process;
   try {
@@ -113,11 +110,22 @@ Future<(int?, String)> runBounded(
   }
 
   final streams = [process.stdout.listen(take).asFuture<void>(), process.stderr.listen(take).asFuture<void>()];
+  final watch = stopWhen == null
+      ? null
+      : Timer.periodic(const Duration(milliseconds: 500), (_) {
+          if (!tooMuch && stopWhen()) {
+            tooMuch = true;
+            process.kill(ProcessSignal.sigkill);
+          }
+        });
   try {
     final code = await process.exitCode.timeout(timeout);
-    await Future.wait(streams).timeout(timeout, onTimeout: () => const []);
+    watch?.cancel();
+    // killed: a child (git's transport helper) may still hold the pipes open; don't wait for it
+    await Future.wait(streams).timeout(tooMuch ? const Duration(seconds: 1) : timeout, onTimeout: () => const []);
     return (tooMuch ? null : code, utf8.decode(out.takeBytes(), allowMalformed: true));
   } on TimeoutException {
+    watch?.cancel();
     process.kill(ProcessSignal.sigkill);
     return (null, utf8.decode(out.takeBytes(), allowMalformed: true));
   }

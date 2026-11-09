@@ -48,8 +48,7 @@ void main() {
     env.dispose();
   });
 
-  Future<Map<String, dynamic>> call(String method, [Map<String, dynamic> params = const {}]) =>
-      env.core.call(method, params);
+  Future<Map<String, dynamic>> call(String method, [Map<String, dynamic> params = const {}]) => env.core.call(method, params);
 
   group('urls', () {
     test('only https on the exact host', () {
@@ -158,11 +157,13 @@ void main() {
       final bin = Directory('${env.root.path}/bin')..createSync();
       final log = '${env.root.path}/git.log';
       File('${bin.path}/git')
-        ..writeAsStringSync('#!/bin/sh\n'
-            'printf "%s\\n" "\$@" > "$log"\n'
-            'echo "PROMPT=\$GIT_TERMINAL_PROMPT" >> "$log"\n'
-            'for last; do :; done\n'
-            'mkdir -p "\$last/.git" && printf \'background = "#101010"\\nforeground = "#eeeeee"\\n\' > "\$last/colors.toml"\n')
+        ..writeAsStringSync(
+          '#!/bin/sh\n'
+          'printf "%s\\n" "\$@" > "$log"\n'
+          'echo "PROMPT=\$GIT_TERMINAL_PROMPT" >> "$log"\n'
+          'for last; do :; done\n'
+          'mkdir -p "\$last/.git" && printf \'background = "#101010"\\nforeground = "#eeeeee"\\n\' > "\$last/colors.toml"\n',
+        )
         ..createSync();
       Process.runSync('chmod', ['+x', '${bin.path}/git']);
       env.core.ctx.environment['PATH'] = '${bin.path}:/usr/bin:/bin';
@@ -180,10 +181,43 @@ void main() {
       expect(env.desktop.calls, contains('applyColors'));
       // no leftovers, no second install
       expect(Directory(env.paths.userThemes).listSync().map((e) => e.path.split('/').last), ['aetheria']);
-      await expectLater(call('import.omarchy_install', {'name': 'aetheria'}),
-          throwsA(isA<RouteError>().having((e) => e.code, 'code', 'exists')));
-      await expectLater(call('import.omarchy_install', {'name': 'evil host'}),
-          throwsA(isA<RouteError>().having((e) => e.code, 'code', 'not_found')));
+      await expectLater(
+        call('import.omarchy_install', {'name': 'aetheria'}),
+        throwsA(isA<RouteError>().having((e) => e.code, 'code', 'exists')),
+      );
+      await expectLater(
+        call('import.omarchy_install', {'name': 'evil host'}),
+        throwsA(isA<RouteError>().having((e) => e.code, 'code', 'not_found')),
+      );
+    });
+
+    test('a clone over 512 MiB is stopped and leaves nothing behind (Codex, 2026-11-09)', () async {
+      net.answer = (r) => reply(200, utf8.encode(fixture('omarchy-themes.html')));
+      final bin = Directory('${env.root.path}/bin')..createSync();
+      env.core.ctx.environment['PATH'] = '${bin.path}:/usr/bin:/bin';
+      void fakeGit(String tail) {
+        // a sparse file: 600 MiB by size, nothing on disk
+        File('${bin.path}/git')
+          ..writeAsStringSync('#!/bin/sh\nfor last; do :; done\nmkdir -p "\$last"\ntruncate -s 600M "\$last/huge"\n$tail\n')
+          ..createSync();
+        Process.runSync('chmod', ['+x', '${bin.path}/git']);
+      }
+
+      fakeGit('sleep 30'); // still cloning: stopped by the size check
+      final started = DateTime.now();
+      await expectLater(
+        call('import.omarchy_install', {'name': '851'}),
+        throwsA(isA<RouteError>().having((e) => e.code, 'code', 'clone_failed')),
+      );
+      expect(DateTime.now().difference(started).inSeconds, lessThan(10));
+      expect(Directory(env.paths.userThemes).listSync(), isEmpty);
+
+      fakeGit('exit 0'); // finished, but too large
+      await expectLater(
+        call('import.omarchy_install', {'name': '851'}),
+        throwsA(isA<RouteError>().having((e) => e.code, 'code', 'too_large')),
+      );
+      expect(Directory(env.paths.userThemes).listSync(), isEmpty);
     });
 
     test('a failed clone leaves nothing behind', () async {
@@ -194,8 +228,10 @@ void main() {
         ..createSync();
       Process.runSync('chmod', ['+x', '${bin.path}/git']);
       env.core.ctx.environment['PATH'] = '${bin.path}:/usr/bin:/bin';
-      await expectLater(call('import.omarchy_install', {'name': '851'}),
-          throwsA(isA<RouteError>().having((e) => e.code, 'code', 'clone_failed')));
+      await expectLater(
+        call('import.omarchy_install', {'name': '851'}),
+        throwsA(isA<RouteError>().having((e) => e.code, 'code', 'clone_failed')),
+      );
       expect(Directory(env.paths.userThemes).listSync(), isEmpty);
     });
   });
@@ -232,7 +268,8 @@ void main() {
     });
 
     test('hostile markup is dropped', () {
-      const evil = '<style>#theme-preview-5 { --bg-color: rgba(1, 2, 3, 255.00); }</style>'
+      const evil =
+          '<style>#theme-preview-5 { --bg-color: rgba(1, 2, 3, 255.00); }</style>'
           '<h3>Evil <script></h3><div>Homepage</div><div class="text-end"><a href="javascript:alert(1)">x</a></div>'
           '<form method="POST" action="/6/download/"></form>'
           '<style>#theme-preview-7 { --bg-color: rgba(1, 2, 3, 255.00); }</style>'
@@ -246,8 +283,11 @@ void main() {
 
     test('list URL carries only checked parameters', () {
       expect(cosmicListUri().toString(), 'https://cosmic-themes.org/');
-      expect(cosmicListUri(search: 'nord\x00 dark', sort: 'name', page: 3).queryParameters,
-          {'search': 'nord  dark', 'sort': 'name', 'page': '3'});
+      expect(cosmicListUri(search: 'nord\x00 dark', sort: 'name', page: 3).queryParameters, {
+        'search': 'nord  dark',
+        'sort': 'name',
+        'page': '3',
+      });
       expect(cosmicListUri(sort: 'x"; drop').queryParameters, isEmpty);
     });
 
@@ -310,8 +350,7 @@ void main() {
       expect(first['installed'], isTrue);
       expect(first['slug'], 'catppuccin-macchiato-lavender');
       final before = net.requests.length;
-      await expectLater(call('import.cosmic_install', {'id': 11}),
-          throwsA(isA<RouteError>().having((e) => e.code, 'code', 'exists')));
+      await expectLater(call('import.cosmic_install', {'id': 11}), throwsA(isA<RouteError>().having((e) => e.code, 'code', 'exists')));
       expect(net.requests.length, before);
       expect(Directory(env.paths.userThemes).listSync().length, 1);
     });
@@ -319,8 +358,7 @@ void main() {
     test('another theme of the same name gets its own folder', () async {
       env.addTheme('catppuccin-macchiato-lavender');
       final ron = fixture('cosmic-theme.ron');
-      final slug = await installCosmicRon(env.core.ctx, 99, ron,
-          entry: parseCosmicPage(fixture('cosmic-theme-page.html')).themes.single);
+      final slug = await installCosmicRon(env.core.ctx, 99, ron, entry: parseCosmicPage(fixture('cosmic-theme-page.html')).themes.single);
       expect(slug, 'catppuccin-macchiato-lavender-2');
     });
 
@@ -328,12 +366,13 @@ void main() {
       net.answer = (r) => r.method == 'GET'
           ? reply(200, utf8.encode(fixture('cosmic-theme-page.html')), cookies: {'csrftoken': 'cookieTOKEN0123456789abcdef'})
           : reply(200, utf8.encode('<html>Forbidden (CSRF token missing)</html>'));
-      await expectLater(call('import.cosmic_install', {'id': 11}),
-          throwsA(isA<RouteError>().having((e) => e.code, 'code', 'bad_theme')));
+      await expectLater(call('import.cosmic_install', {'id': 11}), throwsA(isA<RouteError>().having((e) => e.code, 'code', 'bad_theme')));
       expect(Directory(env.paths.userThemes).existsSync() ? Directory(env.paths.userThemes).listSync() : [], isEmpty);
       net.answer = (r) => reply(200, utf8.encode(fixture('cosmic-theme-page.html'))); // no cookie
-      await expectLater(call('import.cosmic_install', {'id': 11}),
-          throwsA(isA<RouteError>().having((e) => e.code, 'code', 'download_failed')));
+      await expectLater(
+        call('import.cosmic_install', {'id': 11}),
+        throwsA(isA<RouteError>().having((e) => e.code, 'code', 'download_failed')),
+      );
     });
   });
 

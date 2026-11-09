@@ -13,7 +13,7 @@ feature is adapted as listed below.
 | `flutter_app` | Flutter window `maprisma-theme` (app id `com.maprisma.Theme`), single instance, `--toggle` | Claude |
 | `cosmic/helper` | Rust `maprisma-theme-helper`: applies a COSMIC theme with the `cosmic-theme` crate, and talks to the compositor (workspaces, windows) | Codex |
 | `cosmic/applet` | Rust/libcosmic panel applet `io.github.ubruckhaus.CosmicMaprismaTheme`: the plugin's bar widget | Codex |
-| `themes/` | The 23 Omarchy system themes (from `/mnt/Data/Projects/omarchy/themes`, MIT), shipped read-only | Claude |
+| `themes/` | The 23 Omarchy system themes' colors and app configs (from Omarchy, MIT: `themes/LICENSE.omarchy`), shipped read-only. Their wallpapers, preview and unlock pictures are **not** in the repository (the artists' rights); the app draws previews from the colors | Claude |
 | `templates/` | Omarchy's app templates (`default/themed/*.tpl`, MIT) for the terminals and editors | Claude |
 | `tools/` | `build-release.py`, `install-local`, `import-omarchy` (one-time copy of the user's Omarchy themes/state) | Claude |
 

@@ -151,14 +151,9 @@ final class CosmicShortcutBinder implements ShortcutBinder {
     }
   }
 
-  /// A small file's bytes as they are now (null: none).
-  static List<int>? _raw(String path) {
-    try {
-      return File(path).existsSync() ? File(path).readAsBytesSync() : null;
-    } on FileSystemException {
-      return null;
-    }
-  }
+  /// A small file's bytes as they are now (null: none, or not a regular file
+  /// of at most 4 MiB): checked on the opened descriptor, never blocks on a FIFO.
+  static List<int>? _raw(String path) => Posix.instance.readRegular(path, 4 * 1024 * 1024);
 
   /// Best effort: [path] as it was ([bytes] null: it did not exist).
   static void _restore(String path, List<int>? bytes, {int mode = 384}) {

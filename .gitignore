@@ -4,3 +4,11 @@ dist/
 .dart_tool/
 *.pyc
 target/
+
+# Theme artwork (wallpapers, preview and unlock pictures) is not part of this
+# repository: its rights belong to the artists. The app draws a preview from
+# the theme's colors; local copies stay out of git.
+themes/*/backgrounds/
+themes/*/preview.png
+themes/*/preview-unlock.png
+themes/*/unlock.png

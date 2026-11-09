@@ -20,6 +20,10 @@ import 'bounded.dart';
 import 'shortcuts.dart';
 import 'store.dart';
 
+/// Caps for the files shortcut sync reads back: our own .desktop files and its state.
+const maxDesktopFileBytes = 64 * 1024;
+const maxStateFileBytes = 4 * 1024 * 1024;
+
 const kdeKeyPrefix = 'maprisma-theme-key-';
 
 /// The session bus of [environment] (never the process's own when the
@@ -38,18 +42,55 @@ DBusClient? sessionBus(Map<String, String> environment) {
 const _qtMods = {'SUPER': 0x10000000, 'CTRL': 0x04000000, 'ALT': 0x08000000, 'SHIFT': 0x02000000};
 const _qtModNames = {'META': 'SUPER', 'CTRL': 'CTRL', 'ALT': 'ALT', 'SHIFT': 'SHIFT'};
 const _qtKeys = {
-  'Return': 0x01000004, 'space': 0x20, 'BackSpace': 0x01000003, 'Delete': 0x01000007, 'Home': 0x01000010,
-  'End': 0x01000011, 'Page_Up': 0x01000016, 'Page_Down': 0x01000017, 'Insert': 0x01000006, 'Tab': 0x01000001,
-  'minus': 0x2d, 'equal': 0x3d, 'bracketleft': 0x5b, 'bracketright': 0x5d, 'semicolon': 0x3b, 'apostrophe': 0x27,
-  'backslash': 0x5c, 'grave': 0x60, 'comma': 0x2c, 'period': 0x2e, 'slash': 0x2f,
+  'Return': 0x01000004,
+  'space': 0x20,
+  'BackSpace': 0x01000003,
+  'Delete': 0x01000007,
+  'Home': 0x01000010,
+  'End': 0x01000011,
+  'Page_Up': 0x01000016,
+  'Page_Down': 0x01000017,
+  'Insert': 0x01000006,
+  'Tab': 0x01000001,
+  'minus': 0x2d,
+  'equal': 0x3d,
+  'bracketleft': 0x5b,
+  'bracketright': 0x5d,
+  'semicolon': 0x3b,
+  'apostrophe': 0x27,
+  'backslash': 0x5c,
+  'grave': 0x60,
+  'comma': 0x2c,
+  'period': 0x2e,
+  'slash': 0x2f,
 };
 
 /// How Qt spells the keys of the key map in kglobalshortcutsrc.
 const _qtKeyNames = {
-  'RETURN': 'Return', 'ENTER': 'Return', 'SPACE': 'space', 'BACKSPACE': 'BackSpace', 'DEL': 'Delete', 'DELETE': 'Delete',
-  'HOME': 'Home', 'END': 'End', 'PGUP': 'Page_Up', 'PGDOWN': 'Page_Down', 'INS': 'Insert', 'INSERT': 'Insert', 'TAB': 'Tab',
-  '-': 'minus', '=': 'equal', '[': 'bracketleft', ']': 'bracketright', ';': 'semicolon', "'": 'apostrophe',
-  r'\': 'backslash', '`': 'grave', ',': 'comma', '.': 'period', '/': 'slash',
+  'RETURN': 'Return',
+  'ENTER': 'Return',
+  'SPACE': 'space',
+  'BACKSPACE': 'BackSpace',
+  'DEL': 'Delete',
+  'DELETE': 'Delete',
+  'HOME': 'Home',
+  'END': 'End',
+  'PGUP': 'Page_Up',
+  'PGDOWN': 'Page_Down',
+  'INS': 'Insert',
+  'INSERT': 'Insert',
+  'TAB': 'Tab',
+  '-': 'minus',
+  '=': 'equal',
+  '[': 'bracketleft',
+  ']': 'bracketright',
+  ';': 'semicolon',
+  "'": 'apostrophe',
+  r'\': 'backslash',
+  '`': 'grave',
+  ',': 'comma',
+  '.': 'period',
+  '/': 'slash',
 };
 
 /// The Qt key code of a key map key, or null.
@@ -88,7 +129,10 @@ Map<String, dynamic>? parseQtKey(String text) {
     mods.add(m);
   }
   final last = parts.last;
-  final key = _qtKeyNames[last.toUpperCase()] ?? _qtKeyNames[last] ?? (RegExp(r'^([A-Za-z0-9]|F([1-9]|1[0-2]))$').hasMatch(last) ? last.toUpperCase() : null);
+  final key =
+      _qtKeyNames[last.toUpperCase()] ??
+      _qtKeyNames[last] ??
+      (RegExp(r'^([A-Za-z0-9]|F([1-9]|1[0-2]))$').hasMatch(last) ? last.toUpperCase() : null);
   if (key == null) return null;
   return {'mods': mods, 'key': key};
 }
@@ -155,7 +199,10 @@ final class KdeShortcutBinder implements ShortcutBinder {
     try {
       for (final f in Directory(_apps).listSync()) {
         final name = f.path.substring(f.path.lastIndexOf('/') + 1);
-        if (f is File && name.startsWith(kdeKeyPrefix) && name.endsWith('.desktop')) out[name] = f.readAsStringSync();
+        if (f is! File || !name.startsWith(kdeKeyPrefix) || !name.endsWith('.desktop')) continue;
+        // bounded, never through a link or a FIFO; anything else is skipped (and written again)
+        final bytes = Posix.instance.readRegular(f.path, maxDesktopFileBytes, follow: false);
+        if (bytes != null) out[name] = utf8.decode(bytes, allowMalformed: true);
       }
     } on FileSystemException {
       // none yet
@@ -171,11 +218,12 @@ final class KdeShortcutBinder implements ShortcutBinder {
       if (code == null) continue;
       final name = '$kdeKeyPrefix${b.target.replaceAll(RegExp('[^A-Za-z0-9_-]'), '_')}.desktop';
       final label = plainText(b.label(), 100).replaceAll(RegExp(r'[\[\]=]'), '');
-      wanted[name] = '[Desktop Entry]\nType=Application\nName=$label\nExec=${b.command()}\nNoDisplay=true\n'
+      wanted[name] =
+          '[Desktop Entry]\nType=Application\nName=$label\nExec=${b.command()}\nNoDisplay=true\n'
           'X-KDE-GlobalAccel-CommandShortcut=true\nX-Maprisma-Key=$code\nX-Maprisma-KeyId=${kdeKeyId(b.combo)}\n';
     }
     final before = _ours();
-    final oldState = File(stateFile).existsSync() ? File(stateFile).readAsBytesSync() : null;
+    final oldState = Posix.instance.readRegular(stateFile, maxStateFileBytes);
     try {
       writeJson(stateFile, state);
       for (final e in wanted.entries) {
@@ -216,7 +264,10 @@ final class KdeShortcutBinder implements ShortcutBinder {
 typedef KeySeq = List<int>;
 
 DBusArray _keys(List<KeySeq> seqs) => DBusArray(DBusSignature('(ai)'), [
-  for (final q in seqs) DBusStruct([DBusArray.int32([...q, 0, 0, 0, 0].take(4).toList())]),
+  for (final q in seqs)
+    DBusStruct([
+      DBusArray.int32([...q, 0, 0, 0, 0].take(4).toList()),
+    ]),
 ]);
 
 /// Every sequence whole (multi-stroke ones too).
@@ -238,7 +289,10 @@ KeySeq _single(int code) => [code, 0, 0, 0];
 /// What a sync does with the wanted keys and the shadow records; pure, so
 /// tests check it. [taken] → sequences an other action keeps, [giveBack] →
 /// its sequences with ours added back.
-List<KeySeq> withoutSeq(List<KeySeq> keys, KeySeq q) => [for (final k in keys) if (!_sameSeq(k, q)) k];
+List<KeySeq> withoutSeq(List<KeySeq> keys, KeySeq q) => [
+  for (final k in keys)
+    if (!_sameSeq(k, q)) k,
+];
 List<KeySeq> withSeq(List<KeySeq> keys, KeySeq q) => keys.any((k) => _sameSeq(k, q)) ? keys : [...keys, q];
 
 Future<void> _syncChain = Future.value();
@@ -286,8 +340,7 @@ Future<bool> _sync(Paths paths, Map<String, String> environment, DBusClient? cli
   try {
     final ga = DBusRemoteObject(bus, name: 'org.kde.kglobalaccel', path: DBusObjectPath('/kglobalaccel'));
     Future<DBusMethodSuccessResponse> c(String m, List<DBusValue> args) => ga.callMethod('org.kde.KGlobalAccel', m, args);
-    DBusArray id(String component, String action, [String cf = '', String af = '']) =>
-        DBusArray.string([component, action, cf, af]);
+    DBusArray id(String component, String action, [String cf = '', String af = '']) => DBusArray.string([component, action, cf, af]);
     Future<List<KeySeq>> keysOf(String component, String action) async =>
         _seqs((await c('shortcutKeys', [id(component, action)])).values.first);
 
@@ -296,7 +349,9 @@ Future<bool> _sync(Paths paths, Map<String, String> environment, DBusClient? cli
       for (final f in Directory(apps).listSync()) {
         final name = f.path.substring(f.path.lastIndexOf('/') + 1);
         if (f is! File || !name.startsWith(kdeKeyPrefix) || !name.endsWith('.desktop')) continue;
-        final text = f.readAsStringSync();
+        final bytes = Posix.instance.readRegular(f.path, maxDesktopFileBytes, follow: false);
+        if (bytes == null) continue;
+        final text = utf8.decode(bytes, allowMalformed: true);
         final code = int.tryParse(RegExp(r'^X-Maprisma-Key=(\d+)$', multiLine: true).firstMatch(text)?[1] ?? '');
         final keyId = RegExp(r'^X-Maprisma-KeyId=(.+)$', multiLine: true).firstMatch(text)?[1];
         final label = RegExp(r'^Name=(.*)$', multiLine: true).firstMatch(text)?[1] ?? name;
@@ -343,12 +398,19 @@ Future<bool> _sync(Paths paths, Map<String, String> environment, DBusClient? cli
       for (var attempt = 0; ; attempt++) {
         if (sycoca != null) await runBounded([sycoca], timeout: const Duration(seconds: 30));
         await c('doRegister', [aid]);
-        await c('setForeignShortcutKeys', [aid, _keys([_single(e.value.$1)])]);
+        await c('setForeignShortcutKeys', [
+          aid,
+          _keys([_single(e.value.$1)]),
+        ]);
         if ((await keysOf(e.key, '_launch')).any((q) => _sameSeq(q, _single(e.value.$1)))) {
           // Active now: a service shortcut registered at runtime stays inactive
           // (a pressed key does nothing) until marked present, as an app does
           // with setShortcutKeys and SetPresent (2) | NoAutoloading (4).
-          await c('setShortcutKeys', [aid, _keys([_single(e.value.$1)]), const DBusUint32(6)]);
+          await c('setShortcutKeys', [
+            aid,
+            _keys([_single(e.value.$1)]),
+            const DBusUint32(6),
+          ]);
           break;
         }
         if (attempt >= 3) {
@@ -370,7 +432,10 @@ Future<bool> _sync(Paths paths, Map<String, String> environment, DBusClient? cli
         continue;
       }
       final comp = s['component'] as String, action = s['action'] as String;
-      final seq = [for (final v in s['seq'] as List) if (v is int) v];
+      final seq = [
+        for (final v in s['seq'] as List)
+          if (v is int) v,
+      ];
       await c('setForeignShortcutKeys', [id(comp, action), _keys(withSeq(await keysOf(comp, action), seq))]);
       if ((await keysOf(comp, action)).any((q) => _sameSeq(q, seq))) {
         shadow.remove(k);
