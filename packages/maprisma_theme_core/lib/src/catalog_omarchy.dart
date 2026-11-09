@@ -149,32 +149,64 @@ Future<String?> omarchyPreview(Ctx ctx, OmarchyTheme theme) async {
   return path;
 }
 
-/// Most a cloned theme may take on disk (a theme is a few files and wallpapers).
+/// Most a cloned theme may take on disk (a theme is a few files and wallpapers),
+/// and most files and folders it may have.
 const maxCloneBytes = 512 * 1024 * 1024;
+const maxCloneEntries = 20000;
 
-/// Bytes under [dir] (files only, links not followed); stops counting past [limit].
-int treeBytes(String dir, {int limit = maxCloneBytes}) {
-  var total = 0;
+/// Whether the tree under [dir] is over [maxCloneBytes] or [maxCloneEntries]
+/// (links not followed), while a clone still runs: one folder at a time,
+/// stopping as soon as either cap is passed.
+bool treeTooLarge(String dir) {
+  var total = 0, entries = 0;
+  final todo = [dir];
+  while (todo.isNotEmpty) {
+    try {
+      for (final e in Directory(todo.removeLast()).listSync(followLinks: false)) {
+        if (++entries > maxCloneEntries) return true;
+        if (e is Directory) {
+          todo.add(e.path);
+        } else if (e is File) {
+          try {
+            total += e.statSync().size;
+          } on FileSystemException {
+            continue;
+          }
+          if (total > maxCloneBytes) return true;
+        }
+      }
+    } on FileSystemException {
+      // gone or not there (yet)
+    }
+  }
+  return false;
+}
+
+/// The same check once the clone has ended, streamed: it stops at the first
+/// entry over a cap instead of listing the whole tree first.
+Future<bool> treeTooLargeAfter(String dir) async {
+  var total = 0, entries = 0;
   try {
-    for (final e in Directory(dir).listSync(recursive: true, followLinks: false)) {
+    await for (final e in Directory(dir).list(recursive: true, followLinks: false)) {
+      if (++entries > maxCloneEntries) return true;
       if (e is File) {
         try {
-          total += e.statSync().size;
+          total += (await e.stat()).size;
         } on FileSystemException {
           continue;
         }
-        if (total > limit) return total;
+        if (total > maxCloneBytes) return true;
       }
     }
   } on FileSystemException {
-    // not there (yet)
+    return false;
   }
-  return total;
+  return false;
 }
 
 /// Clones [theme] into the user themes folder; the new folder's path.
 /// Never replaces a theme. The clone stops when its folder passes
-/// [maxCloneBytes], so a huge repository can't fill the disk.
+/// [maxCloneBytes] or [maxCloneEntries], so a huge repository can't fill the disk or stall the core.
 Future<String> installOmarchyTheme(Ctx ctx, OmarchyTheme theme) async {
   final slug = slugForRepo(theme.repo);
   if (slug == null || slug != theme.slug) throw RouteError('bad_url', 'not a GitHub theme repository: ${theme.repo}');
@@ -228,7 +260,7 @@ Future<String> installOmarchyTheme(Ctx ctx, OmarchyTheme theme) async {
     ],
     timeout: cloneTimeout,
     environment: env,
-    stopWhen: () => treeBytes(tmp) > maxCloneBytes,
+    stopWhen: () => treeTooLarge(tmp),
   );
   void cleanup() {
     final d = Directory(tmp);
@@ -243,11 +275,11 @@ Future<String> installOmarchyTheme(Ctx ctx, OmarchyTheme theme) async {
 
   if (code != 0) {
     cleanup();
-    throw RouteError('clone_failed', 'git clone failed or the theme is too large (over 512 MiB): ${theme.repo}');
+    throw RouteError('clone_failed', 'git clone failed or the theme is too large (over 512 MiB or 20000 files): ${theme.repo}');
   }
-  if (treeBytes(tmp) > maxCloneBytes) {
+  if (await treeTooLargeAfter(tmp)) {
     cleanup();
-    throw RouteError('too_large', 'the theme is too large (over 512 MiB): ${theme.repo}');
+    throw RouteError('too_large', 'the theme is too large (over 512 MiB or 20000 files): ${theme.repo}');
   }
   if (FileSystemEntity.typeSync(dest, followLinks: false) != FileSystemEntityType.notFound) {
     cleanup();

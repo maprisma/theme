@@ -98,14 +98,16 @@ void main() {
     test('parses the gallery and drops bad cards', () {
       final themes = parseOmarchyCatalog(fixture('omarchy-themes.html'));
       final slugs = [for (final t in themes) t.slug];
-      expect(themes.length, 13);
-      expect(slugs, containsAll(['851', 'aetheria', 'abyssal-cartographer', 'fancy']));
+      expect(themes.length, 7);
+      expect(slugs, containsAll(['909', 'lanternfall', 'salt-marsh-dawn', 'copperline', 'pinegrove', 'driftwood', 'gilded']));
       expect(slugs, isNot(contains('repo')));
       expect(slugs, isNot(contains('good')));
-      final fancy = themes.firstWhere((t) => t.slug == 'fancy');
-      expect(fancy.repo, 'https://github.com/owner/omarchy-fancy-theme.git'); // the first card wins
-      expect(fancy.name, isNot(contains('&')));
-      expect(themes.firstWhere((t) => t.slug == 'aetheria').preview, 'aetheria.webp');
+      expect(slugs, isNot(contains('ext')));
+      final gilded = themes.firstWhere((t) => t.slug == 'gilded');
+      expect(gilded.repo, 'https://github.com/owner/omarchy-gilded-theme.git'); // the first card wins
+      expect(gilded.name, isNot(contains('&')));
+      expect(themes.firstWhere((t) => t.slug == 'lanternfall').preview, 'lanternfall.webp');
+      expect(themes.firstWhere((t) => t.slug == 'driftwood').repo, 'https://github.com/hollis-k/omarchy-driftwood-theme');
       // sorted by name
       final names = [for (final t in themes) t.name.toLowerCase()];
       expect(names, [...names]..sort());
@@ -113,19 +115,19 @@ void main() {
 
     test('list is cached a day and falls back to the cache offline', () async {
       net.answer = (r) => r.uri.toString() == omarchyCatalogUrl ? reply(200, utf8.encode(fixture('omarchy-themes.html'))) : null;
-      env.addTheme('aetheria');
+      env.addTheme('lanternfall');
       final first = await call('import.omarchy_list');
-      expect((first['themes'] as List).length, 13);
-      final aetheria = (first['themes'] as List).cast<Map>().firstWhere((t) => t['slug'] == 'aetheria');
-      expect(aetheria['installed'], isTrue);
-      expect(aetheria['preview'], isNull);
+      expect((first['themes'] as List).length, 7);
+      final lanternfall = (first['themes'] as List).cast<Map>().firstWhere((t) => t['slug'] == 'lanternfall');
+      expect(lanternfall['installed'], isTrue);
+      expect(lanternfall['preview'], isNull);
       expect(net.requests.length, 1);
       await call('import.omarchy_list');
       expect(net.requests.length, 1, reason: 'served from the cache');
       now = now.add(const Duration(days: 2));
       net.answer = (_) => null; // offline
       final stale = await call('import.omarchy_list');
-      expect((stale['themes'] as List).length, 13);
+      expect((stale['themes'] as List).length, 7);
       expect(net.requests.length, 2);
     });
 
@@ -137,16 +139,16 @@ void main() {
       final png = img.encodePng(img.Image(width: 4, height: 3));
       net.answer = (r) {
         if (r.uri.toString() == omarchyCatalogUrl) return reply(200, utf8.encode(fixture('omarchy-themes.html')));
-        if (r.uri.path == '/assets/themes/aetheria.webp') return reply(200, png);
-        if (r.uri.path == '/assets/themes/851.webp') return reply(200, utf8.encode('<html>not an image</html>'));
+        if (r.uri.path == '/assets/themes/lanternfall.webp') return reply(200, png);
+        if (r.uri.path == '/assets/themes/909.webp') return reply(200, utf8.encode('<html>not an image</html>'));
         return null;
       };
-      final ok = await call('import.omarchy_preview', {'slug': 'aetheria'});
+      final ok = await call('import.omarchy_preview', {'slug': 'lanternfall'});
       expect(File(ok['path'] as String).readAsBytesSync(), png);
       expect((File(ok['path'] as String).statSync().mode & 511), 384);
-      expect((await call('import.omarchy_preview', {'slug': '851'}))['path'], isNull);
+      expect((await call('import.omarchy_preview', {'slug': '909'}))['path'], isNull);
       final list = await call('import.omarchy_list');
-      expect((list['themes'] as List).cast<Map>().firstWhere((t) => t['slug'] == 'aetheria')['preview'], ok['path']);
+      expect((list['themes'] as List).cast<Map>().firstWhere((t) => t['slug'] == 'lanternfall')['preview'], ok['path']);
       for (final r in net.requests) {
         expect(r.uri.host, 'omarchy.org');
       }
@@ -168,21 +170,21 @@ void main() {
       Process.runSync('chmod', ['+x', '${bin.path}/git']);
       env.core.ctx.environment['PATH'] = '${bin.path}:/usr/bin:/bin';
 
-      final r = await call('import.omarchy_install', {'name': 'Aetheria', 'apply': true});
-      expect(r['slug'], 'aetheria');
+      final r = await call('import.omarchy_install', {'name': 'Lanternfall', 'apply': true});
+      expect(r['slug'], 'lanternfall');
       expect(r['applied'], isTrue);
       final args = File(log).readAsLinesSync();
       expect(args, containsAllInOrder(['clone', '--depth', '1']));
       expect(args, contains('core.hooksPath=/dev/null'));
       expect(args, contains('--template='));
       expect(args, contains('PROMPT=0'));
-      expect(args.sublist(args.indexOf('--') + 1, args.indexOf('--') + 2), ['https://github.com/JJDizz1L/aetheria']);
-      expect(File('${env.paths.userThemes}/aetheria/colors.toml').existsSync(), isTrue);
+      expect(args.sublist(args.indexOf('--') + 1, args.indexOf('--') + 2), ['https://github.com/MKVellum/lanternfall']);
+      expect(File('${env.paths.userThemes}/lanternfall/colors.toml').existsSync(), isTrue);
       expect(env.desktop.calls, contains('applyColors'));
       // no leftovers, no second install
-      expect(Directory(env.paths.userThemes).listSync().map((e) => e.path.split('/').last), ['aetheria']);
+      expect(Directory(env.paths.userThemes).listSync().map((e) => e.path.split('/').last), ['lanternfall']);
       await expectLater(
-        call('import.omarchy_install', {'name': 'aetheria'}),
+        call('import.omarchy_install', {'name': 'lanternfall'}),
         throwsA(isA<RouteError>().having((e) => e.code, 'code', 'exists')),
       );
       await expectLater(
@@ -206,7 +208,7 @@ void main() {
       fakeGit('sleep 30'); // still cloning: stopped by the size check
       final started = DateTime.now();
       await expectLater(
-        call('import.omarchy_install', {'name': '851'}),
+        call('import.omarchy_install', {'name': '909'}),
         throwsA(isA<RouteError>().having((e) => e.code, 'code', 'clone_failed')),
       );
       expect(DateTime.now().difference(started).inSeconds, lessThan(10));
@@ -214,9 +216,22 @@ void main() {
 
       fakeGit('exit 0'); // finished, but too large
       await expectLater(
-        call('import.omarchy_install', {'name': '851'}),
+        call('import.omarchy_install', {'name': '909'}),
         throwsA(isA<RouteError>().having((e) => e.code, 'code', 'too_large')),
       );
+      expect(Directory(env.paths.userThemes).listSync(), isEmpty);
+    });
+
+    test('a clone with more than 20000 files is refused (Codex round 2, 2026-11-09)', () async {
+      net.answer = (r) => reply(200, utf8.encode(fixture('omarchy-themes.html')));
+      final bin = Directory('${env.root.path}/bin')..createSync();
+      env.core.ctx.environment['PATH'] = '${bin.path}:/usr/bin:/bin';
+      // tiny files: far below the byte cap, over the file cap
+      File('${bin.path}/git')
+        ..writeAsStringSync('#!/bin/sh\nfor last; do :; done\nmkdir -p "\$last/many"\ncd "\$last/many" && seq 1 20001 | xargs touch\n')
+        ..createSync();
+      Process.runSync('chmod', ['+x', '${bin.path}/git']);
+      await expectLater(call('import.omarchy_install', {'name': '909'}), throwsA(isA<RouteError>()));
       expect(Directory(env.paths.userThemes).listSync(), isEmpty);
     });
 
@@ -229,7 +244,7 @@ void main() {
       Process.runSync('chmod', ['+x', '${bin.path}/git']);
       env.core.ctx.environment['PATH'] = '${bin.path}:/usr/bin:/bin';
       await expectLater(
-        call('import.omarchy_install', {'name': '851'}),
+        call('import.omarchy_install', {'name': '909'}),
         throwsA(isA<RouteError>().having((e) => e.code, 'code', 'clone_failed')),
       );
       expect(Directory(env.paths.userThemes).listSync(), isEmpty);
@@ -239,31 +254,35 @@ void main() {
   group('cosmic-themes.org', () {
     test('parses the list page', () {
       final page = parseCosmicPage(fixture('cosmic-themes.html'));
-      expect(page.themes.length, 20);
+      expect(page.themes.length, 6);
       expect(page.nextPage, 2);
-      expect(page.csrf, startsWith('gTntN1'));
+      expect(page.csrf, startsWith('Lm4wPz'));
       expect([for (final s in page.sorts) s['value']], ['popular', 'new', 'name']);
       final t = page.themes.first;
-      expect(t.id, 11);
-      expect(t.name, 'Catppuccin Macchiato Lavender');
-      expect(t.author, 'Catppuccin');
-      expect(t.homepage, 'https://github.com/catppuccin/cosmic-desktop');
-      expect(t.downloads, 7345);
+      expect(t.id, 42);
+      expect(t.name, 'Harbor Dusk Indigo');
+      expect(t.author, 'Lantern Works');
+      expect(t.homepage, 'https://github.com/lantern-works/harbor-dusk');
+      expect(t.downloads, 5120);
       expect(t.dark, isTrue);
-      expect(t.colors['bg-color'], '#24273a');
+      expect(t.colors['bg-color'], '#1d2433');
       expect(t.colors['accent-color'], isNotNull);
       for (final v in t.colors.values) {
         expect(isHex(v), isTrue);
       }
-      expect(t.preview['background'], '#24273a');
+      expect(t.preview['background'], '#1d2433');
       expect(page.themes.where((t) => !t.dark).length, 2);
-      expect({for (final t in page.themes) t.id}.length, 20);
+      expect({for (final t in page.themes) t.id}.length, 6);
+      // a repeated id, a form for another id, no title, no background: dropped
+      expect([for (final t in page.themes) t.id], isNot(anyOf(contains(77), contains(78), contains(91), contains(600))));
+      expect(page.themes.firstWhere((t) => t.id == 1207).homepage, isNull); // http:// refused
+      expect(page.themes.firstWhere((t) => t.id == 8).homepage, isNull); // none given
     });
 
     test('parses a single theme page', () {
       final page = parseCosmicPage(fixture('cosmic-theme-page.html'));
-      expect(page.themes.single.id, 11);
-      expect(page.csrf, isNotNull);
+      expect(page.themes.single.id, 42);
+      expect(page.csrf, startsWith('Rk2dNq'));
       expect(page.nextPage, isNull);
     });
 
@@ -294,7 +313,7 @@ void main() {
     test('route lists themes with installed tags', () async {
       net.answer = (r) => reply(200, utf8.encode(fixture('cosmic-themes.html')));
       final r = await call('import.cosmic_list', {'search': 'cat', 'sort': 'popular', 'page': 1});
-      expect((r['themes'] as List).length, 20);
+      expect((r['themes'] as List).length, 6);
       expect(r['next_page'], 2);
       expect(net.requests.single.uri.queryParameters, {'search': 'cat', 'sort': 'popular'});
       await expectLater(call('import.cosmic_list', {'sort': 'bad sort'}), throwsA(isA<RouteError>()));
@@ -307,70 +326,72 @@ void main() {
       expect(checkThemeRon(utf8.encode('(palette: Dark((\x00')), isNull);
       expect(checkThemeRon(List.filled(maxRonBytes + 1, 0x28)), isNull);
       expect(checkThemeRon([0x28, 0xff, 0xfe]), isNull);
-      expect(ronName(fixture('cosmic-theme.ron')), 'Catpuccin-Macchiato-Lavender');
-      expect(slugify('Catppuccin Macchiato Lavender'), 'catppuccin-macchiato-lavender');
-      expect(slugify('comboom.sucht - (Nordic)'), 'comboom-sucht-nordic');
+      expect(ronName(fixture('cosmic-theme.ron')), 'Harbor-Dusk-Indigo');
+      expect(ronIsDark(fixture('cosmic-theme.ron')), isTrue);
+      expect(slugify('Harbor Dusk Indigo'), 'harbor-dusk-indigo');
+      expect(slugify('drift.wood - (Night)'), 'drift-wood-night');
       expect(slugify('../..'), '');
     });
 
     test('install downloads with the CSRF token and writes a theme folder', () async {
       net.answer = (r) {
-        if (r.method == 'GET' && r.uri.path == '/11/') {
+        if (r.method == 'GET' && r.uri.path == '/42/') {
           return reply(200, utf8.encode(fixture('cosmic-theme-page.html')), cookies: {'csrftoken': 'cookieTOKEN0123456789abcdef'});
         }
-        if (r.method == 'POST' && r.uri.path == '/11/download/') return reply(200, fixtureBytes('cosmic-theme.ron'));
+        if (r.method == 'POST' && r.uri.path == '/42/download/') return reply(200, fixtureBytes('cosmic-theme.ron'));
         return null;
       };
-      final r = await call('import.cosmic_install', {'id': 11, 'apply': true});
-      expect(r['slug'], 'catppuccin-macchiato-lavender');
+      final r = await call('import.cosmic_install', {'id': 42, 'apply': true});
+      expect(r['slug'], 'harbor-dusk-indigo');
       expect(r['applied'], isTrue);
       final post = net.requests.last;
       expect(post.method, 'POST');
       expect(post.headers['cookie'], 'csrftoken=cookieTOKEN0123456789abcdef');
       expect(post.headers['referer'], 'https://cosmic-themes.org/');
-      expect(utf8.decode(post.body!), startsWith('csrfmiddlewaretoken=7UmBuKEek'));
+      expect(utf8.decode(post.body!), startsWith('csrfmiddlewaretoken=Rk2dNqT8v'));
       expect(post.maxBytes, 1024 * 1024);
 
-      final dir = '${env.paths.userThemes}/catppuccin-macchiato-lavender';
+      final dir = '${env.paths.userThemes}/harbor-dusk-indigo';
       expect(File('$dir/cosmic.ron').readAsStringSync(), fixture('cosmic-theme.ron'));
       expect(parseColorsToml(File('$dir/colors.toml').readAsStringSync())['background'], '#1e1e2e');
       final meta = jsonDecode(File('$dir/theme-manager.json').readAsStringSync());
       expect(meta, containsPair('source', 'cosmic-themes.org'));
-      expect(meta, containsPair('id', 11));
-      expect(meta, containsPair('author', 'Catppuccin'));
+      expect(meta, containsPair('id', 42));
+      expect(meta, containsPair('author', 'Lantern Works'));
+      expect(meta, containsPair('homepage', 'https://github.com/lantern-works/harbor-dusk'));
       expect(env.desktop.calls, contains('applyRon $dir/cosmic.ron'));
-      final theme = env.core.ctx.theme('catppuccin-macchiato-lavender');
+      final theme = env.core.ctx.theme('harbor-dusk-indigo');
       expect(theme.cosmicNative, isTrue);
-      expect(theme.name, 'Catppuccin Macchiato Lavender');
+      expect(theme.name, 'Harbor Dusk Indigo');
 
       // shown as installed; a second install is refused before any download
       net.answer = (r) => reply(200, utf8.encode(fixture('cosmic-themes.html')));
       final list = await call('import.cosmic_list');
       final first = (list['themes'] as List).first as Map;
       expect(first['installed'], isTrue);
-      expect(first['slug'], 'catppuccin-macchiato-lavender');
+      expect(first['slug'], 'harbor-dusk-indigo');
       final before = net.requests.length;
-      await expectLater(call('import.cosmic_install', {'id': 11}), throwsA(isA<RouteError>().having((e) => e.code, 'code', 'exists')));
+      await expectLater(call('import.cosmic_install', {'id': 42}), throwsA(isA<RouteError>().having((e) => e.code, 'code', 'exists')));
       expect(net.requests.length, before);
       expect(Directory(env.paths.userThemes).listSync().length, 1);
     });
 
     test('another theme of the same name gets its own folder', () async {
-      env.addTheme('catppuccin-macchiato-lavender');
+      env.addTheme('harbor-dusk-indigo');
       final ron = fixture('cosmic-theme.ron');
       final slug = await installCosmicRon(env.core.ctx, 99, ron, entry: parseCosmicPage(fixture('cosmic-theme-page.html')).themes.single);
-      expect(slug, 'catppuccin-macchiato-lavender-2');
+      expect(slug, 'harbor-dusk-indigo-2');
     });
 
     test('a download that is not a theme is refused and leaves nothing', () async {
       net.answer = (r) => r.method == 'GET'
           ? reply(200, utf8.encode(fixture('cosmic-theme-page.html')), cookies: {'csrftoken': 'cookieTOKEN0123456789abcdef'})
           : reply(200, utf8.encode('<html>Forbidden (CSRF token missing)</html>'));
-      await expectLater(call('import.cosmic_install', {'id': 11}), throwsA(isA<RouteError>().having((e) => e.code, 'code', 'bad_theme')));
+      await expectLater(call('import.cosmic_install', {'id': 42}), throwsA(isA<RouteError>().having((e) => e.code, 'code', 'bad_theme')));
       expect(Directory(env.paths.userThemes).existsSync() ? Directory(env.paths.userThemes).listSync() : [], isEmpty);
       net.answer = (r) => reply(200, utf8.encode(fixture('cosmic-theme-page.html'))); // no cookie
       await expectLater(
-        call('import.cosmic_install', {'id': 11}),
+        call('import.cosmic_install', {'id': 42}),
         throwsA(isA<RouteError>().having((e) => e.code, 'code', 'download_failed')),
       );
     });
