@@ -192,6 +192,10 @@ cyan = "#33aaaa"
     for (final old in [
       'Hack,10,-1,5,50,0,0,0,0,0',
       'Hack,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1',
+      // Qt6 with the style name as text, empty, and with further fields
+      'Hack,11,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,Regular',
+      'Hack,9,-1,5,700,0,0,0,0,0,0,0,0,0,0,1,',
+      'Hack,12,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,Bold Italic,0,0',
     ]) {
       expect(qfontFamily(old), 'Hack');
       expect(

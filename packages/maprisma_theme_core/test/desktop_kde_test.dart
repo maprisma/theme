@@ -159,29 +159,85 @@ void main() {
     expect(logText(), contains('--key fixed --delete'));
   });
 
-  test('interface font: menu, toolbar and title fonts of the same family follow; one of their own stays', () async {
-    final fonts = await kde.interfaceFonts();
-    if (fonts.isEmpty) return; // no fontconfig here
-    final family = fonts.first;
-    File('$config/kdeglobals').writeAsStringSync('[General]\nfont=Noto Sans,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1\n'
-        'menuFont=Noto Sans,9,-1,5,400,0,0,0,0,0,0,0,0,0,0,1\ntoolBarFont=Hack,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1\n'
-        '[WM]\nactiveFont=Noto Sans,11,-1,5,700,0,0,0,0,0,0,0,0,0,0,1\n');
-    expect(kde.interfaceFont(), 'Noto Sans');
-    expect(await kde.setInterfaceFont(family), isTrue);
-    var text = logText();
-    expect(text, contains('--group General --key font $family,10,-1,5,400'));
-    expect(text, contains('--group General --key menuFont $family,9,-1,5,400'));
-    expect(text, contains('--group WM --key activeFont $family,11,-1,5,700'));
-    expect(text, isNot(contains('toolBarFont')));
-    expect(text, contains('notifyChange int32:1 int32:0'));
-    expect(await kde.setInterfaceFont('No Such Font 123'), isFalse);
+  group('interface font', () {
+    late String a, b;
 
-    File(log).deleteSync();
-    expect(await kde.resetInterfaceFont(), isTrue);
-    text = logText();
-    expect(text, contains('--group General --key font --delete'));
-    expect(text, contains('--group General --key menuFont --delete'));
-    expect(text, isNot(contains('toolBarFont')));
+    /// kwriteconfig6 that really edits kdeglobals; a `fail-<key>` file makes
+    /// writing that key fail.
+    setUp(() async {
+      final fonts = await kde.interfaceFonts();
+      a = fonts.isNotEmpty ? fonts.first : '';
+      b = fonts.length > 1 ? fonts[1] : '';
+      final kw = File('${root.path}/bin/kwriteconfig6')
+        ..writeAsStringSync('#!/usr/bin/env python3\n'
+            'import sys, os\n'
+            'a = sys.argv[1:]\n'
+            'open("$log", "a").write("kwriteconfig6 " + " ".join(a) + "\\n")\n'
+            'f = a[a.index("--file") + 1]; g = a[a.index("--group") + 1]; k = a[a.index("--key") + 1]\n'
+            'if os.path.exists("${root.path}/fail-" + k): sys.exit(1)\n'
+            'if f != "kdeglobals": sys.exit(0)\n'
+            'p = "$config/kdeglobals"\n'
+            'groups = {}; order = []; cur = None\n'
+            'for l in (open(p).read().splitlines() if os.path.exists(p) else []):\n'
+            '    if l.startswith("["): cur = l[1:-1]; order.append(cur); groups[cur] = []\n'
+            '    elif cur is not None and l: groups[cur].append(l)\n'
+            'if g not in groups: order.append(g); groups[g] = []\n'
+            'groups[g] = [l for l in groups[g] if not l.startswith(k + "=")]\n'
+            'if "--delete" not in a: groups[g].append(k + "=" + a[-1])\n'
+            'open(p, "w").write("".join("[" + n + "]\\n" + "".join(l + "\\n" for l in groups[n]) + "\\n" for n in order))\n');
+      chmodPath(kw.path, 493);
+    });
+
+    String? value(String group, String key) => iniValue(File('$config/kdeglobals').readAsStringSync(), group, key);
+
+    test('menu and title fonts of the same family follow; a font of its own stays; back puts every key back', () async {
+      if (b.isEmpty) return; // no fontconfig here
+      final original = '[General]\nfont=Noto Sans,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,Regular\n'
+          'menuFont=Noto Sans,9,-1,5,400,0,0,0,0,0,0,0,0,0,0,1\ntoolBarFont=$b,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1\n\n'
+          '[WM]\nactiveFont=Noto Sans,11,-1,5,700,0,0,0,0,0,0,0,0,0,0,1\n';
+      File('$config/kdeglobals').writeAsStringSync(original);
+      expect(kde.interfaceFont(), 'Noto Sans');
+      // the theme's font is the family the toolbar has of its own
+      expect(await kde.setInterfaceFont(b), isTrue);
+      expect(value('General', 'font'), '$b,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,Regular');
+      expect(value('General', 'menuFont'), '$b,9,-1,5,400,0,0,0,0,0,0,0,0,0,0,1');
+      expect(value('WM', 'activeFont'), '$b,11,-1,5,700,0,0,0,0,0,0,0,0,0,0,1');
+      expect(logText(), contains('notifyChange int32:1 int32:0'));
+      // the next theme changes the same keys, and only those
+      expect(await kde.setInterfaceFont(a), isTrue);
+      expect(value('General', 'toolBarFont'), '$b,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1');
+      expect(value('General', 'menuFont'), startsWith('$a,9'));
+      // back to the user's own font: every key as it was
+      expect(await kde.setInterfaceFont('No Such Font 123'), isFalse);
+      expect(await kde.resetInterfaceFont(), isTrue);
+      expect(value('General', 'font'), 'Noto Sans,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,Regular');
+      expect(value('General', 'menuFont'), 'Noto Sans,9,-1,5,400,0,0,0,0,0,0,0,0,0,0,1');
+      expect(value('General', 'toolBarFont'), '$b,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1');
+      expect(value('WM', 'activeFont'), 'Noto Sans,11,-1,5,700,0,0,0,0,0,0,0,0,0,0,1');
+    });
+
+    test('without a font key, reset deletes what the theme wrote', () async {
+      if (a.isEmpty) return;
+      File('$config/kdeglobals').writeAsStringSync('[General]\nColorScheme=X\n');
+      expect(kde.interfaceFont(), isNull);
+      expect(await kde.setInterfaceFont(a), isTrue);
+      expect(value('General', 'font'), startsWith('$a,10'));
+      expect(await kde.resetInterfaceFont(), isTrue);
+      expect(value('General', 'font'), isNull);
+      expect(value('General', 'ColorScheme'), 'X');
+      // no theme font in use: reset only deletes the font key
+      expect(await kde.resetInterfaceFont(), isTrue);
+    });
+
+    test('a failed write puts the keys written before back, and nothing is kept', () async {
+      if (a.isEmpty) return;
+      final original = '[General]\nfont=Noto Sans,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1\nmenuFont=Noto Sans,9,-1,5,400,0,0,0,0,0,0,0,0,0,0,1\n';
+      File('$config/kdeglobals').writeAsStringSync(original);
+      File('${root.path}/fail-menuFont').createSync();
+      expect(await kde.setInterfaceFont(a), isFalse);
+      expect(value('General', 'font'), 'Noto Sans,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1');
+      expect(File('${paths.state}/kde-ui-font.json').existsSync(), isFalse);
+    });
   });
 
   test('tiling through Maprisma Tiling: the cap while it is installed, each workspace by its ignore list', () {

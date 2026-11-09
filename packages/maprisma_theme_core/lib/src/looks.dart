@@ -2,7 +2,7 @@
 /// theme, kept in looks.json beside the settings; theme files never change.
 library;
 
-import 'auto.dart' show validSlug;
+import 'auto.dart' show autoLocked, validSlug;
 import 'context.dart';
 import 'custom.dart' show fontRe;
 import 'desktop.dart';
@@ -162,6 +162,15 @@ Future<Map<String, dynamic>> lookData(Ctx ctx, String slug) async {
       for (final r in roles) r.lookKey: themeFont(ctx, theme, r, look: const {}),
     },
     'current': {for (final r in roles) r.lookKey: r.current(d)},
+    // the user's own fonts: kept while a theme's font is in use, else the one in use
+    'own': {
+      for (final r in roles)
+        r.lookKey: switch (ctx.settings.get(r.ownKey(d))) {
+          defaultFontMark => null,
+          final String f => f,
+          _ => r.current(d),
+        },
+    },
     'fonts': {
       for (final r in roles) r.lookKey: (await r.choices(d)).where(fontRe.hasMatch).take(400).toList(),
     },
@@ -181,7 +190,39 @@ Future<Map<String, dynamic>> setLook(Ctx ctx, String slug, Object? raw) async {
       throw RouteError('bad_args', '$f is not installed');
     }
   }
-  final previous = Looks(ctx).set(slug, look);
-  final done = ctx.current.slug == slug ? [for (final r in await applyLookFonts(ctx, theme)) r.lookKey] : <String>[];
-  return {'done': true, 'previous': previous, 'look': look, 'applied': done};
+  // one change at a time with theme applies (the daemon's workspace themes too)
+  return autoLocked(ctx, () async {
+    final previous = Looks(ctx).set(slug, look);
+    final done = ctx.current.slug == slug ? [for (final r in await applyLookFonts(ctx, theme)) r.lookKey] : <String>[];
+    return {'done': true, 'previous': previous, 'look': look, 'applied': done};
+  });
+}
+
+/// A font from outside a theme (a preset), set through the same chain, so
+/// the user's own font is kept to come back later.
+Future<bool> applyFontOverride(Ctx ctx, FontRole role, String family) => _applyFont(ctx, role, family);
+
+/// Every font and the user's own fonts as they are, for an undo to put back exactly.
+Map<String, dynamic> captureFonts(Ctx ctx) {
+  final d = ctx.desktop;
+  return {
+    for (final r in FontRole.values) r.lookKey: r.current(d),
+    'own': {for (final r in FontRole.values) r.ownKey(d): ctx.settings.get(r.ownKey(d))},
+  };
+}
+
+Future<void> restoreFonts(Ctx ctx, Map<String, dynamic> state) async {
+  final d = ctx.desktop;
+  for (final r in FontRole.values) {
+    if (!d.caps.contains(r.cap)) continue;
+    final f = state[r.lookKey];
+    if (f == r.current(d)) continue;
+    f is String ? await r.set(d, f) : await r.reset(d);
+  }
+  final own = state['own'];
+  if (own is Map) {
+    for (final e in own.entries) {
+      if (e.value == null || e.value is String) ctx.settings.set(e.key as String, e.value);
+    }
+  }
 }

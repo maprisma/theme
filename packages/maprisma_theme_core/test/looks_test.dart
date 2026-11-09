@@ -111,6 +111,35 @@ void main() {
     expect(looks.all(), isEmpty);
   });
 
+  test('a preset\'s font keeps the user\'s own font; its undo puts the fonts back exactly', () async {
+    await env.desktop.setMonospaceFont('JetBrains Mono');
+    await call('themes.apply', {'slug': 'nord'});
+    await env.desktop.setMonospaceFont('Fira Code'); // the font in use when the preset is saved
+    await call('presets.save', {'name': 'Work'});
+    await env.desktop.setMonospaceFont('JetBrains Mono');
+
+    final r = await call('presets.apply', {'name': 'Work'});
+    expect(env.desktop.monospaceFont(), 'Fira Code');
+    expect(env.core.ctx.settings.get('own_font'), 'JetBrains Mono');
+    await call('presets.undo', {'receipt': r['receipt'], 'appearance': true});
+    expect(env.desktop.monospaceFont(), 'JetBrains Mono');
+    expect(env.core.ctx.settings.get('own_font'), isNull);
+
+    await call('presets.apply', {'name': 'Work'});
+    env.addTheme('plain', system: true);
+    await call('themes.apply', {'slug': 'plain'});
+    expect(env.desktop.monospaceFont(), 'JetBrains Mono');
+  });
+
+  test('looks.get: the user\'s own fonts while a theme\'s font is in use', () async {
+    await env.desktop.setMonospaceFont('JetBrains Mono');
+    await call('themes.apply', {'slug': 'mine'});
+    final data = await call('looks.get', {'slug': 'nord'});
+    expect(data['current'], {'mono_font': 'Fira Code', 'ui_font': null});
+    expect(data['own'], {'mono_font': 'JetBrains Mono', 'ui_font': null});
+    expect(data['in_use'], isFalse);
+  });
+
   test('backups carry looks.json and refuse bad ones', () async {
     await call('looks.set', {'slug': 'nord', 'look': {'mono_font': 'Fira Code', 'blur': {'on': true, 'strength': 4}}});
     final file = '${env.root.path}/backup.json';

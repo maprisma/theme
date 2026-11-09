@@ -128,10 +128,12 @@ Map<String, dynamic>? kdeCurrentLook(String kdeglobals) {
 List<String>? _qfont(String? value) {
   if (value == null || value.contains(RegExp(r'[\r\n]'))) return null;
   final parts = value.split(',');
-  // Qt5 uses ten fields; Qt6 may append further numeric fields.
+  // Qt5 writes ten numeric fields; Qt6 appends more, among them the style
+  // name as text ("Regular", or empty) and font features: only the first
+  // ten must be numbers, the rest is kept as it is.
   if (parts.length < 10 ||
       parts.first.trim().isEmpty ||
-      parts.skip(1).any((p) => double.tryParse(p.trim()) == null)) {
+      parts.skip(1).take(9).any((p) => double.tryParse(p.trim()) == null)) {
     return null;
   }
   return parts;

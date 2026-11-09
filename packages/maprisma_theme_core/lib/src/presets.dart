@@ -9,6 +9,7 @@ import 'posix.dart';
 import 'store.dart';
 import 'themes.dart';
 import 'workspace_state.dart';
+import 'looks.dart';
 
 String presetName(Object? value) {
   if (value is! String || value.contains(RegExp(r'[\x00-\x1f\x7f]'))) {
@@ -305,7 +306,7 @@ Future<Map<String, dynamic>> applySavedPreset(
     throw RouteError('not_found', 'Preset font is unavailable');
   }
   await applyTheme(ctx, p['theme'] as String, wallpaper: wallpaper);
-  if (font is String) await ctx.desktop.setMonospaceFont(font);
+  if (font is String) await applyFontOverride(ctx, FontRole.mono, font);
   if (snapshot != null) {
     final clean = cleanWorkspaceState(snapshot);
     final current = loadWorkspaces(ctx);
@@ -346,7 +347,7 @@ class PresetUndo {
       'presets': loadPresets(ctx),
       'theme': ctx.current.slug,
       'wallpaper': ctx.current.wallpaper,
-      'font': ctx.desktop.monospaceFont(),
+      'fonts': captureFonts(ctx),
       'autostart': readJsonMap('${ctx.paths.state}/autostart.json'),
     };
     if (_receipts.length > 30) _receipts.remove(_receipts.keys.first);
@@ -417,9 +418,7 @@ class PresetUndo {
         s['theme'] as String,
         wallpaper: s['wallpaper'] as String?,
       );
-      if (s['font'] is String) {
-        await ctx.desktop.setMonospaceFont(s['font'] as String);
-      }
+      if (s['fonts'] is Map) await restoreFonts(ctx, Map<String, dynamic>.from(s['fonts'] as Map));
     }
   }
 }

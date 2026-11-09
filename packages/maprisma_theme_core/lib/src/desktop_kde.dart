@@ -583,6 +583,37 @@ print('maprisma-snapshot ' + JSON.stringify(r));
   /// System Settings' "Adjust All Fonts"); a font of its own stays.
   static const _interfaceFollowers = [('General', 'menuFont'), ('General', 'toolBarFont'), ('WM', 'activeFont')];
 
+  /// The keys a theme's interface font changed, with their values before
+  /// (null: the key was missing); written before the first change, so going
+  /// back touches exactly those keys and puts back what they were.
+  String get _uiFontReceipt => '${paths.state}/kde-ui-font.json';
+
+  Map<String, String?>? _uiReceipt() {
+    final m = readJsonMap(_uiFontReceipt);
+    if (m.isEmpty || m.values.any((v) => v != null && v is! String)) return null;
+    return {for (final e in m.entries) e.key: e.value as String?};
+  }
+
+  /// Writes kdeglobals values ({"Group/key": value or null to delete}); on a
+  /// failure the keys already written get their old values back.
+  Future<bool> _writeGlobals(Map<String, String?> values) async {
+    final text = _text(_kdeglobals);
+    final done = <String, String?>{};
+    for (final e in values.entries) {
+      final [group, key] = e.key.split('/');
+      final before = iniValue(text, group, key);
+      if (!await _run(['kwriteconfig6', '--file', 'kdeglobals', '--group', group, '--key', key, e.value ?? '--delete'])) {
+        for (final d in done.entries) {
+          final [g, k] = d.key.split('/');
+          await _run(['kwriteconfig6', '--file', 'kdeglobals', '--group', g, '--key', k, d.value ?? '--delete']);
+        }
+        return false;
+      }
+      done[e.key] = before;
+    }
+    return true;
+  }
+
   @override
   String? interfaceFont() => qfontFamily(iniValue(_text(_kdeglobals), 'General', 'font'));
 
@@ -590,38 +621,56 @@ print('maprisma-snapshot ' + JSON.stringify(r));
   Future<bool> setInterfaceFont(String family) async {
     if (!(await interfaceFonts()).contains(family)) return false;
     final text = _text(_kdeglobals);
-    final old = qfontFamily(iniValue(text, 'General', 'font'));
-    final writes = <(String, String, String)>[];
+    final receipt = _uiReceipt();
+    if (receipt != null && qfontFamily(receipt['General/font']) == family) return _restoreInterfaceFont(receipt);
+    final keys = receipt?.keys.toList() ?? [
+      'General/font',
+      for (final (group, key) in _interfaceFollowers)
+        if (interfaceFont() case final String old when qfontFamily(iniValue(text, group, key)) == old) '$group/$key',
+    ];
+    final Map<String, String?> values;
     try {
-      writes.add(('General', 'font', qfontWithFamily(iniValue(text, 'General', 'font'), family)));
-      for (final (group, key) in _interfaceFollowers) {
-        final v = iniValue(text, group, key);
-        if (v != null && old != null && qfontFamily(v) == old) writes.add((group, key, qfontWithFamily(v, family)));
-      }
+      values = {
+        for (final k in keys) k: qfontWithFamily(iniValue(text, k.split('/')[0], k.split('/')[1]), family),
+      };
     } on ArgumentError {
       return false;
     }
-    for (final (group, key, value) in writes) {
-      if (!await _run(['kwriteconfig6', '--file', 'kdeglobals', '--group', group, '--key', key, value])) return false;
+    final fresh = receipt == null;
+    if (fresh) writeJson(_uiFontReceipt, {for (final k in keys) k: iniValue(text, k.split('/')[0], k.split('/')[1])});
+    if (!await _writeGlobals(values)) {
+      if (fresh) _dropUiReceipt();
+      return false;
     }
     await _notifyFont();
     return true;
   }
 
+  /// Back to KDE's default interface font: what a theme changed goes back as
+  /// it was (the default when the font key was missing); without a theme's
+  /// change only the font key goes.
   @override
   Future<bool> resetInterfaceFont() async {
-    final text = _text(_kdeglobals);
-    final old = qfontFamily(iniValue(text, 'General', 'font'));
-    final keys = [
-      ('General', 'font'),
-      for (final (group, key) in _interfaceFollowers)
-        if (old != null && qfontFamily(iniValue(text, group, key)) == old) (group, key),
-    ];
-    for (final (group, key) in keys) {
-      if (!await _run(['kwriteconfig6', '--file', 'kdeglobals', '--group', group, '--key', key, '--delete'])) return false;
-    }
+    final receipt = _uiReceipt();
+    if (receipt != null) return _restoreInterfaceFont(receipt);
+    if (!await _writeGlobals({'General/font': null})) return false;
     await _notifyFont();
     return true;
+  }
+
+  Future<bool> _restoreInterfaceFont(Map<String, String?> receipt) async {
+    if (!await _writeGlobals(receipt)) return false;
+    _dropUiReceipt();
+    await _notifyFont();
+    return true;
+  }
+
+  void _dropUiReceipt() {
+    try {
+      File(_uiFontReceipt).deleteSync();
+    } on FileSystemException {
+      // already gone
+    }
   }
 
   @override
