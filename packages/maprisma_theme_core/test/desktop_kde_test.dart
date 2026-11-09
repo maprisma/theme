@@ -48,6 +48,28 @@ void main() {
 
   String logText() => File(log).existsSync() ? File(log).readAsStringSync() : '';
 
+  /// kwriteconfig6 that really edits the file under the config folder (any
+  /// group); a `fail-<key>` file makes writing that key fail.
+  void statefulKwriteconfig() {
+    final kw = File('${root.path}/bin/kwriteconfig6')
+      ..writeAsStringSync('#!/usr/bin/env python3\n'
+          'import sys, os\n'
+          'a = sys.argv[1:]\n'
+          'open("$log", "a").write("kwriteconfig6 " + " ".join(a) + "\\n")\n'
+          'f = a[a.index("--file") + 1]; g = a[a.index("--group") + 1]; k = a[a.index("--key") + 1]\n'
+          'if os.path.exists("${root.path}/fail-" + k): sys.exit(1)\n'
+          'p = "$config/" + f\n'
+          'groups = {}; order = []; cur = None\n'
+          'for l in (open(p).read().splitlines() if os.path.exists(p) else []):\n'
+          '    if l.startswith("["): cur = l[1:-1]; order.append(cur); groups[cur] = []\n'
+          '    elif cur is not None and l: groups[cur].append(l)\n'
+          'if g not in groups: order.append(g); groups[g] = []\n'
+          'groups[g] = [l for l in groups[g] if not l.startswith(k + "=")]\n'
+          'if "--delete" not in a: groups[g].append(k + "=" + a[-1])\n'
+          'open(p, "w").write("".join("[" + n + "]\\n" + "".join(l + "\\n" for l in groups[n]) + "\\n" for n in order))\n');
+    chmodPath(kw.path, 493);
+  }
+
   const colors = {
     'background': '#2e3440', 'foreground': '#d8dee9', 'accent': '#81a1c1', 'red': '#bf616a', 'green': '#a3be8c',
     'yellow': '#ebcb8b', 'blue': '#81a1c1', 'magenta': '#b48ead', 'cyan': '#88c0d0',
@@ -168,24 +190,7 @@ void main() {
       final fonts = await kde.interfaceFonts();
       a = fonts.isNotEmpty ? fonts.first : '';
       b = fonts.length > 1 ? fonts[1] : '';
-      final kw = File('${root.path}/bin/kwriteconfig6')
-        ..writeAsStringSync('#!/usr/bin/env python3\n'
-            'import sys, os\n'
-            'a = sys.argv[1:]\n'
-            'open("$log", "a").write("kwriteconfig6 " + " ".join(a) + "\\n")\n'
-            'f = a[a.index("--file") + 1]; g = a[a.index("--group") + 1]; k = a[a.index("--key") + 1]\n'
-            'if os.path.exists("${root.path}/fail-" + k): sys.exit(1)\n'
-            'if f != "kdeglobals": sys.exit(0)\n'
-            'p = "$config/kdeglobals"\n'
-            'groups = {}; order = []; cur = None\n'
-            'for l in (open(p).read().splitlines() if os.path.exists(p) else []):\n'
-            '    if l.startswith("["): cur = l[1:-1]; order.append(cur); groups[cur] = []\n'
-            '    elif cur is not None and l: groups[cur].append(l)\n'
-            'if g not in groups: order.append(g); groups[g] = []\n'
-            'groups[g] = [l for l in groups[g] if not l.startswith(k + "=")]\n'
-            'if "--delete" not in a: groups[g].append(k + "=" + a[-1])\n'
-            'open(p, "w").write("".join("[" + n + "]\\n" + "".join(l + "\\n" for l in groups[n]) + "\\n" for n in order))\n');
-      chmodPath(kw.path, 493);
+      statefulKwriteconfig();
     });
 
     String? value(String group, String key) => iniValue(File('$config/kdeglobals').readAsStringSync(), group, key);
@@ -292,7 +297,7 @@ void main() {
   });
 
   test('caps and the rest of the contract', () async {
-    expect(kde.caps, {Cap.appearance, Cap.kdeScheme, Cap.wallpaper, Cap.terminal, Cap.fonts, Cap.icons, Cap.workspaces, Cap.windows, Cap.shortcuts, Cap.animations, Cap.uiFont});
+    expect(kde.caps, {Cap.appearance, Cap.kdeScheme, Cap.wallpaper, Cap.terminal, Cap.fonts, Cap.icons, Cap.workspaces, Cap.windows, Cap.shortcuts, Cap.animations, Cap.uiFont, Cap.blur});
     expect(await kde.applyRon('/x.ron'), isFalse);
     // no session bus in the test's environment: KWin is never reached
     expect((await kde.wm(['workspaces']))?['error'], 'unavailable');
@@ -398,19 +403,7 @@ void main() {
     setUp(() {
       loaded = '${root.path}/loaded';
       Directory(loaded).createSync();
-      final kw = File('${root.path}/bin/kwriteconfig6')
-        ..writeAsStringSync('#!/usr/bin/env python3\n'
-            'import sys, os, re\n'
-            'a = sys.argv[1:]\n'
-            'open("$log", "a").write("kwriteconfig6 " + " ".join(a) + "\\n")\n'
-            'if "--group" not in a or a[a.index("--group") + 1] != "Plugins": sys.exit(0)\n'
-            'key = a[a.index("--key") + 1]; p = "$config/kwinrc"\n'
-            'lines = open(p).read().splitlines() if os.path.exists(p) else []\n'
-            'lines = [l for l in lines if not l.startswith(key + "=")]\n'
-            'if "[Plugins]" not in lines: lines.insert(0, "[Plugins]")\n'
-            'if "--delete" not in a: lines.insert(lines.index("[Plugins]") + 1, key + "=" + a[-1])\n'
-            'open(p, "w").write("\\n".join(lines) + "\\n")\n');
-      chmodPath(kw.path, 493);
+      statefulKwriteconfig();
       tool('qdbus6', 'case "\$3" in '
           '*isEffectLoaded) [ -e "$loaded/\$4" ] && echo true || echo false;; '
           '*loadEffect) [ -e "$loaded/../refuse" ] || [ "\$3" != "\${3%unloadEffect}" ] || touch "$loaded/\$4"; '
@@ -479,6 +472,37 @@ void main() {
       final r = await kde.wm(['set-animations', '{"window":false}']);
       expect(r?['error'], 'unavailable');
       expect(kde.animations(), {'workspace': true, 'window': true});
+    });
+
+    test('blur: kwinrc keys as they are; a theme\'s blur and back again exactly', () async {
+      File('$config/kwinrc').writeAsStringSync('[Effect-blur]\nNoiseStrength=3\n');
+      File('$loaded/blur').createSync();
+      final before = (await kde.blurState())!;
+      expect(before, {'enabled': null, 'strength': null});
+      expect(kde.blurAsLook(before), {'on': true, 'strength': 15});
+
+      final target = kde.blurTarget(before, on: true, strength: 4);
+      expect(await kde.restoreBlur(target), isTrue);
+      expect(iniValue(File('$config/kwinrc').readAsStringSync(), 'Effect-blur', 'BlurStrength'), '4');
+      expect(iniValue(File('$config/kwinrc').readAsStringSync(), 'Effect-blur', 'NoiseStrength'), '3');
+      expect(logText(), contains('reconfigureEffect blur'));
+
+      expect(await kde.restoreBlur(kde.blurTarget(target, on: false, strength: 4)), isTrue);
+      expect(live(), isNot(contains('blur')));
+      expect(plugin('blur'), 'false');
+
+      expect(await kde.restoreBlur(before), isTrue);
+      expect(plugin('blur'), isNull);
+      expect(live(), contains('blur'));
+      expect(iniValue(File('$config/kwinrc').readAsStringSync(), 'Effect-blur', 'BlurStrength'), isNull);
+    });
+
+    test('blur: KWin refusing puts both keys back', () async {
+      File('$config/kwinrc').writeAsStringSync('[Plugins]\nblurEnabled=false\n[Effect-blur]\nBlurStrength=9\n');
+      File('${root.path}/refuse').createSync();
+      final before = (await kde.blurState())!;
+      expect(await kde.restoreBlur(kde.blurTarget(before, on: true, strength: 2)), isFalse);
+      expect(await kde.blurState(), before);
     });
 
     test('a bad request writes nothing', () async {

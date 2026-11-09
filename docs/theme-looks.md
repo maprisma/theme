@@ -61,6 +61,14 @@ maximized apps stay as the user set them. The user's own blur is the whole helpe
 `apply --colors` / `--ron` keep the Theme Builder's desktop settings (gaps, active hint and its colour,
 all frosted fields) from the mode in use: before, every theme apply reset them to COSMIC's defaults.
 
+## Blur on KDE
+
+The state is kwinrc's raw `[Plugins] blurEnabled` and `[Effect-blur] BlurStrength` (null = missing:
+enabled, strength 15 as KWin's blur.kcfg). A look writes both; KWin loads or unloads the effect (checked
+with `isEffectLoaded`, as the animation switches) and `reconfigureEffect blur` reads the strength. When
+KWin doesn't follow, both keys go back. Noise strength and saturation are never touched. Blur shows only
+behind see-through surfaces (panel, menus, Konsole with opacity below 100 %).
+
 ## Steps
 
 1. Core: looks.json, routes, apply chain, interface font for COSMIC and KDE, `Cap.uiFont`.

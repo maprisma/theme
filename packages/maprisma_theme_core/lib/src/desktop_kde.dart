@@ -41,7 +41,7 @@ final class KdeDesktop extends DesktopBase {
   @override
   Set<Cap> get caps => {
     Cap.appearance, Cap.kdeScheme, Cap.wallpaper, Cap.terminal, Cap.fonts, Cap.icons,
-    Cap.workspaces, Cap.windows, Cap.shortcuts, Cap.animations, Cap.uiFont,
+    Cap.workspaces, Cap.windows, Cap.shortcuts, Cap.animations, Cap.uiFont, Cap.blur,
     if (maprismaTilingInstalled) Cap.tiling,
   };
 
@@ -202,14 +202,14 @@ final class KdeDesktop extends DesktopBase {
   /// Writes the raw kwinrc values ({effect: 'true'|'false'|null}) and makes
   /// KWin load or unload each effect to match; false when KWin ends up
   /// differently or can't be reached.
-  Future<bool> _writeEffects(String qdbus, Map<String, String?> values) async {
+  Future<bool> _writeEffects(String qdbus, Map<String, String?> values, {Map<String, bool>? defaults}) async {
     for (final e in values.entries) {
       final key = ['--file', 'kwinrc', '--group', 'Plugins', '--key', '${e.key}Enabled'];
       if (!await _run(['kwriteconfig6', ...key, e.value ?? '--delete'])) return false;
     }
-    final defaults = {for (final m in animationEffects.values) ...m};
+    defaults ??= {for (final m in animationEffects.values) ...m};
     for (final e in values.entries) {
-      final want = e.value == null ? defaults[e.key]! : e.value == 'true';
+      final want = e.value == null ? defaults[e.key] ?? false : e.value == 'true';
       final now = await _effectLoaded(qdbus, e.key);
       if (now == null) return false;
       if (now == want) continue;
@@ -266,6 +266,51 @@ final class KdeDesktop extends DesktopBase {
     }
     writeJson(_animationsFile, saved);
     return {'done': true, 'previous': old, ...animations()};
+  }
+
+  // --- blur: KWin's Blur effect ------------------------------------------------
+
+  /// KWin's default strength when kwinrc has none (blur.kcfg).
+  static const kwinBlurDefault = 15;
+
+  /// {enabled, strength}: kwinrc's raw values ([Plugins] blurEnabled,
+  /// [Effect-blur] BlurStrength), null where the key is missing.
+  @override
+  Future<Map<String, dynamic>?> blurState() async {
+    final text = _text(_kwinrc);
+    return {'enabled': iniValue(text, 'Plugins', 'blurEnabled'), 'strength': iniValue(text, 'Effect-blur', 'BlurStrength')};
+  }
+
+  @override
+  Map<String, dynamic> blurTarget(Map<String, dynamic> now, {required bool on, required int strength}) =>
+      {'enabled': on ? 'true' : 'false', 'strength': '${strength.clamp(1, 15)}'};
+
+  @override
+  Map<String, dynamic> blurAsLook(Map<String, dynamic> state) => {
+    'on': state['enabled'] != 'false',
+    'strength': (int.tryParse('${state['strength']}') ?? kwinBlurDefault).clamp(1, 15),
+  };
+
+  /// Writes both keys, then KWin loads or unloads the effect and reads its
+  /// strength again; when KWin doesn't follow, both keys go back.
+  @override
+  Future<bool> restoreBlur(Map<String, dynamic> state) async {
+    final enabled = state['enabled'], strength = state['strength'];
+    if ((enabled != null && enabled is! String) || (strength != null && strength is! String)) return false;
+    final qdbus = _qdbus;
+    if (qdbus == null) return false;
+    final before = (await blurState())!;
+    Future<bool> write(Map<String, dynamic> s) async =>
+        await _run(['kwriteconfig6', '--file', 'kwinrc', '--group', 'Effect-blur', '--key', 'BlurStrength', (s['strength'] as String?) ?? '--delete']) &&
+        await _writeEffects(qdbus, {'blur': s['enabled'] as String?}, defaults: const {'blur': true});
+    if (!await write(state)) {
+      await write(before);
+      return false;
+    }
+    if (enabled != 'false') {
+      await runBounded([qdbus, 'org.kde.KWin', '/Effects', 'org.kde.kwin.Effects.reconfigureEffect', 'blur'], timeout: const Duration(seconds: 5));
+    }
+    return true;
   }
 
   /// Tiling is selected by the stable 1-based workspace index.
