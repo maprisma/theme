@@ -164,6 +164,54 @@ void main() {
     }
     final look = (await tester.runAsync(() => core.call('looks.get', {'slug': 'nord'})))!;
     expect(look['look'], {'mono_font': 'Fira Code', 'blur': {'on': false, 'strength': 8}});
+    // the core's apply lock is one queue for the whole test run: end on a call in real time
+    await tester.runAsync(() => core.call('looks.set', {'slug': 'nord', 'look': {}, 'restore': true, 'apply': false}));
+  });
+
+  testWidgets('the theme in use: Reapply only while a change is pending; Save stores without applying', (tester) async {
+    tester.view.physicalSize = const Size(1000, 760);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.runAsync(() => core.call('themes.apply', {'slug': 'nord'}));
+    Future<Map<String, dynamic>> call(String m, [Map<String, dynamic> p = const {}]) => core.call(m, p);
+    await tester.runAsync(() async {
+      await tester.pumpWidget(MaprismaThemeApp(call: call));
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    });
+    final state = tester.state<MaprismaThemeAppState>(find.byType(MaprismaThemeApp));
+    FilledButton reapply() => tester.widget<FilledButton>(find.byKey(const ValueKey('look-reapply')));
+    OutlinedButton save() => tester.widget<OutlinedButton>(find.byKey(const ValueKey('look-save')));
+
+    lookDialog(state.navigator.currentContext!, state, 'nord');
+    await settle(tester, 300);
+    expect(reapply().onPressed, isNull); // nothing pending
+    expect(save().onPressed, isNull);
+    await tester.tap(find.text('On'));
+    await settle(tester);
+    expect(reapply().onPressed, isNotNull);
+    expect(save().onPressed, isNotNull);
+
+    await tester.tap(find.byKey(const ValueKey('look-save')));
+    for (var i = 0; i < 6; i++) {
+      await settle(tester, 300);
+    }
+    expect(find.text('Font & effects saved: Reapply to use them now'), findsOneWidget);
+    expect(desktop.blur['on'], isFalse); // stored, not applied
+
+    // opened again: the stored look is pending, Reapply applies it
+    lookDialog(state.navigator.currentContext!, state, 'nord');
+    await settle(tester, 300);
+    expect(reapply().onPressed, isNotNull);
+    expect(save().onPressed, isNull);
+    await tester.tap(find.byKey(const ValueKey('look-reapply')));
+    for (var i = 0; i < 6; i++) {
+      await settle(tester, 300);
+    }
+    expect(find.text('Font & effects reapplied'), findsOneWidget);
+    expect(desktop.blur['on'], isTrue);
+    final list = (await tester.runAsync(() => core.call('themes.list')))!;
+    expect(((list['themes'] as List).firstWhere((t) => t['slug'] == 'nord') as Map)['pending'], isEmpty);
+    await tester.runAsync(() => core.call('looks.set', {'slug': 'nord', 'look': {}}));
   });
 
   testWidgets('a desktop without blur shows no blur row', (tester) async {

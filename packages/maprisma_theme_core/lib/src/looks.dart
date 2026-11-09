@@ -256,13 +256,50 @@ Future<Map<String, dynamic>> lookData(Ctx ctx, String slug) async {
       },
     },
     'in_use': ctx.current.slug == slug,
+    'pending': await lookPending(ctx, theme),
   };
 }
 
 /// `looks.set {slug, look, restore?}`: replaces the look; the theme in use
 /// gets it at once. A font must be installed when it is new: one the look
 /// already has may stay, and [restore] (Undo) may put any back as it was.
-Future<Map<String, dynamic>> setLook(Ctx ctx, String slug, Object? raw, {bool restore = false}) async {
+/// The look's fields that are not on the desktop now for the theme in use
+/// (empty for any other theme): what Reapply would change.
+Future<List<String>> lookPending(Ctx ctx, ThemeInfo theme) async {
+  if (ctx.current.slug != theme.slug) return const [];
+  final d = ctx.desktop;
+  final look = Looks(ctx).of(theme.slug);
+  final out = <String>[];
+  for (final r in FontRole.values) {
+    if (!d.caps.contains(r.cap)) continue;
+    final themed = themeFont(ctx, theme, r, look: look);
+    final own = ctx.settings.get(r.ownKey(d));
+    // a theme font that isn't set, or the user's own font still to come back
+    if (themed != null ? r.current(d) != themed : own != null) out.add(r.lookKey);
+  }
+  if (d.caps.contains(Cap.blur)) {
+    final themed = themeBlur(ctx, theme, look: look);
+    if (themed != null) {
+      final now = await d.blurState();
+      if (now != null) {
+        final target = d.blurTarget(now, on: themed['on'] as bool, strength: themed['strength'] as int);
+        if (jsonEncode(target) != jsonEncode(now)) out.add('blur');
+      }
+    } else if (ctx.settings.get(ownBlurKey(d)) != null) {
+      out.add('blur');
+    }
+  }
+  return out;
+}
+
+/// `looks.apply {slug}`: the theme in use gets its look (fonts, blur) now.
+Future<Map<String, dynamic>> reapplyLook(Ctx ctx, String slug) async {
+  final theme = ctx.theme(slug);
+  if (ctx.current.slug != slug) throw RouteError('not_current', '$slug is not the theme in use');
+  return autoLocked(ctx, () async => {'applied': await applyLook(ctx, theme)});
+}
+
+Future<Map<String, dynamic>> setLook(Ctx ctx, String slug, Object? raw, {bool restore = false, bool apply = true}) async {
   final theme = ctx.theme(slug);
   final look = checkLook(raw);
   if (look == null) throw RouteError('bad_args', 'not a look');
@@ -276,8 +313,8 @@ Future<Map<String, dynamic>> setLook(Ctx ctx, String slug, Object? raw, {bool re
   // one change at a time with theme applies (the daemon's workspace themes too)
   return autoLocked(ctx, () async {
     final previous = Looks(ctx).set(slug, look);
-    final done = ctx.current.slug == slug ? await applyLook(ctx, theme) : <String>[];
-    return {'done': true, 'previous': previous, 'look': look, 'applied': done};
+    final done = apply && ctx.current.slug == slug ? await applyLook(ctx, theme) : <String>[];
+    return {'done': true, 'previous': previous, 'look': look, 'applied': done, 'pending': await lookPending(ctx, theme)};
   });
 }
 

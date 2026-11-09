@@ -16,5 +16,8 @@ Map<String, Handler> customRoutes(Ctx ctx) => {
   'looks.get': (p) async => lookData(ctx, str(p, 'slug')),
   /// {slug, look, restore?}: replaces the look ({} removes it); the theme in
   /// use gets it at once. restore (Undo) may put back a font no longer installed.
-  'looks.set': (p) async => setLook(ctx, str(p, 'slug'), p['look'], restore: p['restore'] == true),
+  /// apply: false only stores it (the theme in use then has a pending change, see `pending`).
+  'looks.set': (p) async => setLook(ctx, str(p, 'slug'), p['look'], restore: p['restore'] == true, apply: p['apply'] != false),
+  /// {slug}: the theme in use gets its stored look now (Reapply).
+  'looks.apply': (p) async => reapplyLook(ctx, str(p, 'slug')),
 };

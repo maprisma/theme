@@ -219,6 +219,37 @@ void main() {
     expect(env.desktop.blur, {'on': true, 'strength': 4, 'other': 1});
   });
 
+  test('saved but not applied: pending for the theme in use; looks.apply clears it', () async {
+    await env.desktop.setMonospaceFont('JetBrains Mono');
+    await call('themes.apply', {'slug': 'nord'});
+    Map<String, dynamic> nord(Map<String, dynamic> list) =>
+        (list['themes'] as List).cast<Map<String, dynamic>>().firstWhere((t) => t['slug'] == 'nord');
+    expect(nord(await call('themes.list'))['pending'], isEmpty);
+
+    final r = await call('looks.set', {'slug': 'nord', 'look': {'mono_font': 'Fira Code', 'blur': {'on': true, 'strength': 5}}, 'apply': false});
+    expect(r['applied'], isEmpty);
+    expect(r['pending'], ['mono_font', 'blur']);
+    expect(env.desktop.monospaceFont(), 'JetBrains Mono');
+    expect(nord(await call('themes.list'))['pending'], ['mono_font', 'blur']);
+    expect((await call('looks.get', {'slug': 'nord'}))['pending'], ['mono_font', 'blur']);
+
+    final a = await call('looks.apply', {'slug': 'nord'});
+    expect(a['applied'], ['mono_font', 'blur']);
+    expect(env.desktop.monospaceFont(), 'Fira Code');
+    expect(nord(await call('themes.list'))['pending'], isEmpty);
+
+    // the look removed without applying: the user's own font is still to come back
+    await call('looks.set', {'slug': 'nord', 'look': {}, 'apply': false});
+    expect(nord(await call('themes.list'))['pending'], ['mono_font', 'blur']);
+    await call('looks.apply', {'slug': 'nord'});
+    expect(env.desktop.monospaceFont(), 'JetBrains Mono');
+    expect(nord(await call('themes.list'))['pending'], isEmpty);
+
+    // only the theme in use can be reapplied; other themes never have anything pending
+    await expectLater(call('looks.apply', {'slug': 'mine'}), throwsA(isA<RouteError>()));
+    expect((await call('looks.get', {'slug': 'mine'}))['pending'], isEmpty);
+  });
+
   test('backups carry looks.json and refuse bad ones', () async {
     await call('looks.set', {'slug': 'nord', 'look': {'mono_font': 'Fira Code', 'blur': {'on': true, 'strength': 4}}});
     final file = '${env.root.path}/backup.json';

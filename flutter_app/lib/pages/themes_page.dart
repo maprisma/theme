@@ -130,6 +130,21 @@ class _ThemesPageState extends State<ThemesPage> {
     app.changed();
   }
 
+  /// The theme in use gets its stored fonts and blur now.
+  Future<void> reapply(Map t) async {
+    final r = await app.run('looks.apply', {'slug': t['slug']});
+    if (r == null) return;
+    app.notify('Reapplied: ${t['name']}');
+    app.changed();
+  }
+
+  static String _lookField(Object? key) => switch (key) {
+    'mono_font' => 'monospace font',
+    'ui_font' => 'interface font',
+    'blur' => 'blur',
+    _ => '$key',
+  };
+
   Future<void> setFavorite(Map t, bool on) async {
     await app.run('themes.favorite', {'slug': t['slug'], 'favorite': on});
     app.changed();
@@ -229,9 +244,10 @@ class _ThemesPageState extends State<ThemesPage> {
     return [
       if (current) ...[
         item(Icons.check, 'Current theme', () {}, enabled: false),
-        // after Font & effects, or when something else changed the desktop's look
-        item(Icons.refresh, 'Reapply theme', () => apply(t),
-            tooltip: 'Applies this theme again: colors, wallpaper, fonts and blur as set now'),
+        // only while its fonts or blur aren't on the desktop (saved in Font & effects, or changed elsewhere)
+        if ((t['pending'] as List?)?.isNotEmpty == true)
+          item(Icons.refresh, 'Reapply', () => reapply(t),
+              tooltip: 'Not on the desktop yet: ${(t['pending'] as List).map(_lookField).join(', ')}'),
       ] else
         item(Icons.play_arrow, 'Apply theme', () => apply(t)),
       item(Icons.image_outlined, 'Wallpapers', () => open(WallpapersPage(slug: slug)), end: Icons.chevron_right),

@@ -4,6 +4,7 @@ import 'colors.dart';
 import 'context.dart';
 import 'images.dart';
 import 'themes.dart';
+import 'looks.dart';
 
 const maxFavorites = 50;
 
@@ -53,10 +54,16 @@ Map<String, Handler> themeRoutes(Ctx ctx) => {
     final favorites = ctx.lists.favorites, recent = ctx.lists.recent, hidden = ctx.lists.hidden;
     final current = ctx.current.slug;
     final ordered = orderThemes(ctx.themes(), favorites, recent, s['sort'] as String);
+    // the theme in use: which of its fonts and blur aren't on the desktop now (Reapply)
+    final inUse = ordered.where((t) => t.slug == current).firstOrNull;
+    final pending = inUse == null ? const <String>[] : await lookPending(ctx, inUse);
     return {
       'themes': [
         for (final t in ordered)
-          themeJson(ctx, t, current: current, hidden: hidden, favorites: favorites, recent: recent),
+          {
+            ...themeJson(ctx, t, current: current, hidden: hidden, favorites: favorites, recent: recent),
+            if (t.slug == current) 'pending': pending,
+          },
       ],
       'current': current,
       'show_hidden': s['show_hidden'],

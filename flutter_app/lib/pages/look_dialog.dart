@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -5,7 +7,9 @@ import '../app.dart';
 
 /// Font & effects for any theme (docs/theme-looks.md): the monospace font,
 /// the interface font and blur, each "Theme default" or a value of its own.
-/// Saved in looks.json; the theme in use gets it at once, with Undo.
+/// Saved in looks.json, with Undo. For the theme in use, Save only stores it
+/// (a change is then pending) and Reapply stores and applies it; Reapply is
+/// enabled only while something is pending.
 Future<void> lookDialog(BuildContext context, MaprismaThemeAppState app, String slug) async {
   final data = await app.run('looks.get', {'slug': slug});
   if (data == null || !context.mounted) return;
@@ -18,17 +22,29 @@ Future<void> lookDialog(BuildContext context, MaprismaThemeAppState app, String 
       data: data,
       caps: caps,
       look: look,
-      save: (result) => app.run('looks.set', {'slug': slug, 'look': result}),
+      save: (result, apply) => result == null
+          ? app.run('looks.apply', {'slug': slug})
+          : app.run('looks.set', {'slug': slug, 'look': result, 'apply': apply}),
     ),
   );
   if (r == null || !context.mounted) return;
   final previous = r['previous'];
   final name = data['name'] ?? slug;
+  final applied = r.containsKey('applied') && r['reapply'] == true;
+  final pending = (r['pending'] as List?)?.isNotEmpty == true;
   app.notify(
-    data['in_use'] == true ? 'Font & effects applied' : 'Font & effects saved for $name',
-    // Undo puts the look back as it was, also a font no longer installed
-    undo: previous is Map ? () => app.run('looks.set', {'slug': slug, 'look': previous, 'restore': true}) : null,
+    applied
+        ? 'Font & effects reapplied'
+        : data['in_use'] == true && pending
+        ? 'Font & effects saved: Reapply to use them now'
+        : 'Font & effects saved for $name',
+    // Undo puts the look back as it was, also a font no longer installed (applied again only
+    // when the change was applied)
+    undo: previous is Map
+        ? () => app.run('looks.set', {'slug': slug, 'look': previous, 'restore': true, 'apply': applied})
+        : null,
   );
+  app.changed(); // the menu's Reapply follows what is pending
 }
 
 class _LookDialog extends StatefulWidget {
@@ -37,8 +53,9 @@ class _LookDialog extends StatefulWidget {
   final Set<String> caps;
   final Map<String, dynamic> look;
 
-  /// looks.set; null when it failed (the app has said why).
-  final Future<Map<String, dynamic>?> Function(Map<String, dynamic> look) save;
+  /// looks.set (apply: whether the theme in use gets it now), or looks.apply
+  /// when [look] is null; null when it failed (the app has said why).
+  final Future<Map<String, dynamic>?> Function(Map<String, dynamic>? look, bool apply) save;
 
   @override
   State<_LookDialog> createState() => _LookDialogState();
@@ -84,18 +101,33 @@ class _LookDialogState extends State<_LookDialog> {
     return false;
   }
 
-  Future<void> _submit() async {
+  Map<String, dynamic> get _edited => {
+    if (mono != null) 'mono_font': mono,
+    if (ui != null) 'ui_font': ui,
+    if (blur != null) 'blur': blur,
+  };
+
+  /// A field differs from the stored look.
+  bool get _changed {
+    final now = _edited, then = widget.look;
+    final keys = {...now.keys, ...then.keys};
+    return keys.any((k) => jsonEncode(now[k]) != jsonEncode(then[k]));
+  }
+
+  bool get _inUse => widget.data['in_use'] == true;
+
+  /// Reapply: a change in the dialog, or a stored look not on the desktop yet.
+  bool get _canReapply => _inUse && (_changed || (widget.data['pending'] as List?)?.isNotEmpty == true);
+
+  /// [apply]: Reapply (store if changed, then apply); else Save (store only).
+  Future<void> _submit({required bool apply}) async {
     setState(() => saving = true);
-    final r = await widget.save({
-      if (mono != null) 'mono_font': mono,
-      if (ui != null) 'ui_font': ui,
-      if (blur != null) 'blur': blur,
-    });
+    final r = await widget.save(_changed ? _edited : null, apply);
     if (!mounted) return;
     if (r == null) {
       setState(() => saving = false); // the edits stay for another try
     } else {
-      Navigator.of(context).pop(r);
+      Navigator.of(context).pop({...r, 'reapply': apply});
     }
   }
 
@@ -233,11 +265,17 @@ class _LookDialogState extends State<_LookDialog> {
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        if (_inUse)
+          OutlinedButton(
+            key: const ValueKey('look-save'),
+            onPressed: widget.caps.isEmpty || saving || !_changed ? null : () => _submit(apply: false),
+            child: const Text('Save'),
+          ),
         FilledButton(
-          key: const ValueKey('look-save'),
+          key: ValueKey(_inUse ? 'look-reapply' : 'look-save'),
           focusNode: _saveFocus,
-          onPressed: widget.caps.isEmpty || saving ? null : _submit,
-          child: Text(widget.data['in_use'] == true ? 'Apply' : 'Save'),
+          onPressed: widget.caps.isEmpty || saving || !(_inUse ? _canReapply : _changed) ? null : () => _submit(apply: _inUse),
+          child: Text(_inUse ? 'Reapply' : 'Save'),
         ),
       ],
     );
