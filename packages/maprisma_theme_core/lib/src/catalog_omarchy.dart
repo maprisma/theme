@@ -208,8 +208,12 @@ Future<String> installOmarchyTheme(Ctx ctx, OmarchyTheme theme) async {
     'GIT_CONFIG_NOSYSTEM': '1',
     'GIT_PROTOCOL_FROM_USER': '0',
   };
+  // Its own process group (setsid execs git, so pid = group): a stopped clone
+  // takes its transport and checkout helpers with it.
+  final setsid = which('setsid', ctx.environment);
   final (code, _) = await runBounded(
     [
+      ?setsid,
       git,
       '-c',
       'core.hooksPath=/dev/null',
@@ -234,34 +238,32 @@ Future<String> installOmarchyTheme(Ctx ctx, OmarchyTheme theme) async {
     timeout: cloneTimeout,
     environment: env,
     stopWhen: () => treeTooLarge(tmp),
+    group: setsid != null,
   );
-  void cleanup() {
-    final d = Directory(tmp);
+  // A separate, time-limited `rm -rf` (no link followed): a huge tree never
+  // holds up the core; what is left stays hidden (dot name) for the user.
+  Future<void> cleanup() async {
     if (FileSystemEntity.typeSync(tmp, followLinks: false) == FileSystemEntityType.directory) {
-      try {
-        d.deleteSync(recursive: true);
-      } on FileSystemException {
-        // left for the user; hidden (dot name)
-      }
+      await runBounded(['rm', '-rf', '--', tmp], timeout: const Duration(seconds: 30));
     }
   }
 
   if (code != 0) {
-    cleanup();
+    await cleanup();
     throw RouteError('clone_failed', 'git clone failed or the theme is too large (over 512 MiB or 20000 files): ${theme.repo}');
   }
   if (await treeTooLarge(tmp)) {
-    cleanup();
+    await cleanup();
     throw RouteError('too_large', 'the theme is too large (over 512 MiB or 20000 files): ${theme.repo}');
   }
   if (FileSystemEntity.typeSync(dest, followLinks: false) != FileSystemEntityType.notFound) {
-    cleanup();
+    await cleanup();
     throw RouteError('exists', 'a theme named “$slug” is already installed');
   }
   try {
     Directory(tmp).renameSync(dest);
   } on FileSystemException {
-    cleanup();
+    await cleanup();
     throw RouteError('install_failed', 'could not move the theme into place');
   }
   return dest;

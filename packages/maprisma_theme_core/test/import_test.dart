@@ -222,6 +222,25 @@ void main() {
       expect(Directory(env.paths.userThemes).listSync(), isEmpty);
     });
 
+    test('a stopped clone takes its child processes with it (Codex round 6, 2026-11-09)', () async {
+      net.answer = (r) => reply(200, utf8.encode(fixture('omarchy-themes.html')));
+      final bin = Directory('${env.root.path}/bin')..createSync();
+      env.core.ctx.environment['PATH'] = '${bin.path}:/usr/bin:/bin';
+      final marker = '${env.root.path}/child-still-ran';
+      File('${bin.path}/git')
+        ..writeAsStringSync(
+          '#!/bin/sh\nfor last; do :; done\nmkdir -p "\$last"\n'
+          '(sleep 2; touch "$marker") &\n'
+          'truncate -s 600M "\$last/huge"\nsleep 30\n',
+        )
+        ..createSync();
+      Process.runSync('chmod', ['+x', '${bin.path}/git']);
+      await expectLater(call('import.omarchy_install', {'name': '909'}), throwsA(isA<RouteError>()));
+      await Future<void>.delayed(const Duration(seconds: 3));
+      expect(File(marker).existsSync(), isFalse); // the whole group was ended
+      expect(Directory(env.paths.userThemes).listSync(), isEmpty);
+    });
+
     test('a clone with more than 20000 files is refused (Codex round 2, 2026-11-09)', () async {
       net.answer = (r) => reply(200, utf8.encode(fixture('omarchy-themes.html')));
       final bin = Directory('${env.root.path}/bin')..createSync();

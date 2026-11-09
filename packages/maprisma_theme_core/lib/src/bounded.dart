@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ffi';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -77,13 +78,17 @@ Future<String?> readBoundedText(
 /// one deadline; the code is null when the command could not start, ran
 /// too long or said too much (then it is killed). [stopWhen], checked every
 /// half second while it runs, kills it too when it returns true (e.g. a
-/// clone whose folder grew too large).
+/// clone whose folder grew too large). [group]: the command starts its own
+/// process group (it is run under `setsid`), and every kill, and the end of
+/// a normal run, ends the whole group, so no child (git's transport or
+/// checkout helpers) outlives it.
 Future<(int?, String)> runBounded(
   List<String> command, {
   int maxBytes = 64 * 1024,
   Duration timeout = const Duration(seconds: 1),
   Map<String, String>? environment,
   Future<bool> Function()? stopWhen,
+  bool group = false,
 }) async {
   Process process;
   try {
@@ -97,13 +102,17 @@ Future<(int?, String)> runBounded(
     return (null, '');
   }
   process.stdin.close().ignore();
+  void killAll() {
+    if (!group || _killPid(-process.pid, 9) != 0) process.kill(ProcessSignal.sigkill);
+  }
+
   final out = BytesBuilder(copy: false);
   var tooMuch = false;
   void take(List<int> chunk) {
     if (tooMuch) return;
     if (out.length + chunk.length > maxBytes) {
       tooMuch = true;
-      process.kill(ProcessSignal.sigkill);
+      killAll();
       return;
     }
     out.add(chunk);
@@ -119,7 +128,7 @@ Future<(int?, String)> runBounded(
           try {
             if (await stopWhen()) {
               tooMuch = true;
-              process.kill(ProcessSignal.sigkill);
+              killAll();
             }
           } finally {
             checking = false;
@@ -128,12 +137,15 @@ Future<(int?, String)> runBounded(
   try {
     final code = await process.exitCode.timeout(timeout);
     watch?.cancel();
+    if (group) _killPid(-process.pid, 9); // leftovers of its group (none: ESRCH, harmless)
     // killed: a child (git's transport helper) may still hold the pipes open; don't wait for it
     await Future.wait(streams).timeout(tooMuch ? const Duration(seconds: 1) : timeout, onTimeout: () => const []);
     return (tooMuch ? null : code, utf8.decode(out.takeBytes(), allowMalformed: true));
   } on TimeoutException {
     watch?.cancel();
-    process.kill(ProcessSignal.sigkill);
+    killAll();
     return (null, utf8.decode(out.takeBytes(), allowMalformed: true));
   }
 }
+
+final _killPid = DynamicLibrary.open('libc.so.6').lookupFunction<Int Function(Int, Int), int Function(int, int)>('kill');
