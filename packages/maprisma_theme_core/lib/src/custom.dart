@@ -8,6 +8,7 @@ import 'auto.dart' show renameThemeState;
 import 'colors.dart';
 import 'context.dart';
 import 'extract.dart';
+import 'looks.dart' show checkLook;
 import 'posix.dart';
 import 'preview_draw.dart';
 import 'store.dart';
@@ -41,8 +42,12 @@ const defaultThemeName = 'New Custom Theme';
 const mainKeys = ['background', 'foreground', 'accent', 'selection', 'muted'];
 const paletteKeys = ['red', 'yellow', 'orange', 'green', 'cyan', 'blue', 'magenta', 'brown'];
 const shadeKeys = [
-  'dark_background', 'darker_background', 'lighter_background',
-  'dark_foreground', 'light_foreground', 'bright_foreground',
+  'dark_background',
+  'darker_background',
+  'lighter_background',
+  'dark_foreground',
+  'light_foreground',
+  'bright_foreground',
 ];
 const brightKeys = ['bright_red', 'bright_yellow', 'bright_green', 'bright_cyan', 'bright_blue', 'bright_magenta'];
 const knownKeys = [...mainKeys, ...shadeKeys, ...paletteKeys, ...brightKeys];
@@ -50,8 +55,18 @@ const knownKeys = [...mainKeys, ...shadeKeys, ...paletteKeys, ...brightKeys];
 /// The editor's groups: the terminal colors with their bright variants, and
 /// every other shade under "More colors" (the base's own plain colors last).
 const terminalKeys = [
-  'red', 'green', 'yellow', 'blue', 'magenta', 'cyan',
-  'bright_red', 'bright_green', 'bright_yellow', 'bright_blue', 'bright_magenta', 'bright_cyan',
+  'red',
+  'green',
+  'yellow',
+  'blue',
+  'magenta',
+  'cyan',
+  'bright_red',
+  'bright_green',
+  'bright_yellow',
+  'bright_blue',
+  'bright_magenta',
+  'bright_cyan',
 ];
 const moreKeys = ['orange', 'brown', ...shadeKeys];
 
@@ -59,16 +74,33 @@ const moreKeys = ['orange', 'brown', ...shadeKeys];
 const baseColorKeys = [...mainKeys, ...paletteKeys];
 
 const _labels = {
-  'background': 'Background', 'foreground': 'Text', 'accent': 'Accent', 'selection': 'Selection',
-  'muted': 'Muted text', 'dark_background': 'Background, darker', 'darker_background': 'Background, darkest',
-  'lighter_background': 'Background, lighter', 'dark_foreground': 'Text, dim', 'light_foreground': 'Text, soft',
+  'background': 'Background',
+  'foreground': 'Text',
+  'accent': 'Accent',
+  'selection': 'Selection',
+  'muted': 'Muted text',
+  'dark_background': 'Background, darker',
+  'darker_background': 'Background, darkest',
+  'lighter_background': 'Background, lighter',
+  'dark_foreground': 'Text, dim',
+  'light_foreground': 'Text, soft',
   'bright_foreground': 'Text, bright',
 };
 
 const defaultColors = {
-  'background': '#1e1e2e', 'foreground': '#cdd6f4', 'accent': '#89b4fa', 'selection': '#45475a',
-  'muted': '#6c7086', 'red': '#f38ba8', 'yellow': '#f9e2af', 'orange': '#fab387', 'green': '#a6e3a1',
-  'cyan': '#94e2d5', 'blue': '#89b4fa', 'magenta': '#cba6f7', 'brown': '#7d5d3b',
+  'background': '#1e1e2e',
+  'foreground': '#cdd6f4',
+  'accent': '#89b4fa',
+  'selection': '#45475a',
+  'muted': '#6c7086',
+  'red': '#f38ba8',
+  'yellow': '#f9e2af',
+  'orange': '#fab387',
+  'green': '#a6e3a1',
+  'cyan': '#94e2d5',
+  'blue': '#89b4fa',
+  'magenta': '#cba6f7',
+  'brown': '#7d5d3b',
 };
 
 String colorLabel(String key) {
@@ -115,7 +147,10 @@ final class Palette {
   final Map<String, String> colors;
   final Map<String, String> extras;
 
-  List<String> get editableExtras => [for (final e in extras.entries) if (_hexRe.hasMatch(e.value)) e.key];
+  List<String> get editableExtras => [
+    for (final e in extras.entries)
+      if (_hexRe.hasMatch(e.value)) e.key,
+  ];
 
   String get mode => isDarkBackground(colors['background']!) ? 'dark' : 'light';
 
@@ -196,7 +231,10 @@ Palette parsePalette(String text) {
 
 Palette paletteFromColors(Map<String, String> colors) {
   final p = parsePalette('');
-  p.take({for (final e in colors.entries) if (knownKeys.contains(e.key) && isHex(e.value)) e.key: e.value});
+  p.take({
+    for (final e in colors.entries)
+      if (knownKeys.contains(e.key) && isHex(e.value)) e.key: e.value,
+  });
   return p;
 }
 
@@ -220,8 +258,11 @@ String renderColors(Palette palette, String name, String base) {
   }
   final extras = [
     for (final e in palette.extras.entries)
-      if (_extraKeyRe.hasMatch(e.key) && e.key != 'mode' && !knownKeys.contains(e.key) &&
-          e.value.length <= 200 && _extraValueRe.hasMatch(e.value))
+      if (_extraKeyRe.hasMatch(e.key) &&
+          e.key != 'mode' &&
+          !knownKeys.contains(e.key) &&
+          e.value.length <= 200 &&
+          _extraValueRe.hasMatch(e.value))
         e,
   ];
   if (extras.isNotEmpty) {
@@ -264,9 +305,10 @@ String slugFor(String name) {
 }
 
 final _meaningless = RegExp(
-    r'^(wallhaven|img|dsc|dscn|pxl|photo|image|screenshot|pasted|dropped|wallpaper|'
-    r'download|unsplash|pexels|bg|background)$',
-    caseSensitive: false);
+  r'^(wallhaven|img|dsc|dscn|pxl|photo|image|screenshot|pasted|dropped|wallpaper|'
+  r'download|unsplash|pexels|bg|background)$',
+  caseSensitive: false,
+);
 
 /// `2-coffee-beans.jpg` -> `Coffee Beans`; null when the file name says
 /// nothing (`wallhaven-xlqrwv.jpg`, `IMG_0937.HEIC`, `pasted-image.png`).
@@ -278,9 +320,7 @@ String? nameFromFile(String fileName) {
   final words = stem.split(RegExp(r'[^A-Za-z0-9]+')).where((w) => w.isNotEmpty).toList();
   final real = [
     for (final w in words)
-      if (RegExp(r'^[A-Za-z]{3,}$').hasMatch(w) && RegExp('[aeiouy]', caseSensitive: false).hasMatch(w) &&
-          !_meaningless.hasMatch(w))
-        w,
+      if (RegExp(r'^[A-Za-z]{3,}$').hasMatch(w) && RegExp('[aeiouy]', caseSensitive: false).hasMatch(w) && !_meaningless.hasMatch(w)) w,
   ];
   if (real.isEmpty || real.length < words.length / 2) return null;
   var name = real.map((w) => w[0].toUpperCase() + w.substring(1).toLowerCase()).join(' ');
@@ -335,14 +375,27 @@ String? fontOf(ThemeInfo theme) {
   return f is String && fontRe.hasMatch(f) ? f : null;
 }
 
+/// The blur a theme made here brings ({on, strength}), if any.
+Map<String, dynamic>? blurOf(ThemeInfo theme) => _blurOrNull(markerOf(theme)?['blur']);
+
+Map<String, dynamic>? _blurOrNull(Object? v) => checkLook({'blur': v})?['blur'] as Map<String, dynamic>?;
+
+/// A blur given to a save: null (none) or {on: bool, strength: 1..15}.
+Map<String, dynamic>? _checkBlur(Object? v) {
+  if (v == null) return null;
+  return _blurOrNull(v) ?? (throw RouteError('bad_blur', 'blur: {on, strength 1..15}'));
+}
+
 // --- file system --------------------------------------------------------------------
 
 final _libc = DynamicLibrary.open('libc.so.6');
 final _mkdir = _libc.lookupFunction<Int Function(Pointer<Utf8>, Uint32), int Function(Pointer<Utf8>, int)>('mkdir');
 final int Function(int, Pointer<Utf8>, int, Pointer<Utf8>, int)? _renameat2 = () {
   try {
-    return _libc.lookupFunction<Int Function(Int, Pointer<Utf8>, Int, Pointer<Utf8>, Uint32),
-        int Function(int, Pointer<Utf8>, int, Pointer<Utf8>, int)>('renameat2');
+    return _libc.lookupFunction<
+      Int Function(Int, Pointer<Utf8>, Int, Pointer<Utf8>, Uint32),
+      int Function(int, Pointer<Utf8>, int, Pointer<Utf8>, int)
+    >('renameat2');
   } on ArgumentError {
     return null;
   }
@@ -429,8 +482,8 @@ void _copyIcons(ThemeInfo base, String dir) {
 /// Where a theme came from (cosmic-themes.org imports): kept on every save.
 const _importKeys = ['source', 'id', 'author', 'homepage'];
 
-void _writeMarker(String dir, String base, String? font, num created, [Map<String, dynamic> keep = const {}]) =>
-    writeJson('$dir/$markerName', {...keep, 'base': base, 'font': font, 'created': created}, mode: 420);
+void _writeMarker(String dir, String base, String? font, num created, [Map<String, dynamic> keep = const {}, Map<String, dynamic>? blur]) =>
+    writeJson('$dir/$markerName', {...keep, 'base': base, 'font': font, 'created': created, 'blur': ?blur}, mode: 420);
 
 /// An edited theme's colors are colors.toml's from now on: its cosmic.ron
 /// (a cosmic-themes.org import) is kept as cosmic.ron.orig, so applying it
@@ -488,10 +541,12 @@ Future<String> createThemeFolder(
   List<String> wallpapers = const [],
   String? cosmicRon,
   bool copyBaseWallpapers = false,
+  Map<String, dynamic>? blur,
 }) async {
   final slug = slugFor(name);
   if (!slugRe.hasMatch(slug)) throw RouteError('bad_name', 'give the theme a name (letters or digits)');
   font = _checkFont(font);
+  blur = _checkBlur(blur);
   if (cosmicRon != null && cosmicRon.length > maxRonBytes) throw RouteError('too_large', 'cosmic.ron is too large');
   final base = baseSlug == null ? null : findTheme(ctx.paths, baseSlug);
   if (baseSlug != null && base == null) throw RouteError('not_found', 'no theme $baseSlug');
@@ -515,7 +570,7 @@ Future<String> createThemeFolder(
     }
     if (copyBaseWallpapers && base != null) _copyWallpapers(ctx, base, dir, maxWallpapers - copied);
     if (cosmicRon != null) writeText('$dir/cosmic.ron', cosmicRon, mode: 420);
-    _writeMarker(dir, base?.slug ?? '', font, ctx.clock().millisecondsSinceEpoch / 1000);
+    _writeMarker(dir, base?.slug ?? '', font, ctx.clock().millisecondsSinceEpoch / 1000, const {}, blur);
     await makePreview(ctx, dir, palette, wallpaper: firstOwn);
   } catch (_) {
     try {
@@ -534,21 +589,23 @@ ThemeInfo _editable(Ctx ctx, String slug) {
   return theme;
 }
 
-/// New colors and font for a custom theme.
-Future<void> updateTheme(Ctx ctx, ThemeInfo theme, Palette palette, String? font) async {
+/// New colors, font and blur for a custom theme.
+Future<void> updateTheme(Ctx ctx, ThemeInfo theme, Palette palette, String? font, {Map<String, dynamic>? blur}) async {
   final marker = markerOf(theme);
   if (marker == null || theme.fromGit) {
     throw RouteError('not_custom', 'only themes made with Maprisma Theme can be edited here');
   }
   font = _checkFont(font);
+  blur = _checkBlur(blur);
   final base = marker['base'] is String ? marker['base'] as String : '';
   final baseLabel = base.isEmpty ? 'scratch' : displayName(base);
   writeText('${theme.dir}/colors.toml', renderColors(palette, theme.name, baseLabel), mode: 420);
   final created = marker['created'] is num ? marker['created'] as num : ctx.clock().millisecondsSinceEpoch / 1000;
   _setRonAside(theme.dir);
   _writeMarker(theme.dir, base, font, created, {
-    for (final k in _importKeys) if (marker[k] != null) k: marker[k],
-  });
+    for (final k in _importKeys)
+      if (marker[k] != null) k: marker[k],
+  }, blur);
   await makePreview(ctx, theme.dir, palette);
 }
 
@@ -609,7 +666,10 @@ void _renameLists(Ctx ctx, String old, String slug) {
 /// (a shade the theme set itself: it stays when a main color changes).
 List<String> ownShades(Palette palette) {
   final d = derivedColors(palette.colors);
-  return [for (final e in d.entries) if (palette.colors[e.key] != e.value) e.key];
+  return [
+    for (final e in d.entries)
+      if (palette.colors[e.key] != e.value) e.key,
+  ];
 }
 
 String? _checkedPicture(String? path) {
@@ -639,6 +699,7 @@ Future<Map<String, dynamic>> editorData(Ctx ctx, {String? base, String? edit, St
   Palette palette;
   String name, title;
   String? font;
+  Map<String, dynamic>? blur;
   var copy = true;
   if (edit != null) {
     theme = _editable(ctx, edit);
@@ -646,6 +707,7 @@ Future<Map<String, dynamic>> editorData(Ctx ctx, {String? base, String? edit, St
     name = theme.name;
     title = 'Edit ${theme.name}';
     font = fontOf(theme);
+    blur = blurOf(theme);
     copy = false;
   } else {
     theme = base != null ? ctx.theme(base) : _defaultBase(ctx);
@@ -677,6 +739,7 @@ Future<Map<String, dynamic>> editorData(Ctx ctx, {String? base, String? edit, St
     },
     'own_shades': edit != null ? ownShades(palette) : <String>[],
     'font': font,
+    'blur': blur,
     'fonts': fonts,
     'system_font': systemFont,
     'base': edit != null ? (markerOf(theme)?['base'] as String? ?? '') : theme.slug,
@@ -704,11 +767,7 @@ Future<Map<String, String>> _colorsFromPicture(String path) async {
 Future<Map<String, dynamic>> fromWallpaper(Ctx ctx, String path) async {
   if (!path.startsWith('/')) throw RouteError('bad_params', 'path');
   final palette = paletteFromColors(await _colorsFromPicture(path));
-  return {
-    'colors': palette.editable,
-    'mode': palette.mode,
-    'name': uniqueName(ctx, nameFromFile(baseName(path)) ?? defaultThemeName),
-  };
+  return {'colors': palette.editable, 'mode': palette.mode, 'name': uniqueName(ctx, nameFromFile(baseName(path)) ?? defaultThemeName)};
 }
 
 Map<String, String> _colorsParam(Map<String, dynamic> p) {
@@ -729,6 +788,7 @@ Future<Map<String, dynamic>> saveCustom(Ctx ctx, Map<String, dynamic> p) async {
   final name = str(p, 'name');
   final colors = _colorsParam(p);
   final font = _checkFont(optStr(p, 'font'));
+  final blur = _checkBlur(p['blur']);
   final edit = optStr(p, 'edit');
   final wantApply = boolParam(p, 'apply', fallback: false);
   String slug;
@@ -740,7 +800,7 @@ Future<Map<String, dynamic>> saveCustom(Ctx ctx, Map<String, dynamic> p) async {
     final palette = (await loadPalette(ctx, theme)).copy()..take(colors);
     slug = renameTheme(ctx, theme, name);
     theme = ctx.theme(slug);
-    await updateTheme(ctx, theme, palette, font);
+    await updateTheme(ctx, theme, palette, font, blur: blur);
     reapply = reapply || wasCurrent;
   } else {
     final wallpaper = optStr(p, 'wallpaper');
@@ -753,6 +813,7 @@ Future<Map<String, dynamic>> saveCustom(Ctx ctx, Map<String, dynamic> p) async {
       baseSlug: optStr(p, 'base'),
       wallpapers: [?wallpaper],
       copyBaseWallpapers: boolParam(p, 'copy_wallpapers', fallback: wallpaper == null),
+      blur: blur,
     );
   }
   final out = <String, dynamic>{'slug': slug, 'name': displayName(slug), 'applied': false};

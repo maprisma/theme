@@ -40,9 +40,13 @@ void main() {
         'summary': 'A deep blue look',
         'candidates': [
           {
-            'kind': 'new', 'base': 'nord', 'name': 'Deep Sea',
+            'kind': 'new',
+            'base': 'nord',
+            'name': 'Deep Sea',
             'palette': {'accent': '#3366FF', 'red': '#ff0000'},
-            'font': 'Fira Code', 'wallpaper_query': 'ocean waves at night', 'reason': 'Calm',
+            'font': 'Fira Code',
+            'wallpaper_query': 'ocean waves at night',
+            'reason': 'Calm',
           },
         ],
       });
@@ -72,7 +76,12 @@ void main() {
       expect(cleanQuery('  husky   in snow '), 'husky in snow');
       final (_, c) = _check({
         'candidates': [
-          {'kind': 'edit', 'base': 'nord', 'palette': {'accent': '#aa5500'}, 'wallpaper_query': 'http://evil.example/x.jpg'},
+          {
+            'kind': 'edit',
+            'base': 'nord',
+            'palette': {'accent': '#aa5500'},
+            'wallpaper_query': 'http://evil.example/x.jpg',
+          },
         ],
       });
       expect(c.single['wallpaper_query'], isNull);
@@ -82,7 +91,8 @@ void main() {
       final (_, c) = _check({
         'candidates': [
           {
-            'kind': 'edit', 'base': 'nord',
+            'kind': 'edit',
+            'base': 'nord',
             'palette': {'accent': 'red', 'evil_key': '#123456', 'selection': '#12345', 'muted': '#556677', 'cursor': '#ffffff'},
           },
         ],
@@ -98,7 +108,11 @@ void main() {
     test('keeps text readable', () {
       final (_, c) = _check({
         'candidates': [
-          {'kind': 'edit', 'base': 'nord', 'palette': {'background': '#202020', 'foreground': '#222222', 'accent': '#212121'}},
+          {
+            'kind': 'edit',
+            'base': 'nord',
+            'palette': {'background': '#202020', 'foreground': '#222222', 'accent': '#212121'},
+          },
         ],
       });
       final colors = (c.single['colors'] as Map).cast<String, String>();
@@ -110,11 +124,20 @@ void main() {
     test('refuses unknown themes, catalog entries and fonts', () {
       final (_, c) = _check({
         'candidates': [
-          {'kind': 'edit', 'base': 'no-such-theme', 'palette': {'accent': '#ff0000'}},
+          {
+            'kind': 'edit',
+            'base': 'no-such-theme',
+            'palette': {'accent': '#ff0000'},
+          },
           {'kind': 'catalog', 'catalog_slug': 'not-in-catalog'},
           {'kind': 'installed', 'base': '../../etc'},
           {'kind': 'delete', 'base': 'nord'},
-          {'kind': 'edit', 'base': 'my-blue', 'font': 'Comic Sans; rm -rf /', 'palette': {'red': '#ff0000'}},
+          {
+            'kind': 'edit',
+            'base': 'my-blue',
+            'font': 'Comic Sans; rm -rf /',
+            'palette': {'red': '#ff0000'},
+          },
           {'kind': 'edit', 'base': 'nord', 'font': 'Not Installed Mono'},
         ],
       });
@@ -134,8 +157,16 @@ void main() {
           {'kind': 'catalog', 'catalog_slug': 'kanagawa-paper', 'reason': 'warm'},
           {'kind': 'catalog', 'catalog_slug': 'kanagawa-paper'},
           {'kind': 'installed', 'base': 'nord'},
-          {'kind': 'new', 'name': 'Anything', 'palette': {'accent': '#ff8800'}},
-          {'kind': 'edit', 'base': 'my-blue', 'palette': {'accent': '#00ff00'}},
+          {
+            'kind': 'new',
+            'name': 'Anything',
+            'palette': {'accent': '#ff8800'},
+          },
+          {
+            'kind': 'edit',
+            'base': 'my-blue',
+            'palette': {'accent': '#00ff00'},
+          },
         ],
       });
       expect(c.map((x) => x['kind']), ['catalog', 'installed', 'custom']);
@@ -143,19 +174,86 @@ void main() {
       expect(c[2]['theme'], 'nord'); // a new theme without a base builds on the current one
     });
 
+    test('blur is checked, kept on a refine and sent back (a frosted-glass ask, 2026-11-09)', () {
+      final (_, c) = _check({
+        'candidates': [
+          {
+            'kind': 'new',
+            'name': 'Frost',
+            'blur': {'on': true, 'strength': 99},
+          },
+          {
+            'kind': 'new',
+            'name': 'Bad',
+            'blur': 'max',
+            'palette': {'red': '#110000'},
+          },
+          {
+            'kind': 'installed',
+            'base': 'my-blue',
+            'blur': {'on': true},
+          },
+        ],
+      });
+      expect(c[0]['blur'], {'on': true, 'strength': 15});
+      expect(c[1]['blur'], isNull);
+      expect((c[2]['kind'], c[2]['mode']), ('custom', 'edit')); // an installed theme with blur is an edit of it
+      expect(c[2]['blur'], {'on': true, 'strength': 8});
+      final (_, cat) = _check({
+        'candidates': [
+          {
+            'kind': 'catalog',
+            'catalog_slug': 'kanagawa-paper',
+            'blur': {'on': true, 'strength': 5},
+          },
+        ],
+      });
+      expect(cat.single['blur'], isNull); // a catalog theme comes as it is
+      expect(forRefine(c[0])['blur'], {'on': true, 'strength': 15});
+      final parent = checkParent({...c[0], 'colors': c[0]['colors']}, _themes, _catalog, _fonts)!;
+      expect(parent['blur'], {'on': true, 'strength': 15});
+      final (_, r) = _check({
+        'candidates': [
+          {
+            'kind': 'new',
+            'base': 'nord',
+            'palette': {'red': '#220000'},
+          },
+        ],
+      }, parent: parent);
+      expect(r.single['blur'], {'on': true, 'strength': 15}); // null keeps the card's blur
+      expect(buildPrompt('frosted', _themes, _catalog, _fonts), allOf(contains('"blur"'), contains('never mention the base')));
+    });
+
     test('a refine keeps the parent and its own wallpaper search', () {
-      final parent = checkParent({
-        'kind': 'custom', 'mode': 'new', 'theme': 'nord', 'name': 'Deep Sea', 'agent_name': 'Deep Sea',
-        'colors': {'accent': '#3366ff', 'bogus': '#000000'}, 'font': 'Fira Code',
-        'wallpaper_query': 'husky snow', 'query_by_user': true, 'wallpaper_id': 'abc123',
-      }, _themes, _catalog, _fonts)!;
+      final parent = checkParent(
+        {
+          'kind': 'custom',
+          'mode': 'new',
+          'theme': 'nord',
+          'name': 'Deep Sea',
+          'agent_name': 'Deep Sea',
+          'colors': {'accent': '#3366ff', 'bogus': '#000000'},
+          'font': 'Fira Code',
+          'wallpaper_query': 'husky snow',
+          'query_by_user': true,
+          'wallpaper_id': 'abc123',
+        },
+        _themes,
+        _catalog,
+        _fonts,
+      )!;
       expect((parent['colors'] as Map).containsKey('bogus'), isFalse);
       final sent = forRefine(parent);
       expect(sent['kind'], 'new');
       expect(sent['wallpaper_query_by_user'], isTrue);
       final (_, c) = _check({
         'candidates': [
-          {'kind': 'new', 'base': 'nord', 'palette': {'red': '#ee1111'}},
+          {
+            'kind': 'new',
+            'base': 'nord',
+            'palette': {'red': '#ee1111'},
+          },
         ],
       }, parent: parent);
       expect(c.single['colors']['accent'], '#3366ff');
@@ -213,9 +311,7 @@ void main() {
     });
     tearDown(() => root.deleteSync(recursive: true));
 
-    Map<String, Map> byId(Map<String, String> env) => {
-      for (final h in helperStates(home, env)) h['id'] as String: h,
-    };
+    Map<String, Map> byId(Map<String, String> env) => {for (final h in helperStates(home, env)) h['id'] as String: h};
 
     test('installed and signed-in by file existence or API key only', () {
       _exe('$bin/claude', 'exit 0');
@@ -329,10 +425,7 @@ sleep 30
       }
       _exe('$bin/claude', 'head -c 400000 /dev/zero');
       final runner = AskRunner(home: home, environment: {'PATH': '$bin:/usr/bin:/bin'});
-      await expectLater(
-        runner.run('claude', 'x'),
-        throwsA(isA<AskError>().having((e) => e.message, 'message', contains('too long'))),
-      );
+      await expectLater(runner.run('claude', 'x'), throwsA(isA<AskError>().having((e) => e.message, 'message', contains('too long'))));
     });
   });
 
@@ -347,11 +440,14 @@ sleep 30
       final r = await env.core.call('ask.helpers');
       expect([for (final h in r['helpers'] as List) h['id']], containsAll(['claude', 'codex', 'pi', 'hermes']));
       expect(r['enabled'], isFalse);
-      expect(catalogParam([
-        {'slug': 'ok-theme', 'name': 'OK'},
-        {'slug': '../x'},
-        'junk',
-      ]).map((c) => c.slug), ['ok-theme']);
+      expect(
+        catalogParam([
+          {'slug': 'ok-theme', 'name': 'OK'},
+          {'slug': '../x'},
+          'junk',
+        ]).map((c) => c.slug),
+        ['ok-theme'],
+      );
     });
   });
 }

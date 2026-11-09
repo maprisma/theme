@@ -2,8 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:maprisma_theme_core/maprisma_theme_core.dart'
-    show ServiceError, baseColorKeys, colorLabel, derivedColors, maxNameLength;
+import 'package:maprisma_theme_core/maprisma_theme_core.dart' show ServiceError, baseColorKeys, colorLabel, derivedColors, maxNameLength;
 
 import '../app.dart';
 import '../widgets.dart';
@@ -25,11 +24,25 @@ String _hexOf(Color c) => '#${(c.toARGB32() & 0xffffff).toRadixString(16).padLef
 /// values (Ask AI: `name`, `font`, and color keys as #rrggbb), on top of [base];
 /// [askWallpaper]: the picture on the Ask AI card (its cached thumbnail), shown
 /// behind the sample; the Ask page adds it to the saved theme, so the base's
-/// own wallpapers are only an extra then (off by default).
+/// own wallpapers are only an extra then (off by default). [initialBlur]: the
+/// card's blur ({on, strength}). [fromAsk]: a new theme from an Ask AI card —
+/// its base is internal, so the title is the card's name and nothing names the
+/// base (the card's picture, else the base's wallpapers, come without a row).
 class EditorPage extends StatefulWidget {
-  const EditorPage({super.key, this.base, this.edit, this.wallpaper, this.initial, this.askWallpaper});
+  const EditorPage({
+    super.key,
+    this.base,
+    this.edit,
+    this.wallpaper,
+    this.initial,
+    this.askWallpaper,
+    this.initialBlur,
+    this.fromAsk = false,
+  });
   final String? base, edit, wallpaper, askWallpaper;
   final Map<String, String>? initial;
+  final Map<String, dynamic>? initialBlur;
+  final bool fromAsk;
   @override
   State<EditorPage> createState() => _EditorPageState();
 }
@@ -48,6 +61,9 @@ class _EditorPageState extends State<EditorPage> {
   final nameFocus = FocusNode();
   List<String> fonts = [];
   String? font;
+
+  /// null: keep the blur in use; else {on, strength 1..15}.
+  Map<String, dynamic>? blur;
   bool copyWallpapers = true, saving = false;
   String hint = '';
 
@@ -95,6 +111,7 @@ class _EditorPageState extends State<EditorPage> {
       fonts = List<String>.from(d['fonts'] as List);
       font = d['font'] as String?;
       if (!fonts.contains(font)) font = null;
+      blur = d['blur'] is Map ? Map<String, dynamic>.from(d['blur'] as Map) : null;
       copyWallpapers = d['copy_wallpapers'] == true && widget.askWallpaper == null;
       name.text = d['name'] as String? ?? '';
       _takeInitial();
@@ -119,6 +136,8 @@ class _EditorPageState extends State<EditorPage> {
     if (n != null && n.isNotEmpty) name.text = n.length > maxNameLength ? n.substring(0, maxNameLength) : n;
     final f = initial['font'];
     if (f != null && fonts.contains(f)) font = f;
+    final b = widget.initialBlur;
+    if (b != null && b['on'] is bool && b['strength'] is int) blur = Map<String, dynamic>.of(b);
     final keys = initial.keys.where(colors.containsKey).toList()
       ..sort((a, b) => (baseColorKeys.contains(a) ? 0 : 1).compareTo(baseColorKeys.contains(b) ? 0 : 1));
     for (final k in keys) {
@@ -196,6 +215,7 @@ class _EditorPageState extends State<EditorPage> {
         'name': n,
         'colors': colors,
         'font': ?font,
+        'blur': ?blur,
         if (editing) 'edit': widget.edit else 'base': d['base'],
         if (!editing) 'copy_wallpapers': copyWallpapers,
         if (widget.wallpaper != null && !editing) 'wallpaper': widget.wallpaper,
@@ -244,7 +264,10 @@ class _EditorPageState extends State<EditorPage> {
   @override
   Widget build(BuildContext context) {
     final d = data;
-    final title = d?['title'] as String? ?? (editing ? 'Edit theme' : 'New theme');
+    final askName = widget.initial?['name']?.trim();
+    final title = widget.fromAsk
+        ? (askName == null || askName.isEmpty ? 'New theme' : askName)
+        : d?['title'] as String? ?? (editing ? 'Edit theme' : 'New theme');
     Widget body;
     if (loadError != null) {
       body = Center(
@@ -317,18 +340,12 @@ class _EditorPageState extends State<EditorPage> {
           if (hint.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
-              child: Text(
-                hint,
-                style: TextStyle(fontSize: 12.5, color: hint.endsWith('…') ? scheme.onSurfaceVariant : scheme.error),
-              ),
+              child: Text(hint, style: TextStyle(fontSize: 12.5, color: hint.endsWith('…') ? scheme.onSurfaceVariant : scheme.error)),
             ),
           Row(
             children: [
               Expanded(
-                child: OutlinedButton(
-                  onPressed: saving ? null : () => save(false),
-                  child: Text(editing ? 'Save' : 'Create'),
-                ),
+                child: OutlinedButton(onPressed: saving ? null : () => save(false), child: Text(editing ? 'Save' : 'Create')),
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -414,9 +431,7 @@ class _EditorPageState extends State<EditorPage> {
           SizedBox(
             width: 180,
             child: Tooltip(
-              message: editing
-                  ? 'Renaming keeps its wallpapers, favorites and other settings'
-                  : 'Shown in the theme list',
+              message: editing ? 'Renaming keeps its wallpapers, favorites and other settings' : 'Shown in the theme list',
               child: TextField(
                 controller: name,
                 focusNode: nameFocus,
@@ -427,25 +442,70 @@ class _EditorPageState extends State<EditorPage> {
             ),
           ),
         ),
-        if (AppScope.of(context).can('fonts')) _row(
-          'Font',
-          Tooltip(
-            message:
-                'The monospace font (terminals, editors). It is switched when this theme is applied, '
-                'and back to your own font with other themes.',
-            child: DropdownButton<String?>(
-              value: font,
-              isDense: true,
-              underline: const SizedBox.shrink(),
-              items: [
-                const DropdownMenuItem<String?>(value: null, child: Text('Keep the current font')),
-                for (final f in fonts) DropdownMenuItem<String?>(value: f, child: Text(f)),
-              ],
-              onChanged: (v) => setState(() => font = v),
+        if (AppScope.of(context).can('fonts'))
+          _row(
+            'Font',
+            Tooltip(
+              message:
+                  'The monospace font (terminals, editors). It is switched when this theme is applied, '
+                  'and back to your own font with other themes.',
+              child: DropdownButton<String?>(
+                value: font,
+                isDense: true,
+                underline: const SizedBox.shrink(),
+                items: [
+                  const DropdownMenuItem<String?>(value: null, child: Text('Keep the current font')),
+                  for (final f in fonts) DropdownMenuItem<String?>(value: f, child: Text(f)),
+                ],
+                onChanged: (v) => setState(() => font = v),
+              ),
             ),
           ),
-        ),
-        if (!editing)
+        if (AppScope.of(context).can('blur')) ...[
+          _row(
+            'Blur',
+            Tooltip(
+              message:
+                  'Frosted glass behind see-through windows and panels. It is switched when this theme is applied, '
+                  'and back to your own with other themes.',
+              child: DropdownButton<String>(
+                key: const ValueKey('editor-blur'),
+                value: blur == null ? 'keep' : (blur!['on'] == true ? 'on' : 'off'),
+                isDense: true,
+                underline: const SizedBox.shrink(),
+                items: const [
+                  DropdownMenuItem(value: 'keep', child: Text('Keep the current blur')),
+                  DropdownMenuItem(value: 'on', child: Text('On')),
+                  DropdownMenuItem(value: 'off', child: Text('Off')),
+                ],
+                onChanged: (v) => setState(() {
+                  final strength = (blur?['strength'] as int?) ?? 8;
+                  blur = switch (v) {
+                    'on' => {'on': true, 'strength': strength},
+                    'off' => {'on': false, 'strength': strength},
+                    _ => null,
+                  };
+                }),
+              ),
+            ),
+          ),
+          if (blur?['on'] == true)
+            _row(
+              'Blur strength',
+              SizedBox(
+                width: 200,
+                child: Slider(
+                  value: (blur!['strength'] as int).toDouble(),
+                  min: 1,
+                  max: 15,
+                  divisions: 14,
+                  label: '${blur!['strength']}',
+                  onChanged: (v) => setState(() => blur = {'on': true, 'strength': v.round()}),
+                ),
+              ),
+            ),
+        ],
+        if (!editing && !widget.fromAsk)
           _row(
             wallLabel,
             Tooltip(
@@ -543,11 +603,7 @@ class _EditorPageState extends State<EditorPage> {
                     maxLength: 7,
                     style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
                     inputFormatters: [FilteringTextInputFormatter.allow(RegExp('[#0-9a-fA-F]'))],
-                    decoration: InputDecoration(
-                      isDense: true,
-                      counterText: '',
-                      errorText: _hexRe.hasMatch(t) ? null : '#rrggbb',
-                    ),
+                    decoration: InputDecoration(isDense: true, counterText: '', errorText: _hexRe.hasMatch(t) ? null : '#rrggbb'),
                     onSubmitted: (v) => setColor(key, v),
                   );
                 },
@@ -585,8 +641,7 @@ class _EditorPageState extends State<EditorPage> {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            if (wall != null)
-              Image.file(File(wall), fit: BoxFit.cover, cacheWidth: 1280, errorBuilder: (_, _, _) => const SizedBox()),
+            if (wall != null) Image.file(File(wall), fit: BoxFit.cover, cacheWidth: 1280, errorBuilder: (_, _, _) => const SizedBox()),
             Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
@@ -606,7 +661,8 @@ class _EditorPageState extends State<EditorPage> {
                     margin: const EdgeInsets.fromLTRB(18, 8, 18, 10),
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
-                      color: k('background').withValues(alpha: .97),
+                      // blur on: the window lets the wallpaper show through, as on the desktop
+                      color: k('background').withValues(alpha: blur?['on'] == true ? .72 : .97),
                       border: Border.all(color: k('accent'), width: 2),
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -619,12 +675,7 @@ class _EditorPageState extends State<EditorPage> {
                             padding: const EdgeInsets.only(bottom: 2),
                             child: Text('~/code/hello.py — nvim', style: s('muted', fontSize: 10), maxLines: 1),
                           ),
-                          line([
-                            t('def', 'magenta'),
-                            t(' ', 'foreground'),
-                            t('greet', 'blue'),
-                            t('(name):', 'foreground'),
-                          ]),
+                          line([t('def', 'magenta'), t(' ', 'foreground'), t('greet', 'blue'), t('(name):', 'foreground')]),
                           line([t("    # say hello, in the theme's colors", 'muted')]),
                           line([
                             t('    ', 'foreground'),
@@ -643,12 +694,7 @@ class _EditorPageState extends State<EditorPage> {
                             decoration: BoxDecoration(color: k('selection'), borderRadius: BorderRadius.circular(3)),
                             child: Text('selected line', style: s('foreground'), maxLines: 1),
                           ),
-                          line([
-                            t('~/code', 'cyan'),
-                            t(' ❯ ', 'accent'),
-                            t('maprisma-theme apply  ', 'foreground'),
-                            t('✗ 1 error', 'red'),
-                          ]),
+                          line([t('~/code', 'cyan'), t(' ❯ ', 'accent'), t('maprisma-theme apply  ', 'foreground'), t('✗ 1 error', 'red')]),
                         ],
                       ),
                     ),
@@ -691,9 +737,8 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
     });
   }
 
-  void _square(Offset p, Size size) => _update(
-    hsv.withSaturation((p.dx / size.width).clamp(0.0, 1.0)).withValue(1 - (p.dy / size.height).clamp(0.0, 1.0)),
-  );
+  void _square(Offset p, Size size) =>
+      _update(hsv.withSaturation((p.dx / size.width).clamp(0.0, 1.0)).withValue(1 - (p.dy / size.height).clamp(0.0, 1.0)));
 
   void _hue(Offset p, double width) => _update(hsv.withHue((p.dx / width).clamp(0.0, 1.0) * 359.9));
 
@@ -772,10 +817,7 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-        FilledButton(
-          onPressed: () => Navigator.pop(context, value),
-          child: Text('Use for ${widget.label.toLowerCase()}'),
-        ),
+        FilledButton(onPressed: () => Navigator.pop(context, value), child: Text('Use for ${widget.label.toLowerCase()}')),
       ],
     );
   }
@@ -831,9 +873,7 @@ class _HuePainter extends CustomPainter {
       rect,
       Paint()
         ..shader = LinearGradient(
-          colors: [
-            for (var h = 0; h <= 360; h += 60) HSVColor.fromAHSV(1, h == 360 ? 359.9 : h.toDouble(), 1, 1).toColor(),
-          ],
+          colors: [for (var h = 0; h <= 360; h += 60) HSVColor.fromAHSV(1, h == 360 ? 359.9 : h.toDouble(), 1, 1).toColor()],
         ).createShader(rect),
     );
     final x = hue / 360 * size.width;

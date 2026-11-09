@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 import 'package:maprisma_theme_core/maprisma_theme_core.dart';
+import 'package:maprisma_theme_core/src/custom.dart' show blurOf;
 import 'package:maprisma_theme_core/src/extract.dart' show hlsOf;
 import 'package:test/test.dart';
 
@@ -18,9 +19,14 @@ void main() {
   Future<Map<String, dynamic>> call(String m, [Map<String, dynamic> p = const {}]) => env.core.call(m, p);
 
   String addNord() {
-    final dir = env.addTheme('nord', system: true, wallpapers: [],
-        extraToml: 'border_glow = "rgba(1,2,3)"\nframe = "#123456"\nopacity = 0.9\nselection = "bad"\n'
-            '[table]\ninside = "#ffffff"\n');
+    final dir = env.addTheme(
+      'nord',
+      system: true,
+      wallpapers: [],
+      extraToml:
+          'border_glow = "rgba(1,2,3)"\nframe = "#123456"\nopacity = 0.9\nselection = "bad"\n'
+          '[table]\ninside = "#ffffff"\n',
+    );
     File('$dir/icons.theme').writeAsStringSync('Yaru-blue\n');
     // support.dart's tinyPng is one byte short (its IEND chunk is cut off), so
     // the header check rightly refuses it: real PNGs here.
@@ -74,13 +80,43 @@ void main() {
     expect(env.desktop.calls, isNot(contains('applyColors')));
   });
 
+  test('a theme made here keeps its blur; editing keeps or changes it', () async {
+    addNord();
+    final ed = await call('custom.editor', {'base': 'nord'});
+    expect(ed['blur'], isNull);
+    final blur = {'on': true, 'strength': 6};
+    await call('custom.save', {'name': 'Frost', 'colors': colorsOf(ed), 'base': 'nord', 'blur': blur});
+    final dir = '${env.paths.userThemes}/frost';
+    expect(readJsonMap('$dir/theme-manager.json')['blur'], blur);
+    expect(blurOf(findTheme(env.paths, 'frost')!), blur);
+    final again = await call('custom.editor', {'edit': 'frost'});
+    expect(again['blur'], blur);
+    await call('custom.save', {'name': 'Frost', 'colors': colorsOf(again), 'edit': 'frost'});
+    expect(readJsonMap('$dir/theme-manager.json').containsKey('blur'), isFalse);
+    expect(
+      () => call('custom.save', {
+        'name': 'Bad',
+        'colors': colorsOf(ed),
+        'base': 'nord',
+        'blur': {'on': 'yes', 'strength': 3},
+      }),
+      routeError('bad_blur'),
+    );
+  });
+
   test('refuses to overwrite an existing theme', () async {
     addNord();
     final colors = colorsOf(await call('custom.editor', {'base': 'nord'}));
     await call('custom.save', {'name': 'Mine', 'colors': colors, 'base': 'nord'});
     final before = File('${env.paths.userThemes}/mine/colors.toml').readAsStringSync();
-    await expectLater(call('custom.save', {'name': 'mine', 'colors': {...colors, 'background': '#000000'}, 'base': 'nord'}),
-        routeError('exists'));
+    await expectLater(
+      call('custom.save', {
+        'name': 'mine',
+        'colors': {...colors, 'background': '#000000'},
+        'base': 'nord',
+      }),
+      routeError('exists'),
+    );
     await expectLater(call('custom.save', {'name': 'Nord', 'colors': colors, 'base': 'nord'}), routeError('exists'));
     expect(File('${env.paths.userThemes}/mine/colors.toml').readAsStringSync(), before);
     await expectLater(call('custom.save', {'name': '!!!', 'colors': colors}), routeError('bad_name'));
@@ -90,11 +126,21 @@ void main() {
     addNord();
     final colors = colorsOf(await call('custom.editor', {'base': 'nord'}));
     await expectLater(
-        call('custom.save', {'name': 'Bad', 'colors': {...colors, 'red': 'rgb(1,2,3)'}, 'base': 'nord'}),
-        routeError('bad_color'));
+      call('custom.save', {
+        'name': 'Bad',
+        'colors': {...colors, 'red': 'rgb(1,2,3)'},
+        'base': 'nord',
+      }),
+      routeError('bad_color'),
+    );
     await expectLater(
-        call('custom.save', {'name': 'Bad', 'colors': {...colors, 'red': '#12345'}, 'base': 'nord'}),
-        routeError('bad_color'));
+      call('custom.save', {
+        'name': 'Bad',
+        'colors': {...colors, 'red': '#12345'},
+        'base': 'nord',
+      }),
+      routeError('bad_color'),
+    );
     expect(Directory('${env.paths.userThemes}/bad').existsSync(), isFalse);
     await call('custom.save', {'name': 'Good', 'colors': colors, 'base': 'nord'});
     final toml = File('${env.paths.userThemes}/good/colors.toml').readAsStringSync();
@@ -114,9 +160,12 @@ void main() {
 
   test('a changed main color moves the shades that were not given', () async {
     addNord();
-    final slug = await createThemeFolder(env.core.ctx, name: 'Imported', colors: {
-      'background': '#101820', 'foreground': '#e0e0e0', 'accent': '#ff0066',
-    }, cosmicRon: '(palette: Dark(()))');
+    final slug = await createThemeFolder(
+      env.core.ctx,
+      name: 'Imported',
+      colors: {'background': '#101820', 'foreground': '#e0e0e0', 'accent': '#ff0066'},
+      cosmicRon: '(palette: Dark(()))',
+    );
     final dir = '${env.paths.userThemes}/$slug';
     final values = parseColorsToml(File('$dir/colors.toml').readAsStringSync());
     expect(values['dark_background'], mixColor('#101820', '#000000', 0.25));
@@ -125,12 +174,19 @@ void main() {
   });
 
   test('an edited cosmic-themes.org import is applied from colors.toml and keeps its source', () async {
-    final slug = await createThemeFolder(env.core.ctx, name: 'Imported', colors: {
-      'background': '#101820', 'foreground': '#e0e0e0', 'accent': '#ff0066',
-    }, cosmicRon: '(palette: Dark(()))');
+    final slug = await createThemeFolder(
+      env.core.ctx,
+      name: 'Imported',
+      colors: {'background': '#101820', 'foreground': '#e0e0e0', 'accent': '#ff0066'},
+      cosmicRon: '(palette: Dark(()))',
+    );
     final dir = '${env.paths.userThemes}/$slug';
     writeJson('$dir/theme-manager.json', {
-      'name': 'Imported', 'source': 'cosmic-themes.org', 'id': 42, 'author': 'Someone', 'homepage': 'https://example.org',
+      'name': 'Imported',
+      'source': 'cosmic-themes.org',
+      'id': 42,
+      'author': 'Someone',
+      'homepage': 'https://example.org',
     }, mode: 420);
     env.core.ctx.current.save(slug: slug);
     final changed = colorsOf(await call('custom.editor', {'edit': slug}))..['foreground'] = '#ffffff';
@@ -157,7 +213,9 @@ void main() {
     final ctx = env.core.ctx;
     ctx.lists.favorites = ['my-nord'];
     ctx.lists.markUsed('my-nord');
-    saveHiddenWallpapers(env.paths, {'my-nord': {'a.png'}});
+    saveHiddenWallpapers(env.paths, {
+      'my-nord': {'a.png'},
+    });
     Directory('${env.paths.backgrounds}/my-nord').createSync(recursive: true);
     File('${env.paths.backgrounds}/my-nord/added.png').writeAsBytesSync(tinyPng);
     ctx.current.save(slug: 'my-nord');

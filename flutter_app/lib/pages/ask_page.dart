@@ -36,8 +36,7 @@ const _description =
     'Hermes) or a local model, using your plan or tokens only when you click Ask; a local model uses none and '
     'nothing leaves the computer. Each Ask sends your words with the names and main colors of your installed '
     'themes, the omarchy.org theme names and your installed font names; nothing else.';
-const _noHelper =
-    'No helper ready: install Claude Code, Codex, pi or Hermes and sign in, or connect pi or Hermes to a local model.';
+const _noHelper = 'No helper ready: install Claude Code, Codex, pi or Hermes and sign in, or connect pi or Hermes to a local model.';
 const _maprismaText =
     'Maprisma sets up AI for you: online agents and their providers, and local models with llama.cpp or Ollama, '
     'connected on one map. Every agent it sets up can answer here too.';
@@ -334,8 +333,7 @@ class _AskPageState extends State<AskPage> {
               itemCount: list.length,
               itemExtent: rowH,
               onReorderItem: _movePrompt,
-              itemBuilder: (context, i) =>
-                  KeyedSubtree(key: ValueKey('row-${list[i]}'), child: _promptRow(i, list[i], scheme)),
+              itemBuilder: (context, i) => KeyedSubtree(key: ValueKey('row-${list[i]}'), child: _promptRow(i, list[i], scheme)),
             ),
           ),
           if (ownPrompts != null)
@@ -618,6 +616,8 @@ class _AskPageState extends State<AskPage> {
               edit: edit ? slug : null,
               initial: initial,
               askWallpaper: wall == null ? null : picture,
+              initialBlur: c['blur'] is Map ? Map<String, dynamic>.from(c['blur'] as Map) : null,
+              fromAsk: !edit && c['mode'] == 'new',
             ),
           ),
         );
@@ -678,7 +678,8 @@ class _AskPageState extends State<AskPage> {
     var kind = switch (c['kind']) {
       'catalog' => 'From omarchy.org',
       'installed' => 'Installed theme, as it is',
-      _ => c['mode'] == 'edit' ? 'Edit ${c['base_name']}' : 'New theme from ${c['base_name']}',
+      // A new theme is new for you: the theme the agent started from is internal.
+      _ => c['mode'] == 'edit' ? 'Edit ${c['base_name']}' : 'New theme',
     };
     if (!mine) return ('${c['name']}', kind, '${c['summary'] ?? ''}');
     var title = query[0].toUpperCase() + query.substring(1);
@@ -831,11 +832,7 @@ class _AskPageState extends State<AskPage> {
           autofocus: true,
           maxLength: 100,
           style: const TextStyle(fontSize: 13),
-          decoration: const InputDecoration(
-            isDense: true,
-            counterText: '',
-            hintText: 'Search wallpapers, e.g. “husky snow”',
-          ),
+          decoration: const InputDecoration(isDense: true, counterText: '', hintText: 'Search wallpapers, e.g. “husky snow”'),
           onSubmitted: (_) => _ownSearch(card),
         ),
       ),
@@ -946,7 +943,10 @@ class _AskPageState extends State<AskPage> {
         ],
         Expanded(
           child: Text(
-            c['font'] is String ? '${c['font']}' : (c['kind'] == 'catalog' ? 'Its own font' : 'Keep the current font'),
+            [
+              c['font'] is String ? '${c['font']}' : (c['kind'] == 'catalog' ? 'Its own font' : 'Keep the current font'),
+              if (c['blur'] is Map) (c['blur'] as Map)['on'] == true ? 'Blur ${(c['blur'] as Map)['strength']}' : 'No blur',
+            ].join(' · '),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
@@ -1007,11 +1007,7 @@ class _AskPageState extends State<AskPage> {
               position: PopupMenuPosition.under,
               itemBuilder: (_) => [
                 for (final h in list)
-                  CheckedPopupMenuItem(
-                    value: h['id'] as String,
-                    checked: h['id'] == helper,
-                    child: Text(_helperName(h)),
-                  ),
+                  CheckedPopupMenuItem(value: h['id'] as String, checked: h['id'] == helper, child: Text(_helperName(h))),
               ],
               child: Container(
                 padding: const EdgeInsets.fromLTRB(10, 6, 6, 6),
@@ -1019,13 +1015,7 @@ class _AskPageState extends State<AskPage> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Flexible(
-                      child: Text(
-                        current == null ? '—' : _helperName(current),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
+                    Flexible(child: Text(current == null ? '—' : _helperName(current), maxLines: 1, overflow: TextOverflow.ellipsis)),
                     const SizedBox(width: 4),
                     Icon(Icons.expand_more, size: 18, color: scheme.onSurfaceVariant),
                   ],
@@ -1070,11 +1060,7 @@ class _AskPageState extends State<AskPage> {
               icon: const Icon(Icons.login, size: 16),
               label: Text('Sign in to ${h['name']}'),
             ),
-          TextButton.icon(
-            onPressed: _load,
-            icon: const Icon(Icons.refresh, size: 16),
-            label: const Text('Check again'),
-          ),
+          TextButton.icon(onPressed: _load, icon: const Icon(Icons.refresh, size: 16), label: const Text('Check again')),
         ],
       ),
     );
@@ -1110,9 +1096,7 @@ class _AskPageState extends State<AskPage> {
         IconButton.outlined(
           tooltip: 'Save as suggestion',
           style: ButtonStyle(
-            shape: WidgetStatePropertyAll(
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(corners(context).clamp(0, 6))),
-            ),
+            shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(corners(context).clamp(0, 6)))),
           ),
           onPressed: _savePrompt,
           icon: const Icon(Icons.bookmark_border, size: 18),
@@ -1205,9 +1189,7 @@ class _AskPageState extends State<AskPage> {
                       Wrap(
                         spacing: gap,
                         runSpacing: gap,
-                        children: [
-                          for (final card in cards) SizedBox(width: cardW, child: _card(card, scheme, cardW - 22)),
-                        ],
+                        children: [for (final card in cards) SizedBox(width: cardW, child: _card(card, scheme, cardW - 22))],
                       ),
                     ],
                   ],

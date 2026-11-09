@@ -90,6 +90,7 @@ void main() {
                 'colors': {'background': '#102030', 'foreground': '#e0e0e0', 'accent': '#3366ff', 'red': '#ff0000'},
                 'changes': {'background': '#102030'},
                 'font': 'Fira Code',
+                'blur': {'on': true, 'strength': 6},
                 'wallpaper_query': 'ocean night',
                 'summary': 'Calm and blue',
               },
@@ -195,7 +196,10 @@ void main() {
       await settle();
       expect(asked.single['request'], 'A calm forest green theme with a misty mountain wallpaper');
       expect(find.text('Deep Sea'), findsOneWidget);
-      expect(find.text('Fira Code'), findsOneWidget);
+      expect(find.text('Fira Code · Blur 6'), findsOneWidget);
+      // A new theme is new for you: its base (Nord) is internal (2026-11-09).
+      expect(find.text('New theme'), findsOneWidget);
+      expect(find.textContaining('from Nord'), findsNothing);
       expect(find.text('Use'), findsNWidgets(3));
       expect(find.text('Edit Nord'), findsOneWidget);
       expect(find.text('From omarchy.org'), findsOneWidget);
@@ -225,10 +229,12 @@ void main() {
       await tester.tap(find.text('Use').first);
       await settle();
       await settle();
-      expect(find.text('New theme from Nord'), findsOneWidget);
-      expect(find.text('Deep Sea'), findsOneWidget);
+      expect(find.textContaining('Nord'), findsNothing); // no "New theme from Nord", no "Also Nord's wallpapers"
+      expect(find.text('Deep Sea'), findsNWidgets(2)); // the card's name: the title and the name field
+      final blurDrop = tester.widget<DropdownButton<String>>(find.byKey(const ValueKey('editor-blur')));
+      expect(blurDrop.value, 'on'); // the card's blur came over
+      expect(find.text('Blur strength'), findsOneWidget);
       expect(find.text('#102030'), findsOneWidget);
-      if (wall(1) != null) expect(find.text("Also Nord's wallpapers"), findsOneWidget);
       expect(tester.takeException(), isNull);
       await picture('editor-from-ask-${width.round()}');
     });
