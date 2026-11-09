@@ -21,8 +21,9 @@ and uses the same theme format (Omarchy's `colors.toml`), so themes move freely 
   and saved combinations of theme, wallpaper and workspaces.
 - **Keyboard shortcuts** for themes and actions, a panel applet (COSMIC) or tray daemon (KDE).
 - **Ask AI** (off by default): describe what you want and get up to three themes to look at, from Claude Code,
-  Codex, pi or Hermes, or a local model. It runs only when you click Ask, without tools, and gets only your
-  words, the installed themes' names and colors and your font names.
+  Codex, pi or Hermes, or a local model. It runs only when you click Ask, without tools (Codex read-only in a jail), and gets only your
+  words, the installed themes' names and colors, the names of up to 300 omarchy.org catalog themes and your
+  font names.
 - **Backup and restore** of all settings.
 
 ## Build and install

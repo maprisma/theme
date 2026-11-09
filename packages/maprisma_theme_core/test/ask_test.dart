@@ -277,6 +277,29 @@ void main() {
     });
   });
 
+  group('work folder', () {
+    test('many tiny files count as too large; cleanup removes an unreadable tree (Codex, 2026-11-09)', () async {
+      final root = Directory.systemTemp.createTempSync('maprisma-ask-work-');
+      addTearDown(() {
+        if (root.existsSync()) {
+          Process.runSync('chmod', ['-R', 'u+rwx', root.path]);
+          root.deleteSync(recursive: true);
+        }
+      });
+      final many = Directory('${root.path}/many')..createSync();
+      Process.runSync('sh', ['-c', 'cd "${many.path}" && seq 1 2001 | xargs touch']);
+      expect(await folderSize(root.path), greaterThan(workMax));
+      final small = Directory('${root.path}/small')..createSync();
+      File('${small.path}/a').writeAsBytesSync(List.filled(10, 1));
+      expect(await folderSize(small.path), 10);
+      final work = Directory('${root.path}/work/w')..createSync(recursive: true);
+      File('${work.path}/f').writeAsStringSync('x');
+      Process.runSync('chmod', ['000', work.path]); // as overlayfs leaves its work folder
+      await removeWork('${root.path}/work');
+      expect(Directory('${root.path}/work').existsSync(), isFalse);
+    });
+  });
+
   group('prompt', () {
     test('contains the facts, the request as data, and no paths', () {
       final env = TestEnv.create();

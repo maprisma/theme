@@ -66,8 +66,17 @@ const List<Helper> helpers = [
     id: 'claude',
     name: 'Claude Code',
     argv: [
-      'claude', '-p', '--tools', '', '--strict-mcp-config', '--no-session-persistence',
-      '--disable-slash-commands', '--output-format', 'text', '--settings', '{"disableAllHooks": true}',
+      'claude',
+      '-p',
+      '--tools',
+      '',
+      '--strict-mcp-config',
+      '--no-session-persistence',
+      '--disable-slash-commands',
+      '--output-format',
+      'text',
+      '--settings',
+      '{"disableAllHooks": true}',
     ],
     files: ['.claude/.credentials.json'],
     env: ['ANTHROPIC_API_KEY'],
@@ -79,8 +88,20 @@ const List<Helper> helpers = [
     id: 'codex',
     name: 'Codex',
     argv: [
-      'codex', 'exec', '--sandbox', 'read-only', '--skip-git-repo-check', '--disable', 'apps',
-      '--disable', 'plugins', '--disable', 'hooks', '--output-last-message', '{answer}', '-',
+      'codex',
+      'exec',
+      '--sandbox',
+      'read-only',
+      '--skip-git-repo-check',
+      '--disable',
+      'apps',
+      '--disable',
+      'plugins',
+      '--disable',
+      'hooks',
+      '--output-last-message',
+      '{answer}',
+      '-',
     ],
     files: ['.codex/auth.json'],
     env: ['OPENAI_API_KEY'],
@@ -215,10 +236,7 @@ String localKey(LocalModel m) => '${m.host}|${m.port}|${m.model}';
   }
   if (model == null || !_name.hasMatch(model)) return (model: null, local: null);
   final where = provider != null && _name.hasMatch(provider) ? _localUrl(apis[provider]) : null;
-  return (
-    model: model,
-    local: where == null ? null : (provider: provider!, model: model, host: where.$1, port: where.$2),
-  );
+  return (model: model, local: where == null ? null : (provider: provider!, model: model, host: where.$1, port: where.$2));
 }
 
 /// Every supported agent: installed? signed in? (no tokens spent). Codex is
@@ -232,7 +250,8 @@ List<Map<String, dynamic>> helperStates(String home, Map<String, String> environ
   final out = <Map<String, dynamic>>[];
   for (final h in helpers) {
     final installed = has(h.argv.first) && (jail || h.jail == null);
-    final signedIn = h.env.any((e) => (environment[e] ?? '').isNotEmpty) ||
+    final signedIn =
+        h.env.any((e) => (environment[e] ?? '').isNotEmpty) ||
         h.files.any((f) => FileSystemEntity.typeSync(p.join(home, f), followLinks: false) != FileSystemEntityType.notFound);
     var name = h.name;
     var local = false;
@@ -287,18 +306,14 @@ LocalModel? localModelOf(String? helperId, String home) {
 final _libc = DynamicLibrary.open('libc.so.6');
 final _socket = _libc.lookupFunction<Int Function(Int, Int, Int), int Function(int, int, int)>('socket');
 final _close = _libc.lookupFunction<Int Function(Int), int Function(int)>('close');
-final _sendto = _libc.lookupFunction<
-  IntPtr Function(Int, Pointer<Uint8>, Size, Int, Pointer<Uint8>, Uint32),
-  int Function(int, Pointer<Uint8>, int, int, Pointer<Uint8>, int)
->('sendto');
-final _recv = _libc.lookupFunction<
-  IntPtr Function(Int, Pointer<Uint8>, Size, Int),
-  int Function(int, Pointer<Uint8>, int, int)
->('recv');
-final _setsockopt = _libc.lookupFunction<
-  Int Function(Int, Int, Int, Pointer<Uint8>, Uint32),
-  int Function(int, int, int, Pointer<Uint8>, int)
->('setsockopt');
+final _sendto = _libc
+    .lookupFunction<
+      IntPtr Function(Int, Pointer<Uint8>, Size, Int, Pointer<Uint8>, Uint32),
+      int Function(int, Pointer<Uint8>, int, int, Pointer<Uint8>, int)
+    >('sendto');
+final _recv = _libc.lookupFunction<IntPtr Function(Int, Pointer<Uint8>, Size, Int), int Function(int, Pointer<Uint8>, int, int)>('recv');
+final _setsockopt = _libc
+    .lookupFunction<Int Function(Int, Int, Int, Pointer<Uint8>, Uint32), int Function(int, int, int, Pointer<Uint8>, int)>('setsockopt');
 final _kill = _libc.lookupFunction<Int Function(Int, Int), int Function(int, int)>('kill');
 
 const _netlinkDeadline = Duration(seconds: 2);
@@ -405,7 +420,8 @@ Future<Object?> localJson(String method, String host, int port, String path, [Ob
   if (!localHosts.contains(host) || port <= 0 || port >= 65536) return null;
   if (portIsTrusted(port) != true) return null;
   final data = body == null ? const <int>[] : utf8.encode(jsonEncode(body));
-  final head = '$method $path HTTP/1.0\r\nHost: $host\r\nAccept: application/json\r\n'
+  final head =
+      '$method $path HTTP/1.0\r\nHost: $host\r\nAccept: application/json\r\n'
       '${body == null ? '' : 'Content-Type: application/json\r\nContent-Length: ${data.length}\r\n'}'
       'Connection: close\r\n\r\n';
   final reply = BytesBuilder(copy: false);
@@ -492,9 +508,7 @@ Future<(String?, bool?)> localState(LocalModel m) async {
   }
   final running = await localJson('GET', m.host, m.port, '/api/ps');
   if (running is Map && running['models'] is List) {
-    final names = {
-      for (final e in (running['models'] as List).whereType<Map>()) '${e['name'] ?? e['model'] ?? ''}',
-    };
+    final names = {for (final e in (running['models'] as List).whereType<Map>()) '${e['name'] ?? e['model'] ?? ''}'};
     return ('ollama', names.contains(m.model) || names.contains('${m.model}:latest'));
   }
   return (null, null);
@@ -503,9 +517,25 @@ Future<(String?, bool?)> localState(LocalModel m) async {
 // --- running a helper -------------------------------------------------------------------
 
 const passedEnv = [
-  'PATH', 'LANG', 'LC_ALL', 'LC_MESSAGES', 'LC_CTYPE', 'TERM', 'USER', 'LOGNAME', 'TZ', 'HTTPS_PROXY',
-  'HTTP_PROXY', 'NO_PROXY', 'ALL_PROXY', 'https_proxy', 'http_proxy', 'no_proxy', 'all_proxy',
-  'SSL_CERT_FILE', 'SSL_CERT_DIR',
+  'PATH',
+  'LANG',
+  'LC_ALL',
+  'LC_MESSAGES',
+  'LC_CTYPE',
+  'TERM',
+  'USER',
+  'LOGNAME',
+  'TZ',
+  'HTTPS_PROXY',
+  'HTTP_PROXY',
+  'NO_PROXY',
+  'ALL_PROXY',
+  'https_proxy',
+  'http_proxy',
+  'no_proxy',
+  'all_proxy',
+  'SSL_CERT_FILE',
+  'SSL_CERT_DIR',
 ];
 
 /// Only what an agent needs: no other provider's key, no session secrets.
@@ -531,9 +561,12 @@ Future<String?> realBinary(String command, Map<String, String> environment) asyn
   if (p.basename(real) == 'mise') {
     final mise = which('mise', environment);
     if (mise == null) return null;
-    final out = (await readBoundedText([mise, 'which', command], maxBytes: 4096, timeout: const Duration(seconds: 10),
-            environment: environment))
-        ?.trim();
+    final out = (await readBoundedText(
+      [mise, 'which', command],
+      maxBytes: 4096,
+      timeout: const Duration(seconds: 10),
+      environment: environment,
+    ))?.trim();
     if (out == null || out.isEmpty || !FileSystemEntity.isFileSync(out)) return null;
     return File(out).resolveSymbolicLinksSync();
   }
@@ -550,12 +583,44 @@ Future<List<String>> jailArgv(Helper h, List<String> argv, String work, String h
   if (bwrap == null) throw AskError('bubblewrap (bwrap) is needed for this helper');
   final jail = h.jail!;
   final args = [
-    bwrap, '--ro-bind', '/usr', '/usr', '--ro-bind', '/etc', '/etc',
-    '--symlink', 'usr/lib', '/lib', '--symlink', 'usr/lib64', '/lib64',
-    '--symlink', 'usr/bin', '/bin', '--symlink', 'usr/bin', '/sbin',
-    '--unshare-pid', '--proc', '/proc', '--dev', '/dev', '--size', '$jailTmpfs', '--tmpfs', '/tmp',
-    '--ro-bind-try', '/run/systemd/resolve', '/run/systemd/resolve',
-    '--size', '$jailTmpfs', '--tmpfs', home, '--bind', work, work,
+    bwrap,
+    '--ro-bind',
+    '/usr',
+    '/usr',
+    '--ro-bind',
+    '/etc',
+    '/etc',
+    '--symlink',
+    'usr/lib',
+    '/lib',
+    '--symlink',
+    'usr/lib64',
+    '/lib64',
+    '--symlink',
+    'usr/bin',
+    '/bin',
+    '--symlink',
+    'usr/bin',
+    '/sbin',
+    '--unshare-pid',
+    '--proc',
+    '/proc',
+    '--dev',
+    '/dev',
+    '--size',
+    '$jailTmpfs',
+    '--tmpfs',
+    '/tmp',
+    '--ro-bind-try',
+    '/run/systemd/resolve',
+    '/run/systemd/resolve',
+    '--size',
+    '$jailTmpfs',
+    '--tmpfs',
+    home,
+    '--bind',
+    work,
+    work,
   ];
   if (p.isWithin(home, binary)) {
     // Its install folder (mise keeps every version under installs/); a
@@ -587,43 +652,55 @@ Future<List<String>> jailArgv(Helper h, List<String> argv, String work, String h
   return args;
 }
 
+/// Most entries the cleanup and the size check visit (an agent can't make
+/// the core list a folder of millions of files: entries are streamed).
+const maxRemoveEntries = 100000;
+
 /// Removes the Ask's private folder: overlayfs leaves its work folder
 /// unreadable (mode 000), so real folders get 0700 back first (links are
-/// never followed).
-void removeWork(String work) {
-  void grant(String dir) {
-    chmodPath(dir, 448);
-    try {
-      for (final e in Directory(dir).listSync(followLinks: false)) {
-        if (e is Directory) grant(e.path);
-      }
-    } on FileSystemException {
-      // nothing more to open
-    }
-  }
-
+/// never followed). Streamed, one folder at a time; past [maxRemoveEntries]
+/// the rest stays in the temp folder (never fatal).
+Future<void> removeWork(String work) async {
   try {
     if (FileSystemEntity.typeSync(work, followLinks: false) != FileSystemEntityType.directory) return;
-    grant(work);
-    Directory(work).deleteSync(recursive: true);
+    var seen = 0;
+    final todo = [work];
+    while (todo.isNotEmpty && seen <= maxRemoveEntries) {
+      final dir = todo.removeLast();
+      chmodPath(dir, 448);
+      try {
+        await for (final e in Directory(dir).list(followLinks: false)) {
+          if (++seen > maxRemoveEntries) break;
+          if (e is Directory) todo.add(e.path);
+        }
+      } on FileSystemException {
+        // nothing more to open here
+      }
+    }
+    await Directory(work).delete(recursive: true);
   } on FileSystemException {
     // a leftover in the temp folder; never fatal
   }
 }
 
 /// All regular files in [folder] together (links not followed); too many
-/// entries count as too large.
-int folderSize(String folder, {int maxEntries = 2000}) {
+/// entries count as too large. Streamed one folder at a time, stopping at
+/// [maxEntries]; an unreadable folder (overlayfs' work folder) is skipped.
+Future<int> folderSize(String folder, {int maxEntries = 2000}) async {
   var total = 0, seen = 0;
   final stack = [folder];
   while (stack.isNotEmpty) {
     try {
-      for (final e in Directory(stack.removeLast()).listSync(followLinks: false)) {
+      await for (final e in Directory(stack.removeLast()).list(followLinks: false)) {
         if (++seen > maxEntries) return workMax + 1;
         if (e is Directory) {
           stack.add(e.path);
         } else if (e is File) {
-          total += e.statSync().size;
+          try {
+            total += (await e.stat()).size;
+          } on FileSystemException {
+            continue;
+          }
         }
       }
     } on FileSystemException {
@@ -740,8 +817,11 @@ final class AskRunner {
     final unit = localUnits[m.port];
     final systemctl = which('systemctl', environment);
     if (unit == null || systemctl == null) throw AskError('the local model server (${m.provider}) is not running');
-    final (code, _) = await runBounded([systemctl, '--user', 'start', '--no-block', unit],
-        timeout: const Duration(seconds: 10), environment: environment);
+    final (code, _) = await runBounded(
+      [systemctl, '--user', 'start', '--no-block', unit],
+      timeout: const Duration(seconds: 10),
+      environment: environment,
+    );
     if (code == null) throw AskError('could not start $unit');
     final end = DateTime.now().add(wait);
     while (DateTime.now().isBefore(end)) {
@@ -765,10 +845,7 @@ final class AskRunner {
     final answerFile = p.join(work, 'answer.txt');
     Process? process;
     try {
-      var argv = [
-        for (final a in helper.argv) a == '{answer}' ? answerFile : a,
-        ...extra,
-      ];
+      var argv = [for (final a in helper.argv) a == '{answer}' ? answerFile : a, ...extra];
       if (helper.jail != null) {
         argv = await jailArgv(helper, argv, work, home, environment);
       } else {
@@ -778,31 +855,42 @@ final class AskRunner {
       // cap on every file it writes, inherited by all it starts.
       final full = [setsid, prlimit, '--fsize=$agentFileMax:$agentFileMax', '--', ...argv];
       if (_cancelled) throw AskError('cancelled');
-      process = _running = await Process.start(full.first, full.sublist(1),
-          workingDirectory: work, environment: helperEnv(helper, environment, home), includeParentEnvironment: false);
+      process = _running = await Process.start(
+        full.first,
+        full.sublist(1),
+        workingDirectory: work,
+        environment: helperEnv(helper, environment, home),
+        includeParentEnvironment: false,
+      );
       final proc = process;
       final out = BytesBuilder(copy: false);
       var errTail = <int>[];
       var errBytes = 0;
       var tooLong = false;
-      final outDone = proc.stdout.listen((chunk) {
-        if (out.length + chunk.length > maxAnswerBytes) {
-          tooLong = true;
-          _killGroup(proc);
-        } else {
-          out.add(chunk);
-        }
-      }).asFuture<void>().catchError((_) {});
-      final errDone = proc.stderr.listen((chunk) {
-        errBytes += chunk.length;
-        if (errBytes > maxAnswerBytes) {
-          tooLong = true;
-          _killGroup(proc);
-          return;
-        }
-        errTail = [...errTail, ...chunk];
-        if (errTail.length > 4096) errTail = errTail.sublist(errTail.length - 4096);
-      }).asFuture<void>().catchError((_) {});
+      final outDone = proc.stdout
+          .listen((chunk) {
+            if (out.length + chunk.length > maxAnswerBytes) {
+              tooLong = true;
+              _killGroup(proc);
+            } else {
+              out.add(chunk);
+            }
+          })
+          .asFuture<void>()
+          .catchError((_) {});
+      final errDone = proc.stderr
+          .listen((chunk) {
+            errBytes += chunk.length;
+            if (errBytes > maxAnswerBytes) {
+              tooLong = true;
+              _killGroup(proc);
+              return;
+            }
+            errTail = [...errTail, ...chunk];
+            if (errTail.length > 4096) errTail = errTail.sublist(errTail.length - 4096);
+          })
+          .asFuture<void>()
+          .catchError((_) {});
       proc.stdin.done.ignore();
       try {
         proc.stdin.add(utf8.encode(prompt));
@@ -826,7 +914,7 @@ final class AskRunner {
           await proc.exitCode;
           throw AskError('no answer in time');
         }
-        if (tooLong || _fileSize(answerFile) > maxAnswerBytes || folderSize(work) > workMax) {
+        if (tooLong || _fileSize(answerFile) > maxAnswerBytes || await folderSize(work) > workMax) {
           _killGroup(proc);
           await proc.exitCode;
           throw AskError('the answer is too long');
@@ -858,7 +946,7 @@ final class AskRunner {
       final proc = process;
       if (proc != null) _kill(-proc.pid, 9); // whatever went wrong, the agent does not outlive the Ask
       _running = null;
-      removeWork(work);
+      await removeWork(work);
     }
   }
 
