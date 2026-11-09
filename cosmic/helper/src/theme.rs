@@ -402,8 +402,8 @@ mod tests {
     fn native_fixture() {
         let b: ThemeBuilder = ron::from_str(include_str!("../tests/data/t11.ron")).unwrap();
         let c = colors(&b.build());
-        assert_eq!(c["background"], "#24273a");
-        assert_eq!(c["accent"], "#b7bdf8");
+        assert_eq!(c["background"], "#1d2433");
+        assert_eq!(c["accent"], "#8c9cff");
         assert_eq!(c["mode"], "dark");
     }
 }

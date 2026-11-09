@@ -83,7 +83,7 @@ Future<(int?, String)> runBounded(
   int maxBytes = 64 * 1024,
   Duration timeout = const Duration(seconds: 1),
   Map<String, String>? environment,
-  bool Function()? stopWhen,
+  Future<bool> Function()? stopWhen,
 }) async {
   Process process;
   try {
@@ -110,12 +110,19 @@ Future<(int?, String)> runBounded(
   }
 
   final streams = [process.stdout.listen(take).asFuture<void>(), process.stderr.listen(take).asFuture<void>()];
+  var checking = false; // one check at a time; a slow one is not started again meanwhile
   final watch = stopWhen == null
       ? null
-      : Timer.periodic(const Duration(milliseconds: 500), (_) {
-          if (!tooMuch && stopWhen()) {
-            tooMuch = true;
-            process.kill(ProcessSignal.sigkill);
+      : Timer.periodic(const Duration(milliseconds: 500), (_) async {
+          if (tooMuch || checking) return;
+          checking = true;
+          try {
+            if (await stopWhen()) {
+              tooMuch = true;
+              process.kill(ProcessSignal.sigkill);
+            }
+          } finally {
+            checking = false;
           }
         });
   try {

@@ -16,7 +16,7 @@ Request (at most 64 KiB):
 Answer (at most 4 MiB; a larger result becomes the error `response_too_large`):
 
 ```json
-{"id": 7, "result": {"applied": true}}
+{"id": 7, "result": {"applied": "nord", "done": ["cosmic", "wallpaper", "terminal"]}}
 {"id": 7, "error": {"code": "not_found", "message": "no theme nord"}}
 ```
 
