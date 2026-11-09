@@ -54,6 +54,21 @@ void main() {
     expect(d.interfaceFont(), isNull);
   });
 
+  test('COSMIC blur: 15 look strengths on 14 steps, the four parts together, maximized apps stay', () {
+    final d = CosmicDesktop(paths, const {});
+    const now = {'strength': 6, 'windows': false, 'system': false, 'panel': false, 'applets': false, 'maximized': true};
+    final on = d.blurTarget(now, on: true, strength: 15);
+    expect(on, {'strength': 13, 'windows': true, 'system': true, 'panel': true, 'applets': true, 'maximized': true});
+    expect(d.blurTarget(now, on: true, strength: 1)['strength'], 0);
+    expect(d.blurTarget(on, on: false, strength: 8)['windows'], isFalse);
+    expect(d.blurAsLook(on), {'on': true, 'strength': 15});
+    expect(d.blurAsLook(now), {'on': false, 'strength': 7});
+    for (var s = 1; s <= 15; s++) {
+      final step = d.blurTarget(now, on: true, strength: s)['strength'] as int;
+      expect(step, inInclusiveRange(0, 13));
+    }
+  });
+
   test('the generic backend changes nothing of the desktop', () async {
     final d = GenericDesktop(paths, const {});
     expect(d.caps, isEmpty);

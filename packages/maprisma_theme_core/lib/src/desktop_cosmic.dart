@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'desktop.dart';
@@ -64,6 +65,43 @@ final class CosmicDesktop extends DesktopBase {
   Future<Map<String, dynamic>?> current() async {
     final r = await helperJson(['current']);
     return r == null || r['error'] != null ? null : r;
+  }
+
+  // --- blur: the Theme Builder's "frosted" settings (helper blur / set-blur) ----
+
+  static const _blurParts = ['windows', 'system', 'panel', 'applets'];
+
+  @override
+  Future<Map<String, dynamic>?> blurState() async {
+    final r = await helperJson(['blur']);
+    return r == null || r['error'] != null || r['strength'] is! int ? null : r;
+  }
+
+  /// strength 1..15 on COSMIC's 14 steps (0..13); blur on means windows,
+  /// the system interface, the panel and applet popups; maximized apps stay
+  /// as the user set them.
+  @override
+  Map<String, dynamic> blurTarget(Map<String, dynamic> now, {required bool on, required int strength}) => {
+    ...now,
+    'strength': ((strength.clamp(1, 15) - 1) * 13 / 14).round(),
+    for (final p in _blurParts) p: on,
+  };
+
+  @override
+  Map<String, dynamic> blurAsLook(Map<String, dynamic> state) => {
+    'on': _blurParts.any((p) => state[p] == true),
+    'strength': (((state['strength'] as num? ?? 6).clamp(0, 13)) * 14 / 13).round() + 1,
+  };
+
+  @override
+  Future<bool> restoreBlur(Map<String, dynamic> state) async {
+    final values = {
+      for (final k in ['strength', ..._blurParts, 'maximized'])
+        if (state.containsKey(k)) k: state[k],
+    };
+    if (values.isEmpty) return false;
+    final r = await helperJson(['set-blur', jsonEncode(values)]);
+    return r != null && r['error'] == null;
   }
 
   @override

@@ -50,11 +50,22 @@ Caps: `fonts` (mono), `uiFont`, `blur`. Missing caps hide the controls.
 - `looks.set {slug, look}` → `{done, previous}`; when the theme is the one in use, it is applied
   again (only the changed parts).
 
+## Blur on COSMIC
+
+Helper `blur` prints the mode in use's `{strength 0..13, windows, system, panel, applets, maximized}`;
+`set-blur <json>` changes any of those in the Theme Builder of both modes (a mode is only skipped when it
+has no palette at all, as a default builder would carry the dark palette) and builds each Theme again.
+A look's strength 1..15 maps to `round((s-1)*13/14)`; "on" sets windows, system, panel and applets,
+maximized apps stay as the user set them. The user's own blur is the whole helper state (`own_blur`).
+
+`apply --colors` / `--ron` keep the Theme Builder's desktop settings (gaps, active hint and its colour,
+all frosted fields) from the mode in use: before, every theme apply reset them to COSMIC's defaults.
+
 ## Steps
 
 1. Core: looks.json, routes, apply chain, interface font for COSMIC and KDE, `Cap.uiFont`.
-2. Flutter: the Font & effects dialog on theme cards and in the theme details.
-3. COSMIC blur: helper `blur` / `set-blur`, apply keeps frosted, `Cap.blur`.
-4. KDE blur: kwinrc Blur effect, `Cap.blur`.
+2. COSMIC blur: helper `blur` / `set-blur`, apply keeps the desktop settings, `Cap.blur`.
+3. KDE blur: kwinrc Blur effect, `Cap.blur`.
+4. Flutter: the Font & effects dialog on theme cards and in the theme details.
 
 Codex reviews each step (read-only); findings are verified before fixing.

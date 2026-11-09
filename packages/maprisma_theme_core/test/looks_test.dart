@@ -67,7 +67,7 @@ void main() {
     final data = await call('looks.get', {'slug': 'mine'});
     expect(data['theme'], {'mono_font': 'Fira Code', 'ui_font': null});
     expect(data['look'], {'mono_font': 'JetBrains Mono'});
-    expect(data['caps'], ['mono_font', 'ui_font']);
+    expect(data['caps'], ['mono_font', 'ui_font', 'blur']);
     expect((data['fonts'] as Map)['ui_font'], contains('Inter'));
   });
 
@@ -98,7 +98,7 @@ void main() {
     env.addTheme('nord', system: true);
     await call('looks.set', {'slug': 'nord', 'look': {'ui_font': 'Inter'}});
     final data = await call('looks.get', {'slug': 'nord'});
-    expect(data['caps'], ['mono_font']);
+    expect(data['caps'], ['mono_font', 'blur']);
     await call('themes.apply', {'slug': 'nord'});
     expect(env.desktop.interfaceFont(), isNull);
   });
@@ -138,6 +138,47 @@ void main() {
     expect(data['current'], {'mono_font': 'Fira Code', 'ui_font': null});
     expect(data['own'], {'mono_font': 'JetBrains Mono', 'ui_font': null});
     expect(data['in_use'], isFalse);
+  });
+
+  test('blur: a theme\'s look sets it; the user\'s whole blur state comes back after', () async {
+    env.desktop.blur = {'on': false, 'strength': 3, 'other': 7};
+    await call('looks.set', {'slug': 'nord', 'look': {'blur': {'on': true, 'strength': 12}}});
+    final r = await call('themes.apply', {'slug': 'nord'});
+    expect(r['done'], contains('blur'));
+    expect(env.desktop.blur, {'on': true, 'strength': 12, 'other': 7});
+    expect(env.core.ctx.settings.get('own_blur'), {'on': false, 'strength': 3, 'other': 7});
+
+    // the same blur again: nothing to write
+    env.desktop.calls.clear();
+    await call('themes.apply', {'slug': 'nord'});
+    expect(env.desktop.calls.where((c) => c.startsWith('blur')), isEmpty);
+
+    final data = await call('looks.get', {'slug': 'nord'});
+    expect(data['caps'], contains('blur'));
+    expect(data['blur'], {
+      'current': {'on': true, 'strength': 12},
+      'own': {'on': false, 'strength': 3},
+      'theme': null,
+    });
+
+    await call('themes.apply', {'slug': 'mine'}); // no blur of its own
+    expect(env.desktop.blur, {'on': false, 'strength': 3, 'other': 7});
+    expect(env.core.ctx.settings.get('own_blur'), isNull);
+  });
+
+  test('blur on the theme in use follows looks.set at once; a desktop without blur shows none', () async {
+    await call('themes.apply', {'slug': 'nord'});
+    final r = await call('looks.set', {'slug': 'nord', 'look': {'blur': {'on': true, 'strength': 5}}});
+    expect(r['applied'], ['blur']);
+    expect(env.desktop.blur['on'], isTrue);
+
+    env.dispose();
+    env = TestEnv.create(desktop: FakeDesktop(caps: Cap.values.toSet().difference({Cap.blur})));
+    env.addTheme('nord', system: true);
+    await call('looks.set', {'slug': 'nord', 'look': {'blur': {'on': true, 'strength': 5}}});
+    await call('themes.apply', {'slug': 'nord'});
+    expect(env.desktop.blur['on'], isFalse);
+    expect((await call('looks.get', {'slug': 'nord'}))['caps'], isNot(contains('blur')));
   });
 
   test('backups carry looks.json and refuse bad ones', () async {

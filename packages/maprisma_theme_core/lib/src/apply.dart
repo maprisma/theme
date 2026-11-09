@@ -79,8 +79,8 @@ Future<Map<String, dynamic>> applyTheme(Ctx ctx, String slug, {String? wallpaper
   }
   final icons = theme.iconTheme;
   if (icons != null && await ctx.desktop.setIconTheme(icons)) done.add('icons');
-  for (final role in await applyLookFonts(ctx, theme)) {
-    done.add(role == FontRole.mono ? 'font' : 'ui_font');
+  for (final key in await applyLook(ctx, theme)) {
+    done.add(key == 'mono_font' ? 'font' : key);
   }
   if (await ctx.desktop.setTerminal(object, theme.name)) done.add('terminal');
   done.addAll(await applyAppTemplates(ctx, theme, resolved));

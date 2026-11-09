@@ -128,6 +128,128 @@ pub fn apply(b: ThemeBuilder) -> Result<Value> {
         .map_err(|e| e.to_string())?;
     Ok(json!({"applied":true,"mode":if dark {"dark"}else{"light"}}))
 }
+fn is_dark_now() -> bool {
+    ThemeMode::config()
+        .ok()
+        .and_then(|c| c.get::<bool>("is_dark").ok())
+        .unwrap_or(true)
+}
+fn builder_config(dark: bool) -> Result<cosmic_config::Config> {
+    if dark {
+        ThemeBuilder::dark_config()
+    } else {
+        ThemeBuilder::light_config()
+    }
+    .map_err(|e| e.to_string())
+}
+/// The Theme Builder COSMIC has for a mode, or None when that mode was never
+/// written (no palette: a default builder would carry the dark palette).
+fn stored_builder(dark: bool) -> Option<ThemeBuilder> {
+    let c = builder_config(dark).ok()?;
+    c.get::<CosmicPalette>("palette").ok()?;
+    Some(ThemeBuilder::get_entry(&c).unwrap_or_else(|(_, b)| b))
+}
+/// The settings in the Theme Builder that belong to the desktop, not to a
+/// theme: window gaps, the active window hint and blur ("frosted"). A theme
+/// brings colours; these stay as the user (or a look) set them.
+pub fn keep_desktop_settings(b: &mut ThemeBuilder) {
+    let Some(cur) = stored_builder(is_dark_now()) else {
+        return;
+    };
+    b.gaps = cur.gaps;
+    b.active_hint = cur.active_hint;
+    b.window_hint = cur.window_hint;
+    copy_blur(&cur, b);
+}
+fn copy_blur(from: &ThemeBuilder, to: &mut ThemeBuilder) {
+    to.frosted = from.frosted;
+    to.frosted_windows = from.frosted_windows;
+    to.frosted_system_interface = from.frosted_system_interface;
+    to.frosted_panel = from.frosted_panel;
+    to.frosted_applets = from.frosted_applets;
+    to.frosted_maximized_apps = from.frosted_maximized_apps;
+}
+fn blur_json(b: &ThemeBuilder) -> Value {
+    json!({"strength":b.frosted as u8,"windows":b.frosted_windows,"system":b.frosted_system_interface,
+        "panel":b.frosted_panel,"applets":b.frosted_applets,"maximized":b.frosted_maximized_apps})
+}
+/// COSMIC's blur as the mode in use has it: strength 0..13 (BlurStrength) and
+/// where it is used.
+pub fn blur() -> Value {
+    let dark = is_dark_now();
+    blur_json(&stored_builder(dark).unwrap_or_else(|| {
+        if dark {
+            ThemeBuilder::dark()
+        } else {
+            ThemeBuilder::light()
+        }
+    }))
+}
+/// Changes blur (any of blur()'s keys) in the Theme Builder of both modes,
+/// so switching dark and light keeps it, and builds each Theme again as
+/// COSMIC Settings does. A mode never written is left alone, unless it is
+/// the one in use.
+pub fn set_blur(v: &Value) -> Result<Value> {
+    let o = v.as_object().ok_or("blur must be an object")?;
+    if o.is_empty() {
+        return Err("nothing to change".into());
+    }
+    let mut strength = None;
+    for (k, x) in o {
+        match k.as_str() {
+            "strength" => {
+                let n = x.as_u64().filter(|n| *n <= 13).ok_or("strength must be 0..13")?;
+                strength = Some(cosmic_theme::BlurStrength::try_from(n as u8).map_err(|_| "strength must be 0..13")?);
+            }
+            "windows" | "system" | "panel" | "applets" | "maximized" => {
+                x.as_bool().ok_or_else(|| format!("{k} must be true or false"))?;
+            }
+            _ => return Err(format!("unknown key {k}")),
+        }
+    }
+    let flag = |k: &str| o.get(k).and_then(Value::as_bool);
+    let now = is_dark_now();
+    for dark in [now, !now] {
+        let mut b = match stored_builder(dark) {
+            Some(b) => b,
+            None if dark == now => {
+                if dark {
+                    ThemeBuilder::dark()
+                } else {
+                    ThemeBuilder::light()
+                }
+            }
+            None => continue,
+        };
+        if let Some(s) = strength {
+            b.frosted = s;
+        }
+        if let Some(x) = flag("windows") {
+            b.frosted_windows = x;
+        }
+        if let Some(x) = flag("system") {
+            b.frosted_system_interface = x;
+        }
+        if let Some(x) = flag("panel") {
+            b.frosted_panel = x;
+        }
+        if let Some(x) = flag("applets") {
+            b.frosted_applets = x;
+        }
+        if let Some(x) = flag("maximized") {
+            b.frosted_maximized_apps = x;
+        }
+        let tc = if dark {
+            Theme::dark_config()
+        } else {
+            Theme::light_config()
+        }
+        .map_err(|e| e.to_string())?;
+        b.write_entry(&builder_config(dark)?).map_err(|e| e.to_string())?;
+        b.build().write_entry(&tc).map_err(|e| e.to_string())?;
+    }
+    Ok(blur())
+}
 pub fn current_theme() -> Theme {
     let dark = ThemeMode::config()
         .ok()
@@ -201,6 +323,27 @@ mod tests {
         );
         assert!(rgb("#ff00zz").is_err());
         assert!(rgb("red").is_err());
+    }
+    #[test]
+    fn blur_json_uses_the_strength_index() {
+        let mut b = ThemeBuilder::dark();
+        b.frosted = cosmic_theme::BlurStrength::High;
+        b.frosted_panel = true;
+        let v = blur_json(&b);
+        assert_eq!(v["strength"], 8);
+        assert_eq!(v["panel"], true);
+        assert_eq!(v["windows"], false);
+        let mut c = ThemeBuilder::light();
+        copy_blur(&b, &mut c);
+        assert_eq!(c.frosted, cosmic_theme::BlurStrength::High);
+        assert!(c.frosted_panel);
+        assert!(!c.palette.is_dark());
+    }
+    #[test]
+    fn set_blur_refuses_bad_values() {
+        for bad in [json!(1), json!({}), json!({"strength":14}), json!({"panel":1}), json!({"other":true})] {
+            assert!(set_blur(&bad).is_err(), "{bad}");
+        }
     }
     #[test]
     fn native_fixture() {

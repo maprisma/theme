@@ -2,6 +2,8 @@
 /// theme, kept in looks.json beside the settings; theme files never change.
 library;
 
+import 'dart:convert';
+
 import 'auto.dart' show autoLocked, validSlug;
 import 'context.dart';
 import 'custom.dart' show fontRe;
@@ -128,6 +130,47 @@ Future<List<FontRole>> applyLookFonts(Ctx ctx, ThemeInfo theme) async {
   return changed;
 }
 
+/// The look's fields a theme apply touches: fonts and blur. Returns the
+/// look keys that changed.
+Future<List<String>> applyLook(Ctx ctx, ThemeInfo theme) async => [
+  for (final r in await applyLookFonts(ctx, theme)) r.lookKey,
+  if (await applyLookBlur(ctx, theme)) 'blur',
+];
+
+/// The blur a theme brings: its look's, else its own (theme-manager.json `blur`).
+Map<String, dynamic>? themeBlur(Ctx ctx, ThemeInfo theme, {Map<String, dynamic>? look}) {
+  final mine = (look ?? Looks(ctx).of(theme.slug))['blur'];
+  if (mine is Map<String, dynamic>) return mine;
+  return checkLook({'blur': theme.meta['blur']})?['blur'] as Map<String, dynamic>?;
+}
+
+String ownBlurKey(Desktop d) => d.id == 'kde' ? 'own_blur_kde' : 'own_blur';
+
+/// A theme's blur, and the user's own blur back (the desktop's whole state
+/// as it was) for a theme without one.
+Future<bool> applyLookBlur(Ctx ctx, ThemeInfo theme) async {
+  final d = ctx.desktop;
+  if (!d.caps.contains(Cap.blur)) return false;
+  final key = ownBlurKey(d);
+  final own = ctx.settings.get(key);
+  final themed = themeBlur(ctx, theme);
+  if (themed != null) {
+    final now = await d.blurState();
+    if (now == null) return false;
+    final target = d.blurTarget(now, on: themed['on'] as bool, strength: themed['strength'] as int);
+    if (jsonEncode(target) == jsonEncode(now)) return false;
+    if (!await d.restoreBlur(target)) return false;
+    if (own == null) ctx.settings.set(key, now);
+    return true;
+  }
+  if (own is Map) {
+    final ok = await d.restoreBlur(Map<String, dynamic>.from(own));
+    if (ok) ctx.settings.set(key, null);
+    return ok;
+  }
+  return false;
+}
+
 Future<bool> _applyFont(Ctx ctx, FontRole role, String? themed) async {
   final d = ctx.desktop;
   final key = role.ownKey(d);
@@ -154,6 +197,7 @@ Future<Map<String, dynamic>> lookData(Ctx ctx, String slug) async {
   final theme = ctx.theme(slug);
   final d = ctx.desktop;
   final roles = [for (final r in FontRole.values) if (d.caps.contains(r.cap)) r];
+  final blur = d.caps.contains(Cap.blur) ? await d.blurState() : null;
   return {
     'slug': slug,
     'name': theme.name,
@@ -174,7 +218,17 @@ Future<Map<String, dynamic>> lookData(Ctx ctx, String slug) async {
     'fonts': {
       for (final r in roles) r.lookKey: (await r.choices(d)).where(fontRe.hasMatch).take(400).toList(),
     },
-    'caps': [for (final r in roles) r.lookKey],
+    'caps': [for (final r in roles) r.lookKey, if (blur != null) 'blur'],
+    if (blur != null) ...{
+      'blur': {
+        'current': d.blurAsLook(blur),
+        'own': d.blurAsLook(switch (ctx.settings.get(ownBlurKey(d))) {
+          final Map m => Map<String, dynamic>.from(m),
+          _ => blur,
+        }),
+        'theme': themeBlur(ctx, theme, look: const {}),
+      },
+    },
     'in_use': ctx.current.slug == slug,
   };
 }
@@ -193,7 +247,7 @@ Future<Map<String, dynamic>> setLook(Ctx ctx, String slug, Object? raw) async {
   // one change at a time with theme applies (the daemon's workspace themes too)
   return autoLocked(ctx, () async {
     final previous = Looks(ctx).set(slug, look);
-    final done = ctx.current.slug == slug ? [for (final r in await applyLookFonts(ctx, theme)) r.lookKey] : <String>[];
+    final done = ctx.current.slug == slug ? await applyLook(ctx, theme) : <String>[];
     return {'done': true, 'previous': previous, 'look': look, 'applied': done};
   });
 }

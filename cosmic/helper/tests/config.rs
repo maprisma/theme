@@ -196,3 +196,38 @@ fn null_corners_preserve_current_radii_across_mode_switch() {
     assert_eq!(current["is_dark"], false);
     fs::remove_dir_all(root).unwrap();
 }
+#[test]
+fn blur_is_set_for_both_modes_and_kept_by_a_theme_apply() {
+    let root = temp();
+    let colors = root.join("colors.json");
+    fs::write(&colors, json!({"mode":"dark","background":"#112233","foreground":"#aabbcc"}).to_string()).unwrap();
+    // a dark theme first (the dark builder exists; light was never written)
+    run(&root, &["apply", "--colors", colors.to_str().unwrap()]);
+    assert_eq!(run(&root, &["blur"])["windows"], false);
+    let b = run(&root, &["set-blur", r#"{"strength":10,"windows":true,"panel":true,"maximized":true}"#]);
+    assert_eq!(b, json!({"strength":10,"windows":true,"system":false,"panel":true,"applets":false,"maximized":true}));
+    let builder = root.join("cosmic/com.system76.CosmicTheme.Dark.Builder/v2");
+    assert_eq!(fs::read_to_string(builder.join("frosted")).unwrap(), "VeryHigh");
+    assert_eq!(fs::read_to_string(builder.join("frosted_windows")).unwrap(), "true");
+    let theme = root.join("cosmic/com.system76.CosmicTheme.Dark/v2");
+    assert_eq!(fs::read_to_string(theme.join("frosted_panel")).unwrap(), "true");
+    // the light mode (COSMIC's system defaults when never written) keeps its light palette
+    let light_palette = root.join("cosmic/com.system76.CosmicTheme.Light.Builder/v2/palette");
+    if light_palette.exists() {
+        assert!(fs::read_to_string(&light_palette).unwrap().trim_start().starts_with("Light"));
+    }
+    // gaps set in COSMIC Settings, then another theme: colours change, blur and gaps stay
+    fs::write(builder.join("gaps"), "(4, 12)").unwrap();
+    fs::write(&colors, json!({"mode":"dark","background":"#202020","foreground":"#eeeeee"}).to_string()).unwrap();
+    run(&root, &["apply", "--colors", colors.to_str().unwrap()]);
+    assert_eq!(run(&root, &["blur"])["strength"], 10);
+    assert_eq!(run(&root, &["blur"])["windows"], true);
+    assert_eq!(fs::read_to_string(builder.join("gaps")).unwrap(), "(4, 12)");
+    // a light theme takes blur along from the mode in use
+    fs::write(&colors, json!({"mode":"light","background":"#ffffff","foreground":"#111111"}).to_string()).unwrap();
+    run(&root, &["apply", "--colors", colors.to_str().unwrap()]);
+    let light = root.join("cosmic/com.system76.CosmicTheme.Light.Builder/v2");
+    assert_eq!(fs::read_to_string(light.join("frosted_windows")).unwrap(), "true");
+    assert_eq!(run(&root, &["blur"])["strength"], 10);
+    fs::remove_dir_all(&root).unwrap();
+}

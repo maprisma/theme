@@ -46,6 +46,9 @@ enum Cap {
   /// The interface font can be read and set (interfaceFont / setInterfaceFont).
   uiFont,
 
+  /// Blur behind windows and panels can be read and set (blurState / restoreBlur).
+  blur,
+
   /// wm `animations` / `set-animations`: workspace switch and window open
   /// animations can be turned off (KDE: KWin effects).
   animations,
@@ -112,6 +115,19 @@ abstract interface class Desktop {
   Future<bool> resetInterfaceFont();
   Future<List<String>> interfaceFonts();
 
+  /// Blur as the desktop keeps it (a JSON map of its own), or null.
+  Future<Map<String, dynamic>?> blurState();
+
+  /// The state [now] becomes with blur [on] at [strength] (1..15); what else
+  /// the desktop keeps there stays.
+  Map<String, dynamic> blurTarget(Map<String, dynamic> now, {required bool on, required int strength});
+
+  /// {on, strength 1..15} of a state, for the dialog.
+  Map<String, dynamic> blurAsLook(Map<String, dynamic> state);
+
+  /// Writes a state from blurState / blurTarget; the desktop follows at once.
+  Future<bool> restoreBlur(Map<String, dynamic> state);
+
   String? iconTheme();
   Future<bool> setIconTheme(String name);
   List<String> iconThemes();
@@ -163,6 +179,15 @@ abstract base class DesktopBase implements Desktop {
 
   @override
   Future<void> publishTilingAutomation(Map<String, dynamic> tiling) async {}
+
+  @override
+  Future<Map<String, dynamic>?> blurState() async => null;
+  @override
+  Map<String, dynamic> blurTarget(Map<String, dynamic> now, {required bool on, required int strength}) => now;
+  @override
+  Map<String, dynamic> blurAsLook(Map<String, dynamic> state) => {'on': false, 'strength': 8};
+  @override
+  Future<bool> restoreBlur(Map<String, dynamic> state) async => false;
 
   final Paths paths;
   final Map<String, String> environment;
@@ -444,6 +469,24 @@ final class FakeDesktop implements Desktop {
 
   @override
   Future<List<String>> interfaceFonts() async => uiFonts;
+
+  /// The fake's blur: {on, strength, other} ("other" stands for what a
+  /// desktop keeps beside, which a look never changes).
+  Map<String, dynamic> blur = {'on': false, 'strength': 8, 'other': 1};
+
+  @override
+  Future<Map<String, dynamic>?> blurState() async => Map.of(blur);
+  @override
+  Map<String, dynamic> blurTarget(Map<String, dynamic> now, {required bool on, required int strength}) =>
+      {...now, 'on': on, 'strength': strength};
+  @override
+  Map<String, dynamic> blurAsLook(Map<String, dynamic> state) => {'on': state['on'], 'strength': state['strength']};
+  @override
+  Future<bool> restoreBlur(Map<String, dynamic> state) async {
+    calls.add('blur ${state['on']} ${state['strength']}');
+    blur = Map.of(state);
+    return true;
+  }
 
   @override
   String? iconTheme() => _icons;

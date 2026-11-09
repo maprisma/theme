@@ -15,6 +15,7 @@ fn run(a: &[String]) -> Result<Value> {
                 if colors.get("corner").is_none_or(Value::is_null) {
                     builder.corner_radii = theme::current_theme().corner_radii;
                 }
+                theme::keep_desktop_settings(&mut builder);
                 theme::apply(builder)
             }
             ("--ron", 3 | 5) => {
@@ -26,7 +27,9 @@ fn run(a: &[String]) -> Result<Value> {
                 } else {
                     None
                 };
-                theme::apply(theme::ron_builder(Path::new(arg(2)?), mode)?)
+                let mut builder = theme::ron_builder(Path::new(arg(2)?), mode)?;
+                theme::keep_desktop_settings(&mut builder);
+                theme::apply(builder)
             }
             _ => Err("usage: apply --colors FILE | --ron FILE [--mode dark|light]".into()),
         },
@@ -38,6 +41,11 @@ fn run(a: &[String]) -> Result<Value> {
             Ok(
                 json!({"colors":theme::colors(&t),"is_dark":t.is_dark,"corner_radius":t.corner_radii.radius_s[0]}),
             )
+        }
+        "blur" if a.len() == 1 => Ok(theme::blur()),
+        "set-blur" if a.len() == 2 => {
+            let v: Value = serde_json::from_str(arg(1)?).map_err(|e| e.to_string())?;
+            theme::set_blur(&v)
         }
         "terminal" if a.len() == 5 && arg(1)? == "--colors" && arg(3)? == "--name" => {
             terminal::write(&theme::colors_file(Path::new(arg(2)?))?, arg(4)?)?;
