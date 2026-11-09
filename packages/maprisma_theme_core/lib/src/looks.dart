@@ -8,6 +8,7 @@ import 'auto.dart' show autoLocked, validSlug;
 import 'context.dart';
 import 'custom.dart' show fontRe;
 import 'desktop.dart';
+import 'settings.dart';
 import 'store.dart';
 import 'themes.dart';
 
@@ -137,11 +138,36 @@ Future<List<String>> applyLook(Ctx ctx, ThemeInfo theme) async => [
   if (await applyLookBlur(ctx, theme)) 'blur',
 ];
 
-/// The blur a theme brings: its look's, else its own (theme-manager.json `blur`).
+/// The blur a theme brings: its look's, else its own (theme-manager.json
+/// `blur`, or a native COSMIC theme's frosted settings in its cosmic.ron).
 Map<String, dynamic>? themeBlur(Ctx ctx, ThemeInfo theme, {Map<String, dynamic>? look}) {
   final mine = (look ?? Looks(ctx).of(theme.slug))['blur'];
   if (mine is Map<String, dynamic>) return mine;
-  return checkLook({'blur': theme.meta['blur']})?['blur'] as Map<String, dynamic>?;
+  final own = checkLook({'blur': theme.meta['blur']})?['blur'] as Map<String, dynamic>?;
+  if (own != null || !theme.cosmicNative) return own;
+  final ron = readSmall('${theme.dir}/cosmic.ron', limit: 1024 * 1024);
+  return ron == null ? null : ronBlur(ron);
+}
+
+/// COSMIC's BlurStrength names in order (0..13).
+const cosmicBlurSteps = [
+  'ExtremelyLow', 'ExtremelyLow2', 'VeryLow', 'VeryLow2', 'Low', 'Low2', 'Medium', 'Medium2',
+  'High', 'High2', 'VeryHigh', 'VeryHigh2', 'ExtremelyHigh', 'ExtremelyHigh2',
+];
+
+/// A ThemeBuilder RON's blur as a look ({on, strength 1..15}), or null when
+/// the file has no frosted settings (older COSMIC exports).
+Map<String, dynamic>? ronBlur(String text) {
+  bool? flag(String key) => switch (RegExp('\\b$key\\s*:\\s*(true|false)\\b').firstMatch(text)?.group(1)) {
+    'true' => true,
+    'false' => false,
+    _ => null,
+  };
+  final flags = [for (final k in ['frosted_windows', 'frosted_system_interface', 'frosted_panel', 'frosted_applets']) flag(k)];
+  if (flags.every((f) => f == null)) return null;
+  final name = RegExp(r'\bfrosted\s*:\s*([A-Za-z0-9]+)').firstMatch(text)?.group(1);
+  final step = cosmicBlurSteps.indexOf(name ?? 'Medium');
+  return {'on': flags.contains(true), 'strength': ((step < 0 ? 6 : step) * 14 / 13).round() + 1};
 }
 
 String ownBlurKey(Desktop d) => d.id == 'kde' ? 'own_blur_kde' : 'own_blur';
@@ -159,9 +185,9 @@ Future<bool> applyLookBlur(Ctx ctx, ThemeInfo theme) async {
     if (now == null) return false;
     final target = d.blurTarget(now, on: themed['on'] as bool, strength: themed['strength'] as int);
     if (jsonEncode(target) == jsonEncode(now)) return false;
-    if (!await d.restoreBlur(target)) return false;
+    // kept before the change: a write that fails halfway can't lose it
     if (own == null) ctx.settings.set(key, now);
-    return true;
+    return d.restoreBlur(target);
   }
   if (own is Map) {
     final ok = await d.restoreBlur(Map<String, dynamic>.from(own));
@@ -256,17 +282,26 @@ Future<Map<String, dynamic>> setLook(Ctx ctx, String slug, Object? raw) async {
 /// the user's own font is kept to come back later.
 Future<bool> applyFontOverride(Ctx ctx, FontRole role, String family) => _applyFont(ctx, role, family);
 
-/// Every font and the user's own fonts as they are, for an undo to put back exactly.
-Map<String, dynamic> captureFonts(Ctx ctx) {
+/// Every font, blur and the user's own values as they are, for an undo to put back exactly.
+Future<Map<String, dynamic>> captureLook(Ctx ctx) async {
   final d = ctx.desktop;
   return {
     for (final r in FontRole.values) r.lookKey: r.current(d),
-    'own': {for (final r in FontRole.values) r.ownKey(d): ctx.settings.get(r.ownKey(d))},
+    if (d.caps.contains(Cap.blur)) 'blur': await d.blurState(),
+    'own': {
+      for (final r in FontRole.values) r.ownKey(d): ctx.settings.get(r.ownKey(d)),
+      ownBlurKey(d): ctx.settings.get(ownBlurKey(d)),
+    },
   };
 }
 
-Future<void> restoreFonts(Ctx ctx, Map<String, dynamic> state) async {
+Future<void> restoreLook(Ctx ctx, Map<String, dynamic> state) async {
   final d = ctx.desktop;
+  final blur = state['blur'];
+  if (blur is Map && d.caps.contains(Cap.blur)) {
+    final now = await d.blurState();
+    if (jsonEncode(now) != jsonEncode(blur)) await d.restoreBlur(Map<String, dynamic>.from(blur));
+  }
   for (final r in FontRole.values) {
     if (!d.caps.contains(r.cap)) continue;
     final f = state[r.lookKey];
@@ -276,7 +311,7 @@ Future<void> restoreFonts(Ctx ctx, Map<String, dynamic> state) async {
   final own = state['own'];
   if (own is Map) {
     for (final e in own.entries) {
-      if (e.value == null || e.value is String) ctx.settings.set(e.key as String, e.value);
+      if (Settings.check(e.key as String, e.value)) ctx.settings.set(e.key as String, e.value);
     }
   }
 }

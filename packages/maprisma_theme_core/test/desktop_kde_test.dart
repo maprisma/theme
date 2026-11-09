@@ -405,6 +405,8 @@ void main() {
       Directory(loaded).createSync();
       statefulKwriteconfig();
       tool('qdbus6', 'case "\$3" in '
+          '*isEffectSupported) [ -e "$loaded/../unsupported" ] && echo false || echo true;; '
+          '*reconfigureEffect) if [ -e "$loaded/../fail-reconfigure" ]; then exit 1; fi;; '
           '*isEffectLoaded) [ -e "$loaded/\$4" ] && echo true || echo false;; '
           '*loadEffect) [ -e "$loaded/../refuse" ] || [ "\$3" != "\${3%unloadEffect}" ] || touch "$loaded/\$4"; '
           '[ "\$3" != "\${3%unloadEffect}" ] && rm -f "$loaded/\$4"; echo true;; '
@@ -474,35 +476,54 @@ void main() {
       expect(kde.animations(), {'workspace': true, 'window': true});
     });
 
-    test('blur: kwinrc keys as they are; a theme\'s blur and back again exactly', () async {
+    String? kwinrc(String group, String key) => iniValue(File('$config/kwinrc').readAsStringSync(), group, key);
+
+    test('blur: kwinrc keys and the running effect as they are; a theme\'s blur and back again exactly', () async {
       File('$config/kwinrc').writeAsStringSync('[Effect-blur]\nNoiseStrength=3\n');
-      File('$loaded/blur').createSync();
+      // no key, and KWin's default for this GPU is off
       final before = (await kde.blurState())!;
-      expect(before, {'enabled': null, 'strength': null});
-      expect(kde.blurAsLook(before), {'on': true, 'strength': 15});
+      expect(before, {'enabled': null, 'strength': null, 'loaded': false});
+      expect(kde.blurAsLook(before), {'on': false, 'strength': 15});
 
       final target = kde.blurTarget(before, on: true, strength: 4);
       expect(await kde.restoreBlur(target), isTrue);
-      expect(iniValue(File('$config/kwinrc').readAsStringSync(), 'Effect-blur', 'BlurStrength'), '4');
-      expect(iniValue(File('$config/kwinrc').readAsStringSync(), 'Effect-blur', 'NoiseStrength'), '3');
+      expect(live(), contains('blur'));
+      expect(kwinrc('Effect-blur', 'BlurStrength'), '4');
+      expect(kwinrc('Effect-blur', 'NoiseStrength'), '3');
       expect(logText(), contains('reconfigureEffect blur'));
 
       expect(await kde.restoreBlur(kde.blurTarget(target, on: false, strength: 4)), isTrue);
       expect(live(), isNot(contains('blur')));
       expect(plugin('blur'), 'false');
 
+      // back: no keys, and the effect not running, as before
       expect(await kde.restoreBlur(before), isTrue);
       expect(plugin('blur'), isNull);
-      expect(live(), contains('blur'));
-      expect(iniValue(File('$config/kwinrc').readAsStringSync(), 'Effect-blur', 'BlurStrength'), isNull);
+      expect(live(), isNot(contains('blur')));
+      expect(kwinrc('Effect-blur', 'BlurStrength'), isNull);
     });
 
-    test('blur: KWin refusing puts both keys back', () async {
+    test('blur: KWin refusing to load, or to read the strength, puts everything back', () async {
       File('$config/kwinrc').writeAsStringSync('[Plugins]\nblurEnabled=false\n[Effect-blur]\nBlurStrength=9\n');
       File('${root.path}/refuse').createSync();
       final before = (await kde.blurState())!;
       expect(await kde.restoreBlur(kde.blurTarget(before, on: true, strength: 2)), isFalse);
       expect(await kde.blurState(), before);
+
+      File('${root.path}/refuse').deleteSync();
+      File('$loaded/blur').createSync();
+      File('$config/kwinrc').writeAsStringSync('[Effect-blur]\nBlurStrength=9\n');
+      final running = (await kde.blurState())!;
+      File('${root.path}/fail-reconfigure').createSync();
+      expect(await kde.restoreBlur(kde.blurTarget(running, on: true, strength: 2)), isFalse);
+      expect(kwinrc('Effect-blur', 'BlurStrength'), '9');
+    });
+
+    test('blur: none where KWin can\'t blur, and nothing written', () async {
+      File('${root.path}/unsupported').createSync();
+      expect(await kde.blurState(), isNull);
+      expect(await kde.restoreBlur({'enabled': 'true', 'strength': '3', 'loaded': true}), isFalse);
+      expect(logText(), isNot(contains('kwriteconfig6')));
     });
 
     test('a bad request writes nothing', () async {

@@ -38,8 +38,8 @@ variants; COSMIC keeps the unsuffixed names). `(default)` marks "the desktop def
 
 | | mono font | interface font | blur |
 | --- | --- | --- | --- |
-| COSMIC | CosmicTk `monospace_font` | CosmicTk `interface_font` | Theme Builder `frosted` (strength) + `frosted_windows`, `frosted_panel`, `frosted_applets`, `frosted_system_interface`; helper rebuilds the Theme. Apply keeps the frosted fields. |
-| KDE | kdeglobals `fixed` | kdeglobals `font` (`menuFont`, `toolBarFont` follow when they equalled it) | kwinrc `[Plugins] blurEnabled`, `[Effect-blur] BlurStrength`; KWin reconfigured |
+| COSMIC | CosmicTk `monospace_font` | CosmicTk `interface_font` | Theme Builder `frosted` (strength) + `frosted_windows`, `frosted_panel`, `frosted_applets`, `frosted_system_interface`, per mode; helper rebuilds each Theme. Apply keeps them. |
+| KDE | kdeglobals `fixed` | kdeglobals `font` (`menuFont`, `toolBarFont`, `[WM] activeFont` follow when they had its family; a receipt puts exactly those back) | kwinrc `[Plugins] blurEnabled`, `[Effect-blur] BlurStrength`; KWin loads the effect, reconfigured |
 | Omarchy | `omarchy font set` | – (no interface font in Omarchy) | Hyprland `decoration:blur:enabled`, `size`/`passes` from the strength |
 
 Caps: `fonts` (mono), `uiFont`, `blur`. Missing caps hide the controls.
@@ -52,22 +52,26 @@ Caps: `fonts` (mono), `uiFont`, `blur`. Missing caps hide the controls.
 
 ## Blur on COSMIC
 
-Helper `blur` prints the mode in use's `{strength 0..13, windows, system, panel, applets, maximized}`;
-`set-blur <json>` changes any of those in the Theme Builder of both modes (a mode is only skipped when it
-has no palette at all, as a default builder would carry the dark palette) and builds each Theme again.
-A look's strength 1..15 maps to `round((s-1)*13/14)`; "on" sets windows, system, panel and applets,
-maximized apps stay as the user set them. The user's own blur is the whole helper state (`own_blur`).
+Helper `blur` prints `{mode, dark, light}`: each mode's `{strength 0..13, windows, system, panel, applets,
+maximized}` (COSMIC keeps them per mode; a mode with no palette anywhere, not even COSMIC's system
+defaults, is null). `set-blur <json>` takes `{dark, light}` (each mode exactly as given) or one change for
+both; each Theme is built again; when a write fails, the modes written before get their old builders back.
+A look's strength 1..15 maps to `round((s-1)*13/14)`; "on" sets windows, system, panel and applets in both
+modes, maximized apps stay as each mode has them. The user's own blur is the whole `blur` output
+(`own_blur`), kept before the first change.
 
-`apply --colors` / `--ron` keep the Theme Builder's desktop settings (gaps, active hint and its colour,
-all frosted fields) from the mode in use: before, every theme apply reset them to COSMIC's defaults.
+`apply --colors` / `--ron` keep the Theme Builder's desktop settings (gaps, active hint, blur) of the
+theme's mode (else the mode in use): before, every theme apply reset them. A native RON theme keeps its own
+hint colour; its frosted settings count as the theme's own blur (`ronBlur`), applied through the look chain.
 
 ## Blur on KDE
 
-The state is kwinrc's raw `[Plugins] blurEnabled` and `[Effect-blur] BlurStrength` (null = missing:
-enabled, strength 15 as KWin's blur.kcfg). A look writes both; KWin loads or unloads the effect (checked
-with `isEffectLoaded`, as the animation switches) and `reconfigureEffect blur` reads the strength. When
-KWin doesn't follow, both keys go back. Noise strength and saturation are never touched. Blur shows only
-behind see-through surfaces (panel, menus, Konsole with opacity below 100 %).
+The state is kwinrc's raw `[Plugins] blurEnabled` and `[Effect-blur] BlurStrength` (null = missing) plus
+whether KWin runs the effect now (`isEffectLoaded`): KWin's default for a missing key depends on the GPU.
+Blur is offered only where `isEffectSupported blur` is true (OpenGL compositing). A change writes both keys,
+loads or unloads the effect (checked) and `reconfigureEffect blur` reads the strength; when any of it fails,
+keys and effect go back. Noise strength and saturation are never touched. Missing strength = 15 (blur.kcfg).
+Blur shows only behind see-through surfaces (panel, menus, Konsole with opacity below 100 %).
 
 ## Steps
 

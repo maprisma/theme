@@ -54,19 +54,32 @@ void main() {
     expect(d.interfaceFont(), isNull);
   });
 
-  test('COSMIC blur: 15 look strengths on 14 steps, the four parts together, maximized apps stay', () {
+  test('COSMIC blur: 15 look strengths on 14 steps, the four parts together, each mode keeps the rest', () {
     final d = CosmicDesktop(paths, const {});
-    const now = {'strength': 6, 'windows': false, 'system': false, 'panel': false, 'applets': false, 'maximized': true};
+    const now = {
+      'mode': 'dark',
+      'dark': {'strength': 6, 'windows': false, 'system': false, 'panel': false, 'applets': false, 'maximized': true},
+      'light': {'strength': 2, 'windows': false, 'system': true, 'panel': false, 'applets': false, 'maximized': false},
+    };
     final on = d.blurTarget(now, on: true, strength: 15);
-    expect(on, {'strength': 13, 'windows': true, 'system': true, 'panel': true, 'applets': true, 'maximized': true});
-    expect(d.blurTarget(now, on: true, strength: 1)['strength'], 0);
-    expect(d.blurTarget(on, on: false, strength: 8)['windows'], isFalse);
+    expect(on['dark'], {'strength': 13, 'windows': true, 'system': true, 'panel': true, 'applets': true, 'maximized': true});
+    expect((on['light'] as Map)['maximized'], isFalse);
+    expect(on['mode'], 'dark');
+    expect((d.blurTarget(now, on: true, strength: 1)['dark'] as Map)['strength'], 0);
+    expect((d.blurTarget(on, on: false, strength: 8)['dark'] as Map)['windows'], isFalse);
     expect(d.blurAsLook(on), {'on': true, 'strength': 15});
     expect(d.blurAsLook(now), {'on': false, 'strength': 7});
-    for (var s = 1; s <= 15; s++) {
-      final step = d.blurTarget(now, on: true, strength: s)['strength'] as int;
-      expect(step, inInclusiveRange(0, 13));
-    }
+    expect(d.blurAsLook({...now, 'mode': 'light'}), {'on': true, 'strength': 3});
+    // a mode never written stays out
+    final dark = d.blurTarget({'mode': 'dark', 'dark': now['dark'], 'light': null}, on: true, strength: 8);
+    expect(dark['light'], isNull);
+    expect(d.blurAsLook({'mode': 'dark', 'dark': 'bad'}), {'on': false, 'strength': 7});
+  });
+
+  test('a native COSMIC theme\'s own blur comes from its cosmic.ron', () {
+    expect(ronBlur('(palette: Dark((..)), frosted: High, frosted_windows: true, frosted_panel: false)'), {'on': true, 'strength': 10});
+    expect(ronBlur('(frosted: ExtremelyHigh2, frosted_windows: false, frosted_system_interface: false)'), {'on': false, 'strength': 15});
+    expect(ronBlur('(palette: Dark((..)), gaps: (0, 8))'), isNull);
   });
 
   test('the generic backend changes nothing of the desktop', () async {

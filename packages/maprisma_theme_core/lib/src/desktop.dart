@@ -481,9 +481,13 @@ final class FakeDesktop implements Desktop {
       {...now, 'on': on, 'strength': strength};
   @override
   Map<String, dynamic> blurAsLook(Map<String, dynamic> state) => {'on': state['on'], 'strength': state['strength']};
+  /// False: every blur write fails (the desktop stays as it was).
+  bool blurWrites = true;
+
   @override
   Future<bool> restoreBlur(Map<String, dynamic> state) async {
     calls.add('blur ${state['on']} ${state['strength']}');
+    if (!blurWrites) return false;
     blur = Map.of(state);
     return true;
   }

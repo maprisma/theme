@@ -71,36 +71,48 @@ final class CosmicDesktop extends DesktopBase {
 
   static const _blurParts = ['windows', 'system', 'panel', 'applets'];
 
+  /// {mode, dark, light}: each mode's blur as the helper prints it (a mode
+  /// never written is null).
   @override
   Future<Map<String, dynamic>?> blurState() async {
     final r = await helperJson(['blur']);
-    return r == null || r['error'] != null || r['strength'] is! int ? null : r;
+    return r == null || r['error'] != null || r['mode'] is! String ? null : r;
   }
 
   /// strength 1..15 on COSMIC's 14 steps (0..13); blur on means windows,
   /// the system interface, the panel and applet popups; maximized apps stay
-  /// as the user set them.
+  /// as the user set them. Both modes get it, each keeping the rest.
   @override
   Map<String, dynamic> blurTarget(Map<String, dynamic> now, {required bool on, required int strength}) => {
     ...now,
-    'strength': ((strength.clamp(1, 15) - 1) * 13 / 14).round(),
-    for (final p in _blurParts) p: on,
+    for (final mode in const ['dark', 'light'])
+      if (now[mode] case final Map m) mode: {
+        ...m,
+        'strength': ((strength.clamp(1, 15) - 1) * 13 / 14).round(),
+        for (final p in _blurParts) p: on,
+      },
   };
 
   @override
-  Map<String, dynamic> blurAsLook(Map<String, dynamic> state) => {
-    'on': _blurParts.any((p) => state[p] == true),
-    'strength': (((state['strength'] as num? ?? 6).clamp(0, 13)) * 14 / 13).round() + 1,
-  };
+  Map<String, dynamic> blurAsLook(Map<String, dynamic> state) {
+    final m = state[state['mode']];
+    final mode = m is Map ? m : const {};
+    final step = mode['strength'];
+    return {
+      'on': _blurParts.any((p) => mode[p] == true),
+      'strength': (((step is int ? step : 6).clamp(0, 13)) * 14 / 13).round() + 1,
+    };
+  }
 
+  /// Each mode exactly as [state] has it.
   @override
   Future<bool> restoreBlur(Map<String, dynamic> state) async {
-    final values = {
-      for (final k in ['strength', ..._blurParts, 'maximized'])
-        if (state.containsKey(k)) k: state[k],
+    final modes = {
+      for (final mode in const ['dark', 'light'])
+        if (state[mode] is Map) mode: state[mode],
     };
-    if (values.isEmpty) return false;
-    final r = await helperJson(['set-blur', jsonEncode(values)]);
+    if (modes.isEmpty) return false;
+    final r = await helperJson(['set-blur', jsonEncode(modes)]);
     return r != null && r['error'] == null;
   }
 

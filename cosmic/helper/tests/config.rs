@@ -203,9 +203,10 @@ fn blur_is_set_for_both_modes_and_kept_by_a_theme_apply() {
     fs::write(&colors, json!({"mode":"dark","background":"#112233","foreground":"#aabbcc"}).to_string()).unwrap();
     // a dark theme first (the dark builder exists; light was never written)
     run(&root, &["apply", "--colors", colors.to_str().unwrap()]);
-    assert_eq!(run(&root, &["blur"])["windows"], false);
+    assert_eq!(run(&root, &["blur"])["dark"]["windows"], false);
     let b = run(&root, &["set-blur", r#"{"strength":10,"windows":true,"panel":true,"maximized":true}"#]);
-    assert_eq!(b, json!({"strength":10,"windows":true,"system":false,"panel":true,"applets":false,"maximized":true}));
+    assert_eq!(b["mode"], "dark");
+    assert_eq!(b["dark"], json!({"strength":10,"windows":true,"system":false,"panel":true,"applets":false,"maximized":true}));
     let builder = root.join("cosmic/com.system76.CosmicTheme.Dark.Builder/v2");
     assert_eq!(fs::read_to_string(builder.join("frosted")).unwrap(), "VeryHigh");
     assert_eq!(fs::read_to_string(builder.join("frosted_windows")).unwrap(), "true");
@@ -220,14 +221,23 @@ fn blur_is_set_for_both_modes_and_kept_by_a_theme_apply() {
     fs::write(builder.join("gaps"), "(4, 12)").unwrap();
     fs::write(&colors, json!({"mode":"dark","background":"#202020","foreground":"#eeeeee"}).to_string()).unwrap();
     run(&root, &["apply", "--colors", colors.to_str().unwrap()]);
-    assert_eq!(run(&root, &["blur"])["strength"], 10);
-    assert_eq!(run(&root, &["blur"])["windows"], true);
+    assert_eq!(run(&root, &["blur"])["dark"]["strength"], 10);
+    assert_eq!(run(&root, &["blur"])["dark"]["windows"], true);
     assert_eq!(fs::read_to_string(builder.join("gaps")).unwrap(), "(4, 12)");
     // a light theme takes blur along from the mode in use
     fs::write(&colors, json!({"mode":"light","background":"#ffffff","foreground":"#111111"}).to_string()).unwrap();
     run(&root, &["apply", "--colors", colors.to_str().unwrap()]);
     let light = root.join("cosmic/com.system76.CosmicTheme.Light.Builder/v2");
     assert_eq!(fs::read_to_string(light.join("frosted_windows")).unwrap(), "true");
-    assert_eq!(run(&root, &["blur"])["strength"], 10);
+    assert_eq!(run(&root, &["blur"])["light"]["strength"], 10);
+    // each mode set as given: light alone changes, dark keeps its own
+    let b = run(&root, &["set-blur", r#"{"light":{"strength":2,"windows":false,"system":false,"panel":false,"applets":false,"maximized":false}}"#]);
+    assert_eq!(b["mode"], "light");
+    assert_eq!(b["light"]["strength"], 2);
+    assert_eq!(b["dark"]["strength"], 10);
+    // one change for both: each mode keeps maximized as it had it
+    let b = run(&root, &["set-blur", r#"{"windows":true}"#]);
+    assert_eq!(b["light"]["maximized"], false);
+    assert_eq!(b["dark"]["maximized"], true);
     fs::remove_dir_all(&root).unwrap();
 }

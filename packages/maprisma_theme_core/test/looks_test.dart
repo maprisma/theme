@@ -181,6 +181,33 @@ void main() {
     expect((await call('looks.get', {'slug': 'nord'}))['caps'], isNot(contains('blur')));
   });
 
+  test('blur: the user\'s own is kept before the change, also when the write fails', () async {
+    env.desktop.blur = {'on': true, 'strength': 2, 'other': 0};
+    env.desktop.blurWrites = false;
+    await call('looks.set', {'slug': 'nord', 'look': {'blur': {'on': false, 'strength': 2}}});
+    await call('themes.apply', {'slug': 'nord'});
+    expect(env.core.ctx.settings.get('own_blur'), {'on': true, 'strength': 2, 'other': 0});
+    env.desktop.blurWrites = true;
+    await call('themes.apply', {'slug': 'nord'});
+    expect(env.desktop.blur['on'], isFalse);
+    // the own value is still the user's, not the half-done state
+    expect(env.core.ctx.settings.get('own_blur'), {'on': true, 'strength': 2, 'other': 0});
+  });
+
+  test('preset undo puts blur back exactly, with a blur set by hand', () async {
+    await call('looks.set', {'slug': 'nord', 'look': {'blur': {'on': true, 'strength': 10}}});
+    await call('themes.apply', {'slug': 'nord'});
+    env.desktop.blur = {'on': true, 'strength': 4, 'other': 1}; // changed by hand
+    await call('themes.apply', {'slug': 'mine'});
+    await call('presets.save', {'name': 'Plain'});
+    await call('themes.apply', {'slug': 'nord'});
+    env.desktop.blur = {'on': true, 'strength': 4, 'other': 1};
+    final r = await call('presets.apply', {'name': 'Plain'});
+    expect(env.desktop.blur['strength'], isNot(4));
+    await call('presets.undo', {'receipt': r['receipt'], 'appearance': true});
+    expect(env.desktop.blur, {'on': true, 'strength': 4, 'other': 1});
+  });
+
   test('backups carry looks.json and refuse bad ones', () async {
     await call('looks.set', {'slug': 'nord', 'look': {'mono_font': 'Fira Code', 'blur': {'on': true, 'strength': 4}}});
     final file = '${env.root.path}/backup.json';

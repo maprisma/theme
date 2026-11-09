@@ -340,14 +340,14 @@ Future<Map<String, dynamic>> applySavedPreset(
 class PresetUndo {
   final Map<String, Map<String, dynamic>> _receipts = {};
   int _serial = 0;
-  String capture(Ctx ctx) {
+  Future<String> capture(Ctx ctx) async {
     final id = '${++_serial}';
     _receipts[id] = {
       'workspaces': loadWorkspaces(ctx),
       'presets': loadPresets(ctx),
       'theme': ctx.current.slug,
       'wallpaper': ctx.current.wallpaper,
-      'fonts': captureFonts(ctx),
+      'look': await captureLook(ctx),
       'autostart': readJsonMap('${ctx.paths.state}/autostart.json'),
     };
     if (_receipts.length > 30) _receipts.remove(_receipts.keys.first);
@@ -418,7 +418,7 @@ class PresetUndo {
         s['theme'] as String,
         wallpaper: s['wallpaper'] as String?,
       );
-      if (s['fonts'] is Map) await restoreFonts(ctx, Map<String, dynamic>.from(s['fonts'] as Map));
+      if (s['look'] is Map) await restoreLook(ctx, Map<String, dynamic>.from(s['look'] as Map));
     }
   }
 }

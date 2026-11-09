@@ -152,13 +152,19 @@ fn stored_builder(dark: bool) -> Option<ThemeBuilder> {
 /// The settings in the Theme Builder that belong to the desktop, not to a
 /// theme: window gaps, the active window hint and blur ("frosted"). A theme
 /// brings colours; these stay as the user (or a look) set them.
+/// A theme's own active hint colour (a native RON theme can have one) stays;
+/// its blur is applied afterwards as the theme's look (docs/theme-looks.md).
+/// Each mode keeps its own (as COSMIC does): the settings come from the
+/// theme's mode, else from the mode in use.
 pub fn keep_desktop_settings(b: &mut ThemeBuilder) {
-    let Some(cur) = stored_builder(is_dark_now()) else {
+    let Some(cur) = stored_builder(b.palette.is_dark()).or_else(|| stored_builder(is_dark_now())) else {
         return;
     };
     b.gaps = cur.gaps;
     b.active_hint = cur.active_hint;
-    b.window_hint = cur.window_hint;
+    if b.window_hint.is_none() {
+        b.window_hint = cur.window_hint;
+    }
     copy_blur(&cur, b);
 }
 fn copy_blur(from: &ThemeBuilder, to: &mut ThemeBuilder) {
@@ -173,33 +179,33 @@ fn blur_json(b: &ThemeBuilder) -> Value {
     json!({"strength":b.frosted as u8,"windows":b.frosted_windows,"system":b.frosted_system_interface,
         "panel":b.frosted_panel,"applets":b.frosted_applets,"maximized":b.frosted_maximized_apps})
 }
-/// COSMIC's blur as the mode in use has it: strength 0..13 (BlurStrength) and
-/// where it is used.
-pub fn blur() -> Value {
-    let dark = is_dark_now();
-    blur_json(&stored_builder(dark).unwrap_or_else(|| {
+fn mode_builder(dark: bool) -> ThemeBuilder {
+    stored_builder(dark).unwrap_or_else(|| {
         if dark {
             ThemeBuilder::dark()
         } else {
             ThemeBuilder::light()
         }
-    }))
+    })
 }
-/// Changes blur (any of blur()'s keys) in the Theme Builder of both modes,
-/// so switching dark and light keeps it, and builds each Theme again as
-/// COSMIC Settings does. A mode never written is left alone, unless it is
-/// the one in use.
-pub fn set_blur(v: &Value) -> Result<Value> {
+/// COSMIC's blur per mode (each keeps its own): strength 0..13
+/// (BlurStrength) and where it is used; a mode never written is null,
+/// unless it is the one in use.
+pub fn blur() -> Value {
+    let now = is_dark_now();
+    let of = |dark: bool| match stored_builder(dark) {
+        Some(b) => blur_json(&b),
+        None if dark == now => blur_json(&mode_builder(dark)),
+        None => Value::Null,
+    };
+    json!({"mode":if now {"dark"} else {"light"},"dark":of(true),"light":of(false)})
+}
+fn check_patch(v: &Value) -> Result<&serde_json::Map<String, Value>> {
     let o = v.as_object().ok_or("blur must be an object")?;
-    if o.is_empty() {
-        return Err("nothing to change".into());
-    }
-    let mut strength = None;
     for (k, x) in o {
         match k.as_str() {
             "strength" => {
-                let n = x.as_u64().filter(|n| *n <= 13).ok_or("strength must be 0..13")?;
-                strength = Some(cosmic_theme::BlurStrength::try_from(n as u8).map_err(|_| "strength must be 0..13")?);
+                x.as_u64().filter(|n| *n <= 13).ok_or("strength must be 0..13")?;
             }
             "windows" | "system" | "panel" | "applets" | "maximized" => {
                 x.as_bool().ok_or_else(|| format!("{k} must be true or false"))?;
@@ -207,46 +213,85 @@ pub fn set_blur(v: &Value) -> Result<Value> {
             _ => return Err(format!("unknown key {k}")),
         }
     }
+    Ok(o)
+}
+fn patch(b: &mut ThemeBuilder, o: &serde_json::Map<String, Value>) {
+    if let Some(s) = o
+        .get("strength")
+        .and_then(Value::as_u64)
+        .and_then(|n| cosmic_theme::BlurStrength::try_from(n as u8).ok())
+    {
+        b.frosted = s;
+    }
     let flag = |k: &str| o.get(k).and_then(Value::as_bool);
+    if let Some(x) = flag("windows") {
+        b.frosted_windows = x;
+    }
+    if let Some(x) = flag("system") {
+        b.frosted_system_interface = x;
+    }
+    if let Some(x) = flag("panel") {
+        b.frosted_panel = x;
+    }
+    if let Some(x) = flag("applets") {
+        b.frosted_applets = x;
+    }
+    if let Some(x) = flag("maximized") {
+        b.frosted_maximized_apps = x;
+    }
+}
+fn write_mode(dark: bool, b: &ThemeBuilder) -> Result<()> {
+    let tc = if dark {
+        Theme::dark_config()
+    } else {
+        Theme::light_config()
+    }
+    .map_err(|e| e.to_string())?;
+    b.write_entry(&builder_config(dark)?).map_err(|e| e.to_string())?;
+    b.clone().build().write_entry(&tc).map_err(|e| e.to_string())
+}
+/// Changes blur and builds each Theme again, as COSMIC Settings does.
+/// `{"dark": {..}, "light": {..}}` sets each mode as given (a missing or
+/// null mode stays); any other object is one change for both modes (each
+/// keeps the keys it leaves out). A mode never written is only touched when
+/// it is the one in use. When a write fails, the modes written before get
+/// their old builders back.
+pub fn set_blur(v: &Value) -> Result<Value> {
+    let o = v.as_object().ok_or("blur must be an object")?;
+    let per_mode = o.contains_key("dark") || o.contains_key("light");
+    if per_mode && o.keys().any(|k| k != "dark" && k != "light") {
+        return Err("give dark and light, or one change".into());
+    }
     let now = is_dark_now();
+    let mut plan = Vec::new();
     for dark in [now, !now] {
-        let mut b = match stored_builder(dark) {
-            Some(b) => b,
-            None if dark == now => {
-                if dark {
-                    ThemeBuilder::dark()
-                } else {
-                    ThemeBuilder::light()
-                }
+        let change = if per_mode {
+            match o.get(if dark { "dark" } else { "light" }) {
+                None | Some(Value::Null) => continue,
+                Some(x) => check_patch(x)?,
             }
+        } else {
+            check_patch(v)?
+        };
+        let old = match stored_builder(dark) {
+            Some(b) => b,
+            None if dark == now => mode_builder(dark),
             None => continue,
         };
-        if let Some(s) = strength {
-            b.frosted = s;
+        let mut b = old.clone();
+        patch(&mut b, change);
+        plan.push((dark, old, b));
+    }
+    if plan.is_empty() || o.is_empty() {
+        return Err("nothing to change".into());
+    }
+    for i in 0..plan.len() {
+        if let Err(e) = write_mode(plan[i].0, &plan[i].2) {
+            for (dark, old, _) in &plan[..i] {
+                let _ = write_mode(*dark, old);
+            }
+            return Err(e);
         }
-        if let Some(x) = flag("windows") {
-            b.frosted_windows = x;
-        }
-        if let Some(x) = flag("system") {
-            b.frosted_system_interface = x;
-        }
-        if let Some(x) = flag("panel") {
-            b.frosted_panel = x;
-        }
-        if let Some(x) = flag("applets") {
-            b.frosted_applets = x;
-        }
-        if let Some(x) = flag("maximized") {
-            b.frosted_maximized_apps = x;
-        }
-        let tc = if dark {
-            Theme::dark_config()
-        } else {
-            Theme::light_config()
-        }
-        .map_err(|e| e.to_string())?;
-        b.write_entry(&builder_config(dark)?).map_err(|e| e.to_string())?;
-        b.build().write_entry(&tc).map_err(|e| e.to_string())?;
     }
     Ok(blur())
 }
@@ -341,7 +386,15 @@ mod tests {
     }
     #[test]
     fn set_blur_refuses_bad_values() {
-        for bad in [json!(1), json!({}), json!({"strength":14}), json!({"panel":1}), json!({"other":true})] {
+        for bad in [
+            json!(1),
+            json!({}),
+            json!({"strength":14}),
+            json!({"panel":1}),
+            json!({"other":true}),
+            json!({"dark":{"strength":99}}),
+            json!({"dark":{},"strength":3}),
+        ] {
             assert!(set_blur(&bad).is_err(), "{bad}");
         }
     }

@@ -23,7 +23,7 @@ Map<String, Handler> presetRoutes(Ctx ctx) {
   Future<Map<String, dynamic>> change(
     void Function(Map<String, dynamic>) edit,
   ) async {
-    final receipt = undo.capture(ctx);
+    final receipt = await undo.capture(ctx);
     final s = loadWorkspaces(ctx);
     edit(s);
     saveWorkspaces(ctx, s);
@@ -175,7 +175,7 @@ Map<String, Handler> presetRoutes(Ctx ctx) {
       if (name != null && !validWallpaperName(name)) {
         throw RouteError('bad_params', 'wallpaper');
       }
-      final receipt = undo.capture(ctx);
+      final receipt = await undo.capture(ctx);
       undo.captureAssignments(ctx, receipt);
       await autoLocked(ctx, () async {
         if (hasTheme) {
@@ -213,7 +213,7 @@ Map<String, Handler> presetRoutes(Ctx ctx) {
     /// {workspace?, window?}: bools; returns the new state and {previous}.
     'animations.set': (p) async => _wmOrThrow(await ctx.desktop.wm(['set-animations', jsonEncode(p)])),
     'workspaces.apply': (_) async {
-      final receipt = undo.capture(ctx);
+      final receipt = await undo.capture(ctx);
       await undo.captureDesktop(ctx, receipt);
       await applyTiling(ctx);
       return {'applied': true, 'receipt': receipt};
@@ -277,7 +277,7 @@ Map<String, Handler> presetRoutes(Ctx ctx) {
       layout['autostart'] = boolParam(p, 'enabled');
     }),
     'apppresets.restore': (p) async {
-      final receipt = undo.capture(ctx);
+      final receipt = await undo.capture(ctx);
       final result = await restoreApps(
         ctx,
         workspace(p),
@@ -293,7 +293,7 @@ Map<String, Handler> presetRoutes(Ctx ctx) {
     'presets.save': (p) async {
       final name = presetName(p['name']);
       final theme = ctx.theme(ctx.current.slug);
-      final receipt = undo.capture(ctx);
+      final receipt = await undo.capture(ctx);
       final list = loadPresets(ctx);
       list.removeWhere(
         (v) => (v['name'] as String).toLowerCase() == name.toLowerCase(),
@@ -315,13 +315,14 @@ Map<String, Handler> presetRoutes(Ctx ctx) {
     'presets.delete': (p) async {
       final name = str(p, 'name');
       namedPreset(ctx, name);
-      final receipt = undo.capture(ctx);
+      final receipt = await undo.capture(ctx);
       final list = loadPresets(ctx)..removeWhere((v) => v['name'] == name);
       savePresetList(ctx, list);
       return {'receipt': receipt};
     },
-    'presets.apply': (p) async {
-      final receipt = undo.capture(ctx);
+    // one appearance change at a time, as themes.apply and looks.set
+    'presets.apply': (p) async => autoLocked(ctx, () async {
+      final receipt = await undo.capture(ctx);
       final preset = namedPreset(ctx, str(p, 'name'));
       if (preset['workspaces'] != null) await undo.captureDesktop(ctx, receipt);
       final result = await applySavedPreset(
@@ -331,7 +332,7 @@ Map<String, Handler> presetRoutes(Ctx ctx) {
       );
       undo.attach(receipt, result);
       return {...result, 'receipt': receipt, 'appearance': true};
-    },
+    }),
     'presets.assign': (p) async {
       final preset = namedPreset(ctx, str(p, 'name'));
       final slug = preset['theme'] as String;
@@ -345,7 +346,7 @@ Map<String, Handler> presetRoutes(Ctx ctx) {
         throw RouteError('bad_params', 'workspaces');
       }
       if (part != 'theme') presetWallpaper(ctx, preset);
-      final receipt = undo.capture(ctx);
+      final receipt = await undo.capture(ctx);
       undo.captureAssignments(ctx, receipt);
       for (final ws in raw.cast<int>()) {
         if (part != 'wallpaper') setWorkspaceTheme(ctx, ws, slug);
@@ -356,21 +357,23 @@ Map<String, Handler> presetRoutes(Ctx ctx) {
       if (part != 'wallpaper') ctx.settings.set('workspace_themes', true);
       if (part != 'theme') ctx.settings.set('workspace_wallpapers', true);
       ctx.automationChanged();
-      final workspaces =
-          (await helper(ctx, ['workspaces']))['workspaces'] as List? ?? [];
-      for (final w in workspaces.whereType<Map>()) {
-        if (w['active'] == true) await applyWorkspace(ctx, w['index'] as int);
-      }
+      await autoLocked(ctx, () async {
+        final workspaces =
+            (await helper(ctx, ['workspaces']))['workspaces'] as List? ?? [];
+        for (final w in workspaces.whereType<Map>()) {
+          if (w['active'] == true) await applyWorkspace(ctx, w['index'] as int);
+        }
+      });
       return {'assigned': true, 'receipt': receipt, 'appearance': true};
     },
-    'presets.undo': (p) async {
+    'presets.undo': (p) async => autoLocked(ctx, () async {
       await undo.restore(
         ctx,
         str(p, 'receipt'),
         appearance: boolParam(p, 'appearance', fallback: false),
       );
       return {'undone': true};
-    },
+    }),
     'presets.autostart': (_) => autostartPresets(ctx),
   };
 }
