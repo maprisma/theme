@@ -41,7 +41,7 @@ final class KdeDesktop extends DesktopBase {
   @override
   Set<Cap> get caps => {
     Cap.appearance, Cap.kdeScheme, Cap.wallpaper, Cap.terminal, Cap.fonts, Cap.icons,
-    Cap.workspaces, Cap.windows, Cap.shortcuts, Cap.animations,
+    Cap.workspaces, Cap.windows, Cap.shortcuts, Cap.animations, Cap.uiFont,
     if (maprismaTilingInstalled) Cap.tiling,
   };
 
@@ -574,6 +574,52 @@ print('maprisma-snapshot ' + JSON.stringify(r));
   @override
   Future<bool> resetMonospaceFont() async {
     if (!await _run(['kwriteconfig6', '--file', 'kdeglobals', '--group', 'General', '--key', 'fixed', '--delete'])) return false;
+    await _notifyFont();
+    return true;
+  }
+
+  /// The interface font: kdeglobals [General] font. The other fonts KDE
+  /// shows in the interface follow when they had the same family (as
+  /// System Settings' "Adjust All Fonts"); a font of its own stays.
+  static const _interfaceFollowers = [('General', 'menuFont'), ('General', 'toolBarFont'), ('WM', 'activeFont')];
+
+  @override
+  String? interfaceFont() => qfontFamily(iniValue(_text(_kdeglobals), 'General', 'font'));
+
+  @override
+  Future<bool> setInterfaceFont(String family) async {
+    if (!(await interfaceFonts()).contains(family)) return false;
+    final text = _text(_kdeglobals);
+    final old = qfontFamily(iniValue(text, 'General', 'font'));
+    final writes = <(String, String, String)>[];
+    try {
+      writes.add(('General', 'font', qfontWithFamily(iniValue(text, 'General', 'font'), family)));
+      for (final (group, key) in _interfaceFollowers) {
+        final v = iniValue(text, group, key);
+        if (v != null && old != null && qfontFamily(v) == old) writes.add((group, key, qfontWithFamily(v, family)));
+      }
+    } on ArgumentError {
+      return false;
+    }
+    for (final (group, key, value) in writes) {
+      if (!await _run(['kwriteconfig6', '--file', 'kdeglobals', '--group', group, '--key', key, value])) return false;
+    }
+    await _notifyFont();
+    return true;
+  }
+
+  @override
+  Future<bool> resetInterfaceFont() async {
+    final text = _text(_kdeglobals);
+    final old = qfontFamily(iniValue(text, 'General', 'font'));
+    final keys = [
+      ('General', 'font'),
+      for (final (group, key) in _interfaceFollowers)
+        if (old != null && qfontFamily(iniValue(text, group, key)) == old) (group, key),
+    ];
+    for (final (group, key) in keys) {
+      if (!await _run(['kwriteconfig6', '--file', 'kdeglobals', '--group', group, '--key', key, '--delete'])) return false;
+    }
     await _notifyFont();
     return true;
   }

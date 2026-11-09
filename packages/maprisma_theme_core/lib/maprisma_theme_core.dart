@@ -7,6 +7,7 @@ export 'src/colors.dart';
 export 'src/context.dart';
 export 'src/core.dart';
 export 'src/desktop.dart';
+export 'src/looks.dart';
 export 'src/paths.dart';
 export 'src/posix.dart';
 export 'src/protocol.dart';

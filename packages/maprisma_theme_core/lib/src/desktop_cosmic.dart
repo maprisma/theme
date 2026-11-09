@@ -149,25 +149,42 @@ final class CosmicDesktop extends DesktopBase {
   // --- fonts and icons: CosmicTk ---------------------------------------------
 
   @override
-  String? monospaceFont() {
-    final t = readSmall('$_tkDir/monospace_font', limit: 8192);
+  String? monospaceFont() => _tkFont('monospace_font');
+  @override
+  Future<bool> setMonospaceFont(String family) async =>
+      (await monospaceFonts()).contains(family) && _setTkFont('monospace_font', family);
+  @override
+  Future<bool> resetMonospaceFont() async => _resetTkFont('monospace_font');
+
+  @override
+  String? interfaceFont() => _tkFont('interface_font');
+  @override
+  Future<bool> setInterfaceFont(String family) async =>
+      (await interfaceFonts()).contains(family) && _setTkFont('interface_font', family);
+  @override
+  Future<bool> resetInterfaceFont() async => _resetTkFont('interface_font');
+
+  String? _tkFont(String key) {
+    final t = readSmall('$_tkDir/$key', limit: 8192);
     return t == null ? null : ronField(t, 'family');
   }
 
-  @override
-  Future<bool> setMonospaceFont(String family) async {
-    if (!(await monospaceFonts()).contains(family)) return false;
-    final old = readSmall('$_tkDir/monospace_font', limit: 8192);
+  /// Only the family changes; weight, stretch and style stay as they were.
+  bool _setTkFont(String key, String family) {
+    final old = readSmall('$_tkDir/$key', limit: 8192);
     final text = old != null && RegExp(r'family\s*:').hasMatch(old)
         ? old.replaceFirst(RegExp(r'family\s*:\s*"(?:[^"\\]|\\.)*"'), 'family: ${ronString(family)}')
         : '(\n    family: ${ronString(family)},\n    weight: Normal,\n    stretch: Normal,\n    style: Normal,\n)';
-    writeText('$_tkDir/monospace_font', text, mode: 420);
-    return true;
+    try {
+      writeText('$_tkDir/$key', text, mode: 420);
+      return true;
+    } on FileSystemException {
+      return false;
+    }
   }
 
-  @override
-  Future<bool> resetMonospaceFont() async {
-    final f = File('$_tkDir/monospace_font');
+  bool _resetTkFont(String key) {
+    final f = File('$_tkDir/$key');
     try {
       if (f.existsSync()) f.deleteSync();
       return true;

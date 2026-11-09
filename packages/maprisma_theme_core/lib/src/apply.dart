@@ -4,11 +4,9 @@ import 'apps.dart';
 import 'colors.dart';
 import 'context.dart';
 import 'desktop.dart';
+import 'looks.dart';
 import 'store.dart';
 import 'themes.dart';
-
-/// `own_font` when the user had COSMIC's default monospace font.
-const defaultFontMark = '(default)';
 
 /// The wallpaper last chosen per theme (Omarchy's theme-backgrounds state).
 Map<String, String> chosenWallpapers(Ctx ctx) => {
@@ -81,7 +79,9 @@ Future<Map<String, dynamic>> applyTheme(Ctx ctx, String slug, {String? wallpaper
   }
   final icons = theme.iconTheme;
   if (icons != null && await ctx.desktop.setIconTheme(icons)) done.add('icons');
-  if (desktop.caps.contains(Cap.fonts) && await _applyFont(ctx, theme)) done.add('font');
+  for (final role in await applyLookFonts(ctx, theme)) {
+    done.add(role == FontRole.mono ? 'font' : 'ui_font');
+  }
   if (await ctx.desktop.setTerminal(object, theme.name)) done.add('terminal');
   done.addAll(await applyAppTemplates(ctx, theme, resolved));
 
@@ -91,31 +91,6 @@ Future<Map<String, dynamic>> applyTheme(Ctx ctx, String slug, {String? wallpaper
     if (hidden.remove(slug)) ctx.lists.hidden = hidden; // applying unhides
   }
   return {'applied': slug, 'done': done};
-}
-
-/// The setting that keeps the user's own font: one per desktop, as each has
-/// its own monospace font (COSMIC keeps the old name).
-String ownFontKey(Desktop d) => d.id == 'kde' ? 'own_font_kde' : 'own_font';
-
-/// A theme's own font, and the user's own font back for any other theme.
-Future<bool> _applyFont(Ctx ctx, ThemeInfo theme) async {
-  final key = ownFontKey(ctx.desktop);
-  final own = ctx.settings.get(key) as String?;
-  final themed = theme.font;
-  if (themed != null) {
-    final now = ctx.desktop.monospaceFont();
-    if (now == themed) return false;
-    if (!await ctx.desktop.setMonospaceFont(themed)) return false;
-    // The font to go back to; COSMIC's default when none was set.
-    if (own == null) ctx.settings.set(key, now ?? defaultFontMark);
-    return true;
-  }
-  if (own != null) {
-    final ok = own == defaultFontMark ? await ctx.desktop.resetMonospaceFont() : await ctx.desktop.setMonospaceFont(own);
-    if (ok) ctx.settings.set(key, null); // kept until the user's font is really back
-    return ok;
-  }
-  return false;
 }
 
 /// Sets the background of the theme in use (and remembers it for the theme).

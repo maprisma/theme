@@ -18,6 +18,7 @@ import 'settings.dart';
 import 'shortcuts.dart';
 import 'store.dart';
 import 'themes.dart';
+import 'looks.dart' show Looks;
 
 const maxWorkspace = 99;
 const maxRecent = 50;
@@ -615,6 +616,7 @@ void renameThemeState(Ctx ctx, String old, String renamed) {
   if (!validSlug(old) || !validSlug(renamed) || old == renamed) return;
   renameAutoState(ctx, old, renamed);
   renamePresetTheme(ctx, old, renamed);
+  Looks(ctx).rename(old, renamed);
   try {
     ThemeShortcuts(ctx).renameTheme(old, renamed);
   } on RouteError {
@@ -628,6 +630,7 @@ void renameThemeState(Ctx ctx, String old, String renamed) {
 void forgetThemeState(Ctx ctx, String slug) {
   if (!validSlug(slug)) return;
   forgetAutoState(ctx, slug);
+  Looks(ctx).forget(slug);
   try {
     ThemeShortcuts(ctx).dropTheme(slug);
   } on RouteError {

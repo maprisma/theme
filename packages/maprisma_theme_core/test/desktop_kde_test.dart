@@ -159,6 +159,31 @@ void main() {
     expect(logText(), contains('--key fixed --delete'));
   });
 
+  test('interface font: menu, toolbar and title fonts of the same family follow; one of their own stays', () async {
+    final fonts = await kde.interfaceFonts();
+    if (fonts.isEmpty) return; // no fontconfig here
+    final family = fonts.first;
+    File('$config/kdeglobals').writeAsStringSync('[General]\nfont=Noto Sans,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1\n'
+        'menuFont=Noto Sans,9,-1,5,400,0,0,0,0,0,0,0,0,0,0,1\ntoolBarFont=Hack,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1\n'
+        '[WM]\nactiveFont=Noto Sans,11,-1,5,700,0,0,0,0,0,0,0,0,0,0,1\n');
+    expect(kde.interfaceFont(), 'Noto Sans');
+    expect(await kde.setInterfaceFont(family), isTrue);
+    var text = logText();
+    expect(text, contains('--group General --key font $family,10,-1,5,400'));
+    expect(text, contains('--group General --key menuFont $family,9,-1,5,400'));
+    expect(text, contains('--group WM --key activeFont $family,11,-1,5,700'));
+    expect(text, isNot(contains('toolBarFont')));
+    expect(text, contains('notifyChange int32:1 int32:0'));
+    expect(await kde.setInterfaceFont('No Such Font 123'), isFalse);
+
+    File(log).deleteSync();
+    expect(await kde.resetInterfaceFont(), isTrue);
+    text = logText();
+    expect(text, contains('--group General --key font --delete'));
+    expect(text, contains('--group General --key menuFont --delete'));
+    expect(text, isNot(contains('toolBarFont')));
+  });
+
   test('tiling through Maprisma Tiling: the cap while it is installed, each workspace by its ignore list', () {
     expect(kde.caps.contains(Cap.tiling), isFalse);
     final script = Directory('${paths.data}/kwin/scripts/maprisma-tiling')..createSync(recursive: true);
@@ -211,7 +236,7 @@ void main() {
   });
 
   test('caps and the rest of the contract', () async {
-    expect(kde.caps, {Cap.appearance, Cap.kdeScheme, Cap.wallpaper, Cap.terminal, Cap.fonts, Cap.icons, Cap.workspaces, Cap.windows, Cap.shortcuts, Cap.animations});
+    expect(kde.caps, {Cap.appearance, Cap.kdeScheme, Cap.wallpaper, Cap.terminal, Cap.fonts, Cap.icons, Cap.workspaces, Cap.windows, Cap.shortcuts, Cap.animations, Cap.uiFont});
     expect(await kde.applyRon('/x.ron'), isFalse);
     // no session bus in the test's environment: KWin is never reached
     expect((await kde.wm(['workspaces']))?['error'], 'unavailable');

@@ -36,6 +36,24 @@ void main() {
     expect(() => select({'MAPRISMA_THEME_DESKTOP': 'gnome'}), throwsArgumentError);
   });
 
+  test('COSMIC interface font: CosmicTk interface_font, only the family changes; reset deletes it', () async {
+    final d = CosmicDesktop(paths, {'HOME': '${root.path}/home', 'PATH': Platform.environment['PATH'] ?? '/usr/bin'});
+    final fonts = await d.interfaceFonts();
+    if (fonts.isEmpty) return; // no fontconfig here
+    final tk = Directory('${paths.cosmicConfig}/com.system76.CosmicTk/v1')..createSync(recursive: true);
+    final file = File('${tk.path}/interface_font')
+      ..writeAsStringSync('(\n    family: "Open Sans",\n    weight: Semibold,\n    stretch: Normal,\n    style: Normal,\n)');
+    expect(d.interfaceFont(), 'Open Sans');
+    expect(await d.setInterfaceFont(fonts.first), isTrue);
+    expect(file.readAsStringSync(), contains('family: "${fonts.first}"'));
+    expect(file.readAsStringSync(), contains('weight: Semibold'));
+    expect(await d.setInterfaceFont('No Such Font 123'), isFalse);
+    expect(File('${tk.path}/monospace_font').existsSync(), isFalse);
+    expect(await d.resetInterfaceFont(), isTrue);
+    expect(file.existsSync(), isFalse);
+    expect(d.interfaceFont(), isNull);
+  });
+
   test('the generic backend changes nothing of the desktop', () async {
     final d = GenericDesktop(paths, const {});
     expect(d.caps, isEmpty);

@@ -77,6 +77,12 @@ final class GenericDesktop extends DesktopBase {
   @override
   Future<bool> resetMonospaceFont() async => false;
   @override
+  String? interfaceFont() => null;
+  @override
+  Future<bool> setInterfaceFont(String family) async => false;
+  @override
+  Future<bool> resetInterfaceFont() async => false;
+  @override
   String? iconTheme() => null;
   @override
   Future<bool> setIconTheme(String name) async => false;

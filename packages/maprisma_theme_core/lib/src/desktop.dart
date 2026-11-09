@@ -43,6 +43,9 @@ enum Cap {
   /// A native panel applet of Maprisma Theme exists for this desktop.
   panel,
 
+  /// The interface font can be read and set (interfaceFont / setInterfaceFont).
+  uiFont,
+
   /// wm `animations` / `set-animations`: workspace switch and window open
   /// animations can be turned off (KDE: KWin effects).
   animations,
@@ -102,6 +105,12 @@ abstract interface class Desktop {
   /// Back to the desktop's default monospace font.
   Future<bool> resetMonospaceFont();
   Future<List<String>> monospaceFonts();
+
+  /// The interface font (Cap.uiFont), set the same way; null: the default.
+  String? interfaceFont();
+  Future<bool> setInterfaceFont(String family);
+  Future<bool> resetInterfaceFont();
+  Future<List<String>> interfaceFonts();
 
   String? iconTheme();
   Future<bool> setIconTheme(String name);
@@ -194,8 +203,14 @@ abstract base class DesktopBase implements Desktop {
   }
 
   @override
-  Future<List<String>> monospaceFonts() async {
-    final out = await readBoundedText(['fc-list', ':spacing=mono', 'family'], maxBytes: 1024 * 1024, timeout: const Duration(seconds: 5));
+  Future<List<String>> monospaceFonts() => _fcFamilies(':spacing=mono');
+
+  /// Every installed family (fonts for the interface need not be monospaced).
+  @override
+  Future<List<String>> interfaceFonts() => _fcFamilies(':');
+
+  Future<List<String>> _fcFamilies(String pattern) async {
+    final out = await readBoundedText(['fc-list', pattern, 'family'], maxBytes: 4 * 1024 * 1024, timeout: const Duration(seconds: 5));
     if (out == null) return [];
     final set = <String>{};
     for (final line in const LineSplitter().convert(out)) {
@@ -312,8 +327,9 @@ final class FakeDesktop implements Desktop {
   final Set<Cap> caps;
 
   final calls = <String>[];
-  String? _wallpaper, _font, _icons = 'Cosmic';
+  String? _wallpaper, _font, _uiFont, _icons = 'Cosmic';
   var fonts = <String>['JetBrains Mono', 'Fira Code'];
+  var uiFonts = <String>['Inter', 'Open Sans', 'JetBrains Mono'];
   var icons = <String>['Cosmic', 'Adwaita', 'Yaru-blue'];
   Map<String, String>? lastColors;
   Map<String, dynamic> workspaces = {
@@ -407,6 +423,27 @@ final class FakeDesktop implements Desktop {
     _font = null;
     return true;
   }
+
+  @override
+  String? interfaceFont() => _uiFont;
+
+  @override
+  Future<bool> setInterfaceFont(String family) async {
+    if (!uiFonts.contains(family)) return false;
+    calls.add('ui font $family');
+    _uiFont = family;
+    return true;
+  }
+
+  @override
+  Future<bool> resetInterfaceFont() async {
+    calls.add('ui font reset');
+    _uiFont = null;
+    return true;
+  }
+
+  @override
+  Future<List<String>> interfaceFonts() async => uiFonts;
 
   @override
   String? iconTheme() => _icons;

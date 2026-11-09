@@ -14,6 +14,7 @@ import 'settings.dart';
 import 'shortcuts.dart';
 import 'store.dart';
 import 'themes.dart';
+import 'looks.dart' show checkLook;
 
 const maxBackup = 4 * 1024 * 1024;
 const backupFormat = 'maprisma-theme-backup';
@@ -33,6 +34,7 @@ const backupFiles = <String, Type>{
   'presets.json': List,
   'shortcuts.json': Map,
   'workspaces.json': Map, // workspace presets and App Presets (presets module)
+  'looks.json': Map, // fonts and blur per theme (docs/theme-looks.md)
 };
 
 String _two(int n) => '$n'.padLeft(2, '0');
@@ -119,6 +121,10 @@ Object? _validateValue(Ctx ctx, String name, Object? value) {
   switch (name) {
     case 'settings.json':
       return _validateSettings(value as Map);
+    case 'looks.json':
+      final m = value as Map;
+      if (m.entries.any((e) => !_slug(e.key) || checkLook(e.value) == null)) throw const FormatException('invalid looks');
+      return {for (final e in m.entries) e.key: checkLook(e.value)};
     case 'hidden.json':
       final list = value as List;
       if (list.any((s) => !_slug(s))) throw const FormatException('invalid hidden themes');

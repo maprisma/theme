@@ -20,6 +20,8 @@ const defaultSettings = <String, dynamic>{
   'header_order': ['import', 'hidden', 'presets', 'ask', 'info'], // the plugin's header_order.DEFAULT
   'own_font': null,
   'own_font_kde': null,
+  'own_ui_font': null, // the user's interface font while a theme's look is in use
+  'own_ui_font_kde': null,
   'apps': null, // null = every installed app; else a list of app ids (apps.dart)
   'show_hidden': false,
 };
@@ -65,7 +67,7 @@ final class Settings {
   Map<String, dynamic> reset() {
     final raw = readJsonMap(paths.settingsFile);
     final keep = <String, dynamic>{
-      for (final k in ['size', 'ask_ai', 'ask_ai_helper', 'ask_prompts', 'own_font', 'own_font_kde', 'apps'])
+      for (final k in ['size', 'ask_ai', 'ask_ai_helper', 'ask_prompts', 'own_font', 'own_font_kde', 'own_ui_font', 'own_ui_font_kde', 'apps'])
         if (raw.containsKey(k)) k: raw[k],
     };
     final old = raw['schedule'] is Map ? Map<String, dynamic>.from(raw['schedule']) : <String, dynamic>{};
@@ -96,7 +98,7 @@ final class Settings {
     'ask_ai_helper' => v == null || (v is String && v.length < 200),
     'ask_prompts' => v == null || (v is List && v.length <= 12 && v.every((e) => e is String && e.length <= 600)),
     'header_order' => v is List && v.every((e) => e is String) && v.toSet().length == v.length,
-    'own_font' || 'own_font_kde' => v == null || (v is String && v.length < 100),
+    'own_font' || 'own_font_kde' || 'own_ui_font' || 'own_ui_font_kde' => v == null || (v is String && v.length < 100),
     'apps' => v == null || (v is List && v.every((e) => e is String)),
     _ => false,
   };
