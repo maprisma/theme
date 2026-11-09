@@ -73,6 +73,25 @@ loads or unloads the effect (checked) and `reconfigureEffect blur` reads the str
 keys and effect go back. Noise strength and saturation are never touched. Missing strength = 15 (blur.kcfg).
 Blur shows only behind see-through surfaces (panel, menus, Konsole with opacity below 100 %).
 
+## One Apply button (2026-11-09, as in the Omarchy plugin)
+
+The Font & effects dialog has Cancel and **Apply**: enabled once a field changed; it stores the look
+(`looks.set`), and the theme in use gets it on the desktop at once (`apply: true`). Undo puts the old look
+back, applied again for the theme in use. The theme menu's **Reapply** stays, only while something
+pending was changed elsewhere (`looks.apply`).
+
+## A theme's own blur, Ask AI (2026-11-09, from the Omarchy plugin)
+
+- The editor has a **Blur** row (Keep the current blur / On / Off, strength 1–15 while on, where the desktop has
+  `Cap.blur`); a theme made or edited there stores it as `blur` in its `theme-manager.json` (`custom.save` /
+  `custom.editor` take and give `blur`), the theme's own value in the chain above.
+- Ask AI answers may carry `blur` ({on, strength}, checked by `checkBlur`; strength 8 when only `on` is given;
+  never for a catalog theme). A refine keeps the card's blur; the card shows "font · Blur n" or "No blur", and
+  **Use** fills the editor's Blur row.
+- A **new** theme from an Ask AI card is new for the user: its base is internal. The card says "New theme", the
+  editor's title is the card's name (`fromAsk`), and there is no "Also <base>'s wallpapers" row (the card's
+  picture, else the base's wallpapers). The prompt tells the agent not to name the base in name, reason or summary.
+
 ## Steps
 
 1. Core: looks.json, routes, apply chain, interface font for COSMIC and KDE, `Cap.uiFont`.

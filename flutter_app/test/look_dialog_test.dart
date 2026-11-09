@@ -46,7 +46,12 @@ void main() {
     Future<Map<String, dynamic>> call(String m, [Map<String, dynamic> p = const {}]) => core.call(m, p);
     final shot = GlobalKey();
     await tester.runAsync(() async {
-      await tester.pumpWidget(RepaintBoundary(key: shot, child: MaprismaThemeApp(call: call)));
+      await tester.pumpWidget(
+        RepaintBoundary(
+          key: shot,
+          child: MaprismaThemeApp(call: call),
+        ),
+      );
       await Future<void>.delayed(const Duration(milliseconds: 200));
     });
     final state = tester.state<MaprismaThemeAppState>(find.byType(MaprismaThemeApp));
@@ -78,7 +83,10 @@ void main() {
     expect(find.text('Font & effects saved for Nord'), findsOneWidget);
     // real file I/O: outside the test's fake clock
     final look = (await tester.runAsync(() => core.call('looks.get', {'slug': 'nord'})))!;
-    expect(look['look'], {'mono_font': 'Fira Code', 'blur': {'on': true, 'strength': 8}});
+    expect(look['look'], {
+      'mono_font': 'Fira Code',
+      'blur': {'on': true, 'strength': 8},
+    });
 
     await tester.runAsync(() => core.call('themes.apply', {'slug': 'nord'}));
     expect(desktop.monospaceFont(), 'Fira Code');
@@ -134,7 +142,9 @@ void main() {
     }
     expect(find.textContaining('Font & effects · '), findsNothing);
     final look = (await tester.runAsync(() => core.call('looks.get', {'slug': 'nord'})))!;
-    expect(look['look'], {'blur': {'on': true, 'strength': 8}});
+    expect(look['look'], {
+      'blur': {'on': true, 'strength': 8},
+    });
     // the core's apply lock is one queue for the whole test run: end on a call in real time
     await tester.runAsync(() => core.call('looks.set', {'slug': 'nord', 'look': {}}));
   });
@@ -148,6 +158,7 @@ void main() {
     Future<Map<String, dynamic>> call(String m, [Map<String, dynamic> p = const {}]) async {
       return core.call(m, p);
     }
+
     await tester.runAsync(() async {
       await tester.pumpWidget(MaprismaThemeApp(call: call));
       await Future<void>.delayed(const Duration(milliseconds: 200));
@@ -163,12 +174,15 @@ void main() {
       await settle(tester, 300);
     }
     final look = (await tester.runAsync(() => core.call('looks.get', {'slug': 'nord'})))!;
-    expect(look['look'], {'mono_font': 'Fira Code', 'blur': {'on': false, 'strength': 8}});
+    expect(look['look'], {
+      'mono_font': 'Fira Code',
+      'blur': {'on': false, 'strength': 8},
+    });
     // the core's apply lock is one queue for the whole test run: end on a call in real time
     await tester.runAsync(() => core.call('looks.set', {'slug': 'nord', 'look': {}, 'restore': true, 'apply': false}));
   });
 
-  testWidgets('the theme in use: Reapply only while a change is pending; Save stores without applying', (tester) async {
+  testWidgets('one Apply button: enabled after a change; the theme in use gets it at once', (tester) async {
     tester.view.physicalSize = const Size(1000, 760);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -179,36 +193,24 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 200));
     });
     final state = tester.state<MaprismaThemeAppState>(find.byType(MaprismaThemeApp));
-    FilledButton reapply() => tester.widget<FilledButton>(find.byKey(const ValueKey('look-reapply')));
-    OutlinedButton save() => tester.widget<OutlinedButton>(find.byKey(const ValueKey('look-save')));
+    FilledButton apply() => tester.widget<FilledButton>(find.byKey(const ValueKey('look-save')));
 
     lookDialog(state.navigator.currentContext!, state, 'nord');
     await settle(tester, 300);
-    expect(reapply().onPressed, isNull); // nothing pending
-    expect(save().onPressed, isNull);
+    expect(find.text('Reapply'), findsNothing); // one button (2026-11-09)
+    expect(find.text('Save'), findsNothing);
+    expect(find.text('Apply'), findsOneWidget);
+    expect(apply().onPressed, isNull); // nothing changed
     await tester.tap(find.text('On'));
     await settle(tester);
-    expect(reapply().onPressed, isNotNull);
-    expect(save().onPressed, isNotNull);
+    expect(apply().onPressed, isNotNull);
 
     await tester.tap(find.byKey(const ValueKey('look-save')));
     for (var i = 0; i < 6; i++) {
       await settle(tester, 300);
     }
-    expect(find.text('Font & effects saved: Reapply to use them now'), findsOneWidget);
-    expect(desktop.blur['on'], isFalse); // stored, not applied
-
-    // opened again: the stored look is pending, Reapply applies it
-    lookDialog(state.navigator.currentContext!, state, 'nord');
-    await settle(tester, 300);
-    expect(reapply().onPressed, isNotNull);
-    expect(save().onPressed, isNull);
-    await tester.tap(find.byKey(const ValueKey('look-reapply')));
-    for (var i = 0; i < 6; i++) {
-      await settle(tester, 300);
-    }
-    expect(find.text('Font & effects reapplied'), findsOneWidget);
-    expect(desktop.blur['on'], isTrue);
+    expect(find.text('Font & effects saved and applied'), findsOneWidget);
+    expect(desktop.blur['on'], isTrue); // stored and applied at once
     final list = (await tester.runAsync(() => core.call('themes.list')))!;
     expect(((list['themes'] as List).firstWhere((t) => t['slug'] == 'nord') as Map)['pending'], isEmpty);
     await tester.runAsync(() => core.call('looks.set', {'slug': 'nord', 'look': {}}));
@@ -222,7 +224,11 @@ void main() {
     Directory('${paths.systemThemes}/nord').createSync(recursive: true);
     Directory(paths.templates).createSync(recursive: true);
     File('${paths.systemThemes}/nord/colors.toml').writeAsStringSync('background = "#2e3440"\nforeground = "#d8dee9"\n');
-    core = CoreService(environment: env, paths: paths, desktop: FakeDesktop(caps: {Cap.appearance, Cap.fonts}));
+    core = CoreService(
+      environment: env,
+      paths: paths,
+      desktop: FakeDesktop(caps: {Cap.appearance, Cap.fonts}),
+    );
     Future<Map<String, dynamic>> call(String m, [Map<String, dynamic> p = const {}]) => core.call(m, p);
     await tester.runAsync(() async {
       await tester.pumpWidget(MaprismaThemeApp(call: call));
