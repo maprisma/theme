@@ -652,35 +652,18 @@ Future<List<String>> jailArgv(Helper h, List<String> argv, String work, String h
   return args;
 }
 
-/// Most entries the cleanup and the size check visit (an agent can't make
-/// the core list a folder of millions of files: entries are streamed).
-const maxRemoveEntries = 100000;
-
-/// Removes the Ask's private folder: overlayfs leaves its work folder
-/// unreadable (mode 000), so real folders get 0700 back first (links are
-/// never followed). Streamed, one folder at a time; past [maxRemoveEntries]
-/// the rest stays in the temp folder (never fatal).
+/// Removes the Ask's private folder. overlayfs leaves its work folder
+/// unreadable (mode 000), so `chmod -R u+rwx` gives the owner access back
+/// first, then `rm -rf` removes it: separate processes (argv only; neither
+/// follows a link inside the tree), each with a time limit, so a huge tree
+/// never holds up the core. What is left after the limit stays in the temp
+/// folder (never fatal).
 Future<void> removeWork(String work) async {
-  try {
-    if (FileSystemEntity.typeSync(work, followLinks: false) != FileSystemEntityType.directory) return;
-    var seen = 0;
-    final todo = [work];
-    while (todo.isNotEmpty && seen <= maxRemoveEntries) {
-      final dir = todo.removeLast();
-      chmodPath(dir, 448);
-      try {
-        await for (final e in Directory(dir).list(followLinks: false)) {
-          if (++seen > maxRemoveEntries) break;
-          if (e is Directory) todo.add(e.path);
-        }
-      } on FileSystemException {
-        // nothing more to open here
-      }
-    }
-    await Directory(work).delete(recursive: true);
-  } on FileSystemException {
-    // a leftover in the temp folder; never fatal
+  if (!work.startsWith('/') || FileSystemEntity.typeSync(work, followLinks: false) != FileSystemEntityType.directory) {
+    return;
   }
+  await runBounded(['chmod', '-R', 'u+rwx', '--', work], timeout: const Duration(seconds: 30));
+  await runBounded(['rm', '-rf', '--', work], timeout: const Duration(seconds: 30));
 }
 
 /// All regular files in [folder] together (links not followed); too many

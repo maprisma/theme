@@ -264,6 +264,14 @@ void main() {
       expect(checkParent({'kind': 'custom', 'theme': 'gone'}, _themes, _catalog, _fonts), isNull);
     });
 
+    test('an answer full of unmatched braces is searched in linear time (Codex, 2026-11-09)', () {
+      final watch = Stopwatch()..start();
+      expect(firstJson('{' * (256 * 1024)), isNull);
+      expect(firstJson('{ ' * 1000), isNull);
+      expect(watch.elapsed.inSeconds, lessThan(5));
+      expect(firstJson('text {"a": 1} more'), {'a': 1});
+    });
+
     test('finds the JSON object in prose and code fences', () {
       expect(firstJson('Sure!\n```json\n{"summary": "x {y}", "candidates": []}\n```'), {'summary': 'x {y}', 'candidates': []});
       expect(firstJson('no json here'), isNull);

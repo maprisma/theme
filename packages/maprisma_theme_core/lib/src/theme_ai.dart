@@ -217,9 +217,15 @@ String buildPrompt(
   return prompt.length > maxPrompt ? prompt.substring(0, maxPrompt) : prompt;
 }
 
+/// Most `{` an answer's JSON search starts from: each start scans at most the
+/// rest of the (256 KiB) answer, so the work stays linear in its size even for
+/// an answer full of unmatched braces.
+const maxJsonStarts = 64;
+
 /// The first complete JSON object in an answer (agents like code fences).
 Map<String, dynamic>? firstJson(String text) {
-  for (var start = text.indexOf('{'); start >= 0; start = text.indexOf('{', start + 1)) {
+  var starts = 0;
+  for (var start = text.indexOf('{'); start >= 0 && ++starts <= maxJsonStarts; start = text.indexOf('{', start + 1)) {
     var depth = 0;
     var inString = false;
     for (var i = start; i < text.length; i++) {
