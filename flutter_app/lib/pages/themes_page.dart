@@ -227,9 +227,12 @@ class _ThemesPageState extends State<ThemesPage> {
     if (key != null && hidden) shortcut = 'Shortcut: $key (works while hidden)…';
     final isDay = plan['day'] == slug, isNight = plan['night'] == slug;
     return [
-      if (current)
-        item(Icons.check, 'Current theme', () {}, enabled: false)
-      else
+      if (current) ...[
+        item(Icons.check, 'Current theme', () {}, enabled: false),
+        // after Font & effects, or when something else changed the desktop's look
+        item(Icons.refresh, 'Reapply theme', () => apply(t),
+            tooltip: 'Applies this theme again: colors, wallpaper, fonts and blur as set now'),
+      ] else
         item(Icons.play_arrow, 'Apply theme', () => apply(t)),
       item(Icons.image_outlined, 'Wallpapers', () => open(WallpapersPage(slug: slug)), end: Icons.chevron_right),
       if (app.can('workspaces')) item(Icons.grid_view, 'Use on workspace…', () => onWorkspaces(t),
