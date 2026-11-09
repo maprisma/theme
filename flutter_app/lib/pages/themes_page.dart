@@ -9,6 +9,7 @@ import '../theme.dart';
 import '../widgets.dart';
 import '../window.dart';
 import 'editor_page.dart';
+import 'look_dialog.dart';
 import 'shortcut_page.dart';
 import 'wallpapers_page.dart';
 
@@ -240,6 +241,11 @@ class _ThemesPageState extends State<ThemesPage> {
           tooltip: 'Your own copy with other colors, a font and these wallpapers'),
       if (t['custom'] == true)
         item(Icons.edit_outlined, 'Edit theme…', () => open(EditorPage(edit: slug)), tooltip: 'Name, colors and font'),
+      if (app.can('fonts') || app.can('uiFont') || app.can('blur'))
+        item(Icons.text_format, 'Font & effects…', () async {
+          await lookDialog(context, app, slug);
+          if (mounted) focus.requestFocus();
+        }, tooltip: 'Fonts and blur for this theme; the theme files stay as they are'),
       if (app.can('shortcuts')) item(Icons.keyboard_outlined, shortcut, () => open(ShortcutPage(target: 'apply:$slug', title: '${t['name']}')),
           tooltip: 'A key that applies this theme from anywhere'
               '${hidden ? '. It also works while the theme is hidden, and applying it unhides it.' : ''}'),

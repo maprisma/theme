@@ -107,11 +107,15 @@ void main() {
   });
   tearDown(() => root.deleteSync(recursive: true));
 
+  /// Real time for the core (its apply lock is a file lock: a few rounds),
+  /// then the test clock for animations.
   Future<void> settle(WidgetTester tester, [int ms = 300]) async {
-    await tester.runAsync(() async {
-      await tester.pump();
-      await Future<void>.delayed(Duration(milliseconds: ms));
-    });
+    for (var i = 0; i < 8; i++) {
+      await tester.runAsync(() async {
+        await tester.pump();
+        await Future<void>.delayed(Duration(milliseconds: ms ~/ 3 + 1));
+      });
+    }
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
   }
