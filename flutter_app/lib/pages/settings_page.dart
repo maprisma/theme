@@ -70,8 +70,8 @@ class _SettingsPageState extends State<SettingsPage> {
   Map<String, dynamic> settings = {};
   Map<String, dynamic> plan = {};
   List<Map> themes = [], apps = [], helpers = [];
-  Map<String, dynamic> shortcuts = {}, health = {};
-  bool helpersKnown = false, loading = true;
+  Map<String, dynamic> shortcuts = {}, health = {}, animations = {};
+  bool helpersKnown = false, loading = true, animationBusy = false;
   String section = 'general', search = '';
   final _search = TextEditingController();
   final _searchFocus = FocusNode();
@@ -109,6 +109,7 @@ class _SettingsPageState extends State<SettingsPage> {
       app.can('shortcuts') ? _try('shortcuts.list') : Future.value(null),
       _try('ask.helpers'),
       _try('health.get'),
+      app.can('animations') ? _try('animations.get') : Future.value(null),
     ]);
     if (!mounted) return;
     setState(() {
@@ -125,6 +126,7 @@ class _SettingsPageState extends State<SettingsPage> {
           if (x is Map && x['installed'] != false) x,
       ];
       health = results[6] ?? const {};
+      animations = results[7] ?? const {};
       loading = false;
     });
   }
@@ -134,6 +136,24 @@ class _SettingsPageState extends State<SettingsPage> {
     if (r == null || !mounted) return;
     setState(() => settings = Map<String, dynamic>.from(r['settings'] as Map));
     app.changed();
+  }
+
+  /// Turns a desktop animation on or off; KWin follows at once.
+  /// While a change runs, or the state could not be read, the switches wait.
+  Future<void> setAnimation(String key, bool on) async {
+    setState(() => animationBusy = true);
+    final r = await app.run('animations.set', {key: on}) ?? await _try('animations.get');
+    if (!mounted) return;
+    setState(() {
+      animations = {'workspace': r?['workspace'], 'window': r?['window']};
+      animationBusy = false;
+    });
+  }
+
+  /// The switch for one animation: off while its state is unknown.
+  Widget _animationSwitch(String key) {
+    final v = animations[key];
+    return _switch(v == true, v is bool && !animationBusy ? (on) => setAnimation(key, on) : null, key: ValueKey('anim-$key'));
   }
 
   Future<void> setSchedule(Map<String, dynamic> values) async {
@@ -343,6 +363,20 @@ class _SettingsPageState extends State<SettingsPage> {
           ('square', 'Square'),
         ], (v) => set('corners', v)),
       ),
+      if (app.can('animations')) ...[
+        _Row(
+          'general',
+          'Workspace switch animation',
+          'The slide when you switch workspaces. Off switches at once.',
+          _animationSwitch('workspace'),
+        ),
+        _Row(
+          'general',
+          'Window open animation',
+          'The zoom or fade when a window opens or closes. Off places a new tiled window at once.',
+          _animationSwitch('window'),
+        ),
+      ],
       _Row(
         'themes',
         'Sort the list',

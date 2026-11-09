@@ -41,7 +41,7 @@ final class KdeDesktop extends DesktopBase {
   @override
   Set<Cap> get caps => {
     Cap.appearance, Cap.kdeScheme, Cap.wallpaper, Cap.terminal, Cap.fonts, Cap.icons,
-    Cap.workspaces, Cap.windows, Cap.shortcuts,
+    Cap.workspaces, Cap.windows, Cap.shortcuts, Cap.animations,
     if (maprismaTilingInstalled) Cap.tiling,
   };
 
@@ -150,6 +150,122 @@ final class KdeDesktop extends DesktopBase {
     }
     await _run(['qdbus6', 'org.kde.KWin', '/KWin', 'reconfigure']);
     return {'done': true, 'previous': old};
+  }
+
+  /// The KWin effects behind each animation switch, with KDE's default
+  /// (an effect key missing from kwinrc [Plugins] means the default).
+  static const animationEffects = {
+    'workspace': {'slide': true, 'fadedesktop': false},
+    'window': {'scale': true, 'glide': false, 'fade': false},
+  };
+
+  /// {workspace, window}: true while one of its effects is on.
+  Map<String, dynamic> animations() {
+    final text = _text(_kwinrc);
+    bool on(String effect, bool byDefault) => switch (iniValue(text, 'Plugins', '${effect}Enabled')) {
+      'true' => true,
+      'false' => false,
+      _ => byDefault,
+    };
+    return {
+      for (final e in animationEffects.entries) e.key: e.value.entries.any((x) => on(x.key, x.value)),
+    };
+  }
+
+  /// Where an Off switch keeps the user's own effect choice (the raw kwinrc
+  /// values, null for a missing key), so On brings that choice back and not
+  /// just KDE's defaults.
+  String get _animationsFile => '${paths.state}/kde-animations.json';
+
+  Map<String, dynamic> _savedAnimations() {
+    try {
+      final v = jsonDecode(readSmall(_animationsFile, limit: 64 * 1024) ?? '{}');
+      return v is Map<String, dynamic> ? v : {};
+    } on FormatException {
+      return {};
+    }
+  }
+
+  /// The qdbus tool KDE ships (qdbus6, or qdbus on older installs).
+  String? get _qdbus => which('qdbus6', environment) ?? which('qdbus', environment);
+
+  /// Whether KWin has [effect] loaded right now, or null when KWin can't be asked.
+  Future<bool?> _effectLoaded(String qdbus, String effect) async {
+    final (code, out) = await runBounded(
+      [qdbus, 'org.kde.KWin', '/Effects', 'org.kde.kwin.Effects.isEffectLoaded', effect],
+      timeout: const Duration(seconds: 5),
+    );
+    if (code != 0) return null;
+    return switch (out.trim()) { 'true' => true, 'false' => false, _ => null };
+  }
+
+  /// Writes the raw kwinrc values ({effect: 'true'|'false'|null}) and makes
+  /// KWin load or unload each effect to match; false when KWin ends up
+  /// differently or can't be reached.
+  Future<bool> _writeEffects(String qdbus, Map<String, String?> values) async {
+    for (final e in values.entries) {
+      final key = ['--file', 'kwinrc', '--group', 'Plugins', '--key', '${e.key}Enabled'];
+      if (!await _run(['kwriteconfig6', ...key, e.value ?? '--delete'])) return false;
+    }
+    final defaults = {for (final m in animationEffects.values) ...m};
+    for (final e in values.entries) {
+      final want = e.value == null ? defaults[e.key]! : e.value == 'true';
+      final now = await _effectLoaded(qdbus, e.key);
+      if (now == null) return false;
+      if (now == want) continue;
+      await runBounded([qdbus, 'org.kde.KWin', '/Effects', 'org.kde.kwin.Effects.${want ? 'loadEffect' : 'unloadEffect'}', e.key],
+          timeout: const Duration(seconds: 5));
+      if (await _effectLoaded(qdbus, e.key) != want) return false;
+    }
+    return true;
+  }
+
+  /// {workspace?, window?}: Off writes every effect of the switch off and
+  /// keeps the user's choice; On brings that choice back (KDE's defaults when
+  /// there is none, or when it had them all off). KWin follows at once; when
+  /// it can't, every value goes back as it was and the result is an error.
+  Future<Map<String, dynamic>> _setAnimations(String json) async {
+    final Object? v;
+    try {
+      v = jsonDecode(json);
+    } on FormatException {
+      return {'error': 'bad_args'};
+    }
+    if (v is! Map || v.isEmpty || v.entries.any((e) => !animationEffects.containsKey(e.key) || e.value is! bool)) {
+      return {'error': 'bad_args'};
+    }
+    final qdbus = _qdbus;
+    if (qdbus == null) return {'error': 'unavailable', 'message': 'qdbus6 is not installed'};
+    final old = animations();
+    final text = _text(_kwinrc);
+    final saved = _savedAnimations();
+    final before = <String, String?>{}, after = <String, String?>{};
+    for (final e in v.entries) {
+      final effects = animationEffects[e.key]!;
+      for (final x in effects.keys) {
+        before[x] = iniValue(text, 'Plugins', '${x}Enabled');
+      }
+      if (e.value == false) {
+        if (old[e.key] == true) saved[e.key] = {for (final x in effects.keys) x: before[x]};
+        for (final x in effects.keys) {
+          after[x] = 'false';
+        }
+      } else {
+        final mine = saved.remove(e.key);
+        final back = {for (final x in effects.keys) x: mine is Map && mine[x] is String ? mine[x] as String : null};
+        // a kept choice with every effect off would turn nothing on: KDE's defaults instead
+        final anyOn = back.entries.any((x) => x.value == 'true' || (x.value == null && effects[x.key]!));
+        for (final x in effects.keys) {
+          after[x] = old[e.key] == true ? before[x] : (anyOn ? back[x] : null);
+        }
+      }
+    }
+    if (!await _writeEffects(qdbus, after)) {
+      await _writeEffects(qdbus, before);
+      return {'error': 'unavailable', 'message': 'KWin did not take the change'};
+    }
+    writeJson(_animationsFile, saved);
+    return {'done': true, 'previous': old, ...animations()};
   }
 
   /// Tiling is selected by the stable 1-based workspace index.
@@ -477,6 +593,8 @@ print('maprisma-snapshot ' + JSON.stringify(r));
   Future<Map<String, dynamic>?> wm(List<String> args, {Duration timeout = const Duration(seconds: 20)}) async {
     if (args.length == 1 && args[0] == 'tile-style') return tileStyle();
     if (args.length == 2 && args[0] == 'set-tile-style') return _setTileStyle(args[1]);
+    if (args.length == 1 && args[0] == 'animations') return animations();
+    if (args.length == 2 && args[0] == 'set-animations') return _setAnimations(args[1]);
     if (args.length == 3 && args[0] == 'set-tiling' && int.tryParse(args[1]) != null && (args[2] == 'on' || args[2] == 'off')) {
       return _setTiling(int.parse(args[1]), args[2] == 'on');
     }

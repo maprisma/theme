@@ -24,6 +24,9 @@ Built against libcosmic rev `95236a944bfd51c63a2fc65fe50a592c47168d40` (as the o
 | `move <id> <index>` / `close <id>` / `activate <id>` | toplevel management | `{"done": true}` / `not_found` |
 | `watch` | Runs until stdin closes; JSON lines `{"event":"workspace","index":3}` (active workspace changed), `{"event":"window_new","id":..,"app_id":..,"workspace":..}`, `{"event":"window_closed","id":..}`, `{"event":"window_moved","id":..,"workspace":..}` | lines |
 
+KDE-only wm commands (`tile-style`, `set-tile-style`, `animations`, `set-animations`) are answered by
+`KdeDesktop.wm` in Dart, not by this helper; see docs/multi-desktop.md.
+
 ### The colors object (Omarchy `colors.toml`, as JSON)
 
 ```json

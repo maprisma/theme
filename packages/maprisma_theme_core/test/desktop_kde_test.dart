@@ -211,7 +211,7 @@ void main() {
   });
 
   test('caps and the rest of the contract', () async {
-    expect(kde.caps, {Cap.appearance, Cap.kdeScheme, Cap.wallpaper, Cap.terminal, Cap.fonts, Cap.icons, Cap.workspaces, Cap.windows, Cap.shortcuts});
+    expect(kde.caps, {Cap.appearance, Cap.kdeScheme, Cap.wallpaper, Cap.terminal, Cap.fonts, Cap.icons, Cap.workspaces, Cap.windows, Cap.shortcuts, Cap.animations});
     expect(await kde.applyRon('/x.ron'), isFalse);
     // no session bus in the test's environment: KWin is never reached
     expect((await kde.wm(['workspaces']))?['error'], 'unavailable');
@@ -307,5 +307,104 @@ void main() {
     expect(kde.tileStyle(), {'top': 10, 'right': 10, 'bottom': 10, 'left': 10, 'between': 10, 'border': 3, 'radius': 10, 'can_tile': true});
     final result = await kde.wm(['set-tile-style', '{"border":0}']);
     expect((result?['previous'] as Map)['border'], 3);
+  });
+
+  group('animations', () {
+    late String loaded;
+
+    /// kwriteconfig6 that really edits kwinrc [Plugins], and a KWin whose
+    /// effects load and unload (a `refuse` file makes it ignore loadEffect).
+    setUp(() {
+      loaded = '${root.path}/loaded';
+      Directory(loaded).createSync();
+      final kw = File('${root.path}/bin/kwriteconfig6')
+        ..writeAsStringSync('#!/usr/bin/env python3\n'
+            'import sys, os, re\n'
+            'a = sys.argv[1:]\n'
+            'open("$log", "a").write("kwriteconfig6 " + " ".join(a) + "\\n")\n'
+            'if "--group" not in a or a[a.index("--group") + 1] != "Plugins": sys.exit(0)\n'
+            'key = a[a.index("--key") + 1]; p = "$config/kwinrc"\n'
+            'lines = open(p).read().splitlines() if os.path.exists(p) else []\n'
+            'lines = [l for l in lines if not l.startswith(key + "=")]\n'
+            'if "[Plugins]" not in lines: lines.insert(0, "[Plugins]")\n'
+            'if "--delete" not in a: lines.insert(lines.index("[Plugins]") + 1, key + "=" + a[-1])\n'
+            'open(p, "w").write("\\n".join(lines) + "\\n")\n');
+      chmodPath(kw.path, 493);
+      tool('qdbus6', 'case "\$3" in '
+          '*isEffectLoaded) [ -e "$loaded/\$4" ] && echo true || echo false;; '
+          '*loadEffect) [ -e "$loaded/../refuse" ] || [ "\$3" != "\${3%unloadEffect}" ] || touch "$loaded/\$4"; '
+          '[ "\$3" != "\${3%unloadEffect}" ] && rm -f "$loaded/\$4"; echo true;; '
+          '*) ;; esac');
+      for (final e in ['slide', 'scale']) {
+        File('$loaded/$e').createSync();
+      }
+    });
+
+    Set<String> live() => {for (final f in Directory(loaded).listSync()) f.uri.pathSegments.last};
+    String? plugin(String key) => iniValue(File('$config/kwinrc').readAsStringSync(), 'Plugins', '${key}Enabled');
+
+    test('read from kwinrc with KDE defaults for missing keys', () {
+      expect(kde.animations(), {'workspace': true, 'window': true});
+      File('$config/kwinrc').writeAsStringSync('[Plugins]\nslideEnabled=false\nscaleEnabled=false\nglideEnabled=true\n');
+      expect(kde.animations(), {'workspace': false, 'window': true});
+      File('$config/kwinrc').writeAsStringSync('[Plugins]\nslideEnabled=false\nfadedesktopEnabled=true\n');
+      expect(kde.animations()['workspace'], isTrue);
+    });
+
+    test('off unloads every effect; on brings the user\'s own choice back', () async {
+      File('$config/kwinrc').writeAsStringSync('[Plugins]\nscaleEnabled=false\nglideEnabled=true\n');
+      File('$loaded/scale').deleteSync();
+      File('$loaded/glide').createSync();
+
+      final off = await kde.wm(['set-animations', '{"workspace":false,"window":false}']);
+      expect(off, containsPair('done', true));
+      expect(off?['previous'], {'workspace': true, 'window': true});
+      expect(off, containsPair('window', false));
+      expect(off, containsPair('workspace', false));
+      expect(live(), isEmpty);
+      for (final e in ['slide', 'fadedesktop', 'scale', 'glide', 'fade']) {
+        expect(plugin(e), 'false');
+      }
+
+      final on = await kde.wm(['set-animations', '{"window":true}']);
+      expect(on, containsPair('window', true));
+      expect(on, containsPair('workspace', false));
+      expect(live(), {'glide'}); // Glide as before, not Scale
+      expect([plugin('scale'), plugin('glide'), plugin('fade')], ['false', 'true', null]);
+    });
+
+    test('on without a kept choice gives KDE\'s defaults', () async {
+      File('$config/kwinrc').writeAsStringSync('[Plugins]\nslideEnabled=false\n');
+      File('$loaded/slide').deleteSync();
+      final on = await kde.wm(['set-animations', '{"workspace":true}']);
+      expect(on, containsPair('workspace', true));
+      expect(live(), containsAll(['slide']));
+      expect(plugin('slide'), isNull);
+    });
+
+    test('KWin refusing the change: an error and kwinrc as it was', () async {
+      File('$config/kwinrc').writeAsStringSync('[Plugins]\nslideEnabled=false\n');
+      File('$loaded/slide').deleteSync();
+      File('${root.path}/refuse').createSync();
+      final r = await kde.wm(['set-animations', '{"workspace":true}']);
+      expect(r?['error'], 'unavailable');
+      expect(plugin('slide'), 'false');
+      expect(plugin('fadedesktop'), isNull);
+      expect(kde.animations()['workspace'], isFalse);
+    });
+
+    test('KWin out of reach: an error, nothing left changed', () async {
+      tool('qdbus6', 'exit 1');
+      final r = await kde.wm(['set-animations', '{"window":false}']);
+      expect(r?['error'], 'unavailable');
+      expect(kde.animations(), {'workspace': true, 'window': true});
+    });
+
+    test('a bad request writes nothing', () async {
+      for (final bad in ['{}', '{"window":1}', '{"other":true}', 'nope', '[]']) {
+        expect((await kde.wm(['set-animations', bad]))?['error'], 'bad_args');
+      }
+      expect(logText(), isNot(contains('kwriteconfig6')));
+    });
   });
 }

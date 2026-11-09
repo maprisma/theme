@@ -153,7 +153,15 @@ Started by an XDG autostart entry.
   `~/.config/autostart/com.maprisma.Theme.Daemon.desktop` (`OnlyShowIn=KDE;`) and by the installer.
 - All D-Bus use goes through the backend's own environment (`DBUS_SESSION_BUS_ADDRESS`); tests have
   none, so they never reach the real session.
-- KDE caps: appearance, kdeScheme, wallpaper, terminal, fonts, icons, workspaces, windows, shortcuts.
+- KDE caps: appearance, kdeScheme, wallpaper, terminal, fonts, icons, workspaces, windows, shortcuts,
+  animations.
+- **Animations** (KDE only; `wm animations` / `wm set-animations {workspace?, window?}`, routes
+  `animations.get/set`): Workspace switch = KWin effects slide + fadedesktop, Window open = scale +
+  glide + fade, in kwinrc `[Plugins]`. Off writes them all off and keeps the user's own values in
+  `$state/kde-animations.json`; On brings that choice back (KDE's defaults when none). Every change is
+  checked live with `org.kde.kwin.Effects.isEffectLoaded`; when KWin doesn't follow, kwinrc goes back
+  as it was and the result is `unavailable`. COSMIC has no such setting: cosmic-comp 1.11 hardcodes
+  its animation lengths (200 ms, minimize 320 ms) and has no config key or env var for them.
   Per-workspace `tiling` uses Maprisma Tiling; `panel` remains unavailable. The script enforces window limits, so the daemon skips overflow moves.
 
 ## Who does what

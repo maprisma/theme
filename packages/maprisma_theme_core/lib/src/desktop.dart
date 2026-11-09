@@ -42,6 +42,10 @@ enum Cap {
 
   /// A native panel applet of Maprisma Theme exists for this desktop.
   panel,
+
+  /// wm `animations` / `set-animations`: workspace switch and window open
+  /// animations can be turned off (KDE: KWin effects).
+  animations,
 }
 
 /// What Maprisma Theme asks of the desktop: one backend per desktop

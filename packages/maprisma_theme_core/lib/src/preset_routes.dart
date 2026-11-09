@@ -207,6 +207,11 @@ Map<String, Handler> presetRoutes(Ctx ctx) {
     /// {top, right, bottom, left, between, border, radius}: any subset; returns
     /// {done, previous} (previous: the values before, for Undo).
     'tiling.style.set': (p) async => _wmOrThrow(await ctx.desktop.wm(['set-tile-style', jsonEncode(p)])),
+    /// {workspace, window}: whether switching workspaces and opening a window
+    /// animate (KDE: KWin effects; wm `animations`).
+    'animations.get': (_) async => _wmOrThrow(await ctx.desktop.wm(['animations'])),
+    /// {workspace?, window?}: bools; returns the new state and {previous}.
+    'animations.set': (p) async => _wmOrThrow(await ctx.desktop.wm(['set-animations', jsonEncode(p)])),
     'workspaces.apply': (_) async {
       final receipt = undo.capture(ctx);
       await undo.captureDesktop(ctx, receipt);

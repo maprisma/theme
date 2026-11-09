@@ -51,7 +51,7 @@ void main() {
   });
 
   test('COSMIC has every cap; desktop.info and core.hello name the backend', () async {
-    expect(CosmicDesktop(paths, const {}).caps, Cap.values.toSet().difference({Cap.kdeScheme}));
+    expect(CosmicDesktop(paths, const {}).caps, Cap.values.toSet().difference({Cap.kdeScheme, Cap.animations}));
     final env = TestEnv.create();
     addTearDown(env.dispose);
     final info = await env.core.call('desktop.info');
