@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../app.dart';
 
@@ -10,26 +11,34 @@ Future<void> lookDialog(BuildContext context, MaprismaThemeAppState app, String 
   if (data == null || !context.mounted) return;
   final caps = {...(data['caps'] as List? ?? const []).cast<String>()};
   final look = Map<String, dynamic>.from(data['look'] as Map? ?? const {});
-  final result = await showDialog<Map<String, dynamic>>(
+  // saved from inside the dialog: it closes only when the save worked
+  final r = await showDialog<Map<String, dynamic>>(
     context: context,
-    builder: (context) => _LookDialog(data: data, caps: caps, look: look),
+    builder: (context) => _LookDialog(
+      data: data,
+      caps: caps,
+      look: look,
+      save: (result) => app.run('looks.set', {'slug': slug, 'look': result}),
+    ),
   );
-  if (result == null || !context.mounted) return;
-  final r = await app.run('looks.set', {'slug': slug, 'look': result});
-  if (r == null) return;
+  if (r == null || !context.mounted) return;
   final previous = r['previous'];
   final name = data['name'] ?? slug;
   app.notify(
     data['in_use'] == true ? 'Font & effects applied' : 'Font & effects saved for $name',
-    undo: previous is Map ? () => app.run('looks.set', {'slug': slug, 'look': previous}) : null,
+    // Undo puts the look back as it was, also a font no longer installed
+    undo: previous is Map ? () => app.run('looks.set', {'slug': slug, 'look': previous, 'restore': true}) : null,
   );
 }
 
 class _LookDialog extends StatefulWidget {
-  const _LookDialog({required this.data, required this.caps, required this.look});
+  const _LookDialog({required this.data, required this.caps, required this.look, required this.save});
   final Map<String, dynamic> data;
   final Set<String> caps;
   final Map<String, dynamic> look;
+
+  /// looks.set; null when it failed (the app has said why).
+  final Future<Map<String, dynamic>?> Function(Map<String, dynamic> look) save;
 
   @override
   State<_LookDialog> createState() => _LookDialogState();
@@ -42,6 +51,53 @@ class _LookDialogState extends State<_LookDialog> {
   /// null: the theme's default; else {on, strength}.
   late Map<String, dynamic>? blur =
       widget.look['blur'] is Map ? Map<String, dynamic>.from(widget.look['blur'] as Map) : null;
+
+  bool saving = false;
+  final _menus = {'mono_font': MenuController(), 'ui_font': MenuController()};
+  final _fields = {'mono_font': FocusNode(), 'ui_font': FocusNode()};
+  final _saveFocus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    HardwareKeyboard.instance.addHandler(_onKey);
+  }
+
+  @override
+  void dispose() {
+    HardwareKeyboard.instance.removeHandler(_onKey);
+    for (final f in [..._fields.values, _saveFocus]) {
+      f.dispose();
+    }
+    super.dispose();
+  }
+
+  /// Esc closes an open font list first, then the dialog; a font field
+  /// would otherwise keep Esc for itself.
+  bool _onKey(KeyEvent e) {
+    if (e is! KeyDownEvent || e.logicalKey != LogicalKeyboardKey.escape) return false;
+    if (_menus.values.any((m) => m.isOpen)) return false;
+    if (_fields.values.any((f) => f.hasFocus) && mounted) {
+      Navigator.of(context).pop();
+      return true;
+    }
+    return false;
+  }
+
+  Future<void> _submit() async {
+    setState(() => saving = true);
+    final r = await widget.save({
+      if (mono != null) 'mono_font': mono,
+      if (ui != null) 'ui_font': ui,
+      if (blur != null) 'blur': blur,
+    });
+    if (!mounted) return;
+    if (r == null) {
+      setState(() => saving = false); // the edits stay for another try
+    } else {
+      Navigator.of(context).pop(r);
+    }
+  }
 
   Map get _theme => widget.data['theme'] as Map? ?? const {};
   Map get _own => widget.data['own'] as Map? ?? const {};
@@ -65,24 +121,36 @@ class _LookDialogState extends State<_LookDialog> {
 
   Widget _fontRow(String key, String label, String tip, String? value, ValueChanged<String?> onChanged) {
     final fonts = _fonts(key);
+    final missing = value != null && !fonts.contains(value);
     return _Row(
       label: label,
       tip: tip,
-      child: DropdownMenu<String?>(
-        key: ValueKey('look-$key'),
-        width: 320,
-        menuHeight: 360,
-        textStyle: Theme.of(context).textTheme.bodyMedium,
-        initialSelection: fonts.contains(value) ? value : null,
-        enableFilter: true,
-        requestFocusOnTap: true,
-        hintText: _defaultFont(key),
-        inputDecorationTheme: const InputDecorationTheme(isDense: true),
-        dropdownMenuEntries: [
-          DropdownMenuEntry<String?>(value: null, label: _defaultFont(key)),
-          for (final f in fonts) DropdownMenuEntry<String?>(value: f, label: f),
-        ],
-        onSelected: onChanged,
+      child: Semantics(
+        label: label,
+        container: true,
+        child: DropdownMenu<String?>(
+          key: ValueKey('look-$key'),
+          width: 320,
+          menuHeight: 360,
+          textStyle: Theme.of(context).textTheme.bodyMedium,
+          menuController: _menus[key],
+          focusNode: _fields[key],
+          initialSelection: value,
+          enableFilter: true,
+          requestFocusOnTap: true,
+          hintText: _defaultFont(key),
+          inputDecorationTheme: const InputDecorationTheme(isDense: true),
+          dropdownMenuEntries: [
+            DropdownMenuEntry<String?>(value: null, label: _defaultFont(key)),
+            // a saved font no longer installed stays until another is chosen
+            if (missing) DropdownMenuEntry<String?>(value: value, label: '$value (not installed)'),
+            for (final f in fonts) DropdownMenuEntry<String?>(value: f, label: f),
+          ],
+          onSelected: (v) {
+            onChanged(v);
+            _saveFocus.requestFocus(); // Esc and Enter belong to the dialog again
+          },
+        ),
       ),
     );
   }
@@ -111,7 +179,10 @@ class _LookDialogState extends State<_LookDialog> {
               _Row(
                 label: 'Blur',
                 tip: 'Behind see-through panels, menus and windows',
-                child: SegmentedButton<String>(
+                child: Semantics(
+                  label: 'Blur',
+                  container: true,
+                  child: SegmentedButton<String>(
                   key: const ValueKey('look-blur'),
                   showSelectedIcon: false,
                   segments: const [
@@ -131,6 +202,7 @@ class _LookDialogState extends State<_LookDialog> {
                     };
                   }),
                 ),
+                ),
               ),
               if (b == null)
                 Padding(padding: const EdgeInsets.only(left: 160, bottom: 8), child: Text(_defaultBlur(), style: small)),
@@ -147,6 +219,7 @@ class _LookDialogState extends State<_LookDialog> {
                         divisions: 14,
                         value: (b['strength'] as int).toDouble(),
                         label: '${b['strength']}',
+                        semanticFormatterCallback: (v) => 'Blur strength ${v.round()} of 15',
                         onChanged: (v) => setState(() => blur = {'on': true, 'strength': v.round()}),
                       ),
                     ),
@@ -162,13 +235,8 @@ class _LookDialogState extends State<_LookDialog> {
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
         FilledButton(
           key: const ValueKey('look-save'),
-          onPressed: widget.caps.isEmpty
-              ? null
-              : () => Navigator.pop(context, {
-                    if (mono != null) 'mono_font': mono,
-                    if (ui != null) 'ui_font': ui,
-                    if (blur != null) 'blur': blur,
-                  }),
+          focusNode: _saveFocus,
+          onPressed: widget.caps.isEmpty || saving ? null : _submit,
           child: Text(widget.data['in_use'] == true ? 'Apply' : 'Save'),
         ),
       ],

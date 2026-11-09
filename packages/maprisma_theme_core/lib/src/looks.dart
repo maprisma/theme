@@ -259,14 +259,17 @@ Future<Map<String, dynamic>> lookData(Ctx ctx, String slug) async {
   };
 }
 
-/// `looks.set {slug, look}`: replaces the look; the theme in use gets it at once.
-Future<Map<String, dynamic>> setLook(Ctx ctx, String slug, Object? raw) async {
+/// `looks.set {slug, look, restore?}`: replaces the look; the theme in use
+/// gets it at once. A font must be installed when it is new: one the look
+/// already has may stay, and [restore] (Undo) may put any back as it was.
+Future<Map<String, dynamic>> setLook(Ctx ctx, String slug, Object? raw, {bool restore = false}) async {
   final theme = ctx.theme(slug);
   final look = checkLook(raw);
   if (look == null) throw RouteError('bad_args', 'not a look');
+  final stored = Looks(ctx).of(slug);
   for (final r in FontRole.values) {
     final f = look[r.lookKey];
-    if (f is String && !(await r.choices(ctx.desktop)).contains(f)) {
+    if (f is String && !restore && f != stored[r.lookKey] && !(await r.choices(ctx.desktop)).contains(f)) {
       throw RouteError('bad_args', '$f is not installed');
     }
   }

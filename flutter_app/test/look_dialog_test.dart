@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:maprisma_theme/app.dart';
 import 'package:maprisma_theme/pages/look_dialog.dart';
@@ -82,6 +83,87 @@ void main() {
     await tester.runAsync(() => core.call('themes.apply', {'slug': 'nord'}));
     expect(desktop.monospaceFont(), 'Fira Code');
     expect(desktop.blur['on'], isTrue);
+  });
+
+  testWidgets('Esc after picking a font cancels; a failed save keeps the dialog and its edits', (tester) async {
+    tester.view.physicalSize = const Size(1000, 760);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    var failNext = true, sets = 0;
+    Future<Map<String, dynamic>> call(String m, [Map<String, dynamic> p = const {}]) async {
+      if (m == 'looks.set') {
+        sets++;
+        if (failNext) {
+          failNext = false;
+          throw RouteError('failed', 'disk full');
+        }
+      }
+      return core.call(m, p);
+    }
+
+    await tester.runAsync(() async {
+      await tester.pumpWidget(MaprismaThemeApp(call: call));
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    });
+    final state = tester.state<MaprismaThemeAppState>(find.byType(MaprismaThemeApp));
+    lookDialog(state.navigator.currentContext!, state, 'nord');
+    await settle(tester, 300);
+    await tester.tap(find.byKey(const ValueKey('look-mono_font')));
+    await settle(tester);
+    await tester.tap(find.text('Fira Code').last);
+    await settle(tester);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await settle(tester);
+    expect(find.textContaining('Font & effects · '), findsNothing);
+    expect(sets, 0);
+
+    lookDialog(state.navigator.currentContext!, state, 'nord');
+    await settle(tester, 300);
+    await tester.tap(find.text('On'));
+    await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('look-save')));
+    for (var i = 0; i < 4; i++) {
+      await settle(tester, 200);
+    }
+    expect(sets, 1);
+    expect(find.textContaining('Font & effects · '), findsOneWidget); // still open
+    expect(find.byKey(const ValueKey('look-strength')), findsOneWidget); // blur still on
+    await tester.tap(find.byKey(const ValueKey('look-save')));
+    for (var i = 0; i < 6; i++) {
+      await settle(tester, 300);
+    }
+    expect(find.textContaining('Font & effects · '), findsNothing);
+    final look = (await tester.runAsync(() => core.call('looks.get', {'slug': 'nord'})))!;
+    expect(look['look'], {'blur': {'on': true, 'strength': 8}});
+    // the core's apply lock is one queue for the whole test run: end on a call in real time
+    await tester.runAsync(() => core.call('looks.set', {'slug': 'nord', 'look': {}}));
+  });
+
+  testWidgets('a saved font no longer installed is shown as such and kept', (tester) async {
+    tester.view.physicalSize = const Size(1000, 760);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    File(core.ctx.paths.file('looks.json')).writeAsStringSync('{"nord": {"mono_font": "Fira Code"}}');
+    desktop.fonts = ['JetBrains Mono'];
+    Future<Map<String, dynamic>> call(String m, [Map<String, dynamic> p = const {}]) async {
+      return core.call(m, p);
+    }
+    await tester.runAsync(() async {
+      await tester.pumpWidget(MaprismaThemeApp(call: call));
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    });
+    final state = tester.state<MaprismaThemeAppState>(find.byType(MaprismaThemeApp));
+    lookDialog(state.navigator.currentContext!, state, 'nord');
+    await settle(tester, 300);
+    expect(find.text('Fira Code (not installed)'), findsWidgets);
+    await tester.tap(find.text('Off'));
+    await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('look-save')));
+    for (var i = 0; i < 6; i++) {
+      await settle(tester, 300);
+    }
+    final look = (await tester.runAsync(() => core.call('looks.get', {'slug': 'nord'})))!;
+    expect(look['look'], {'mono_font': 'Fira Code', 'blur': {'on': false, 'strength': 8}});
   });
 
   testWidgets('a desktop without blur shows no blur row', (tester) async {

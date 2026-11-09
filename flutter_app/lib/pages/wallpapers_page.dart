@@ -14,6 +14,7 @@ import '../widgets.dart';
 import '../window.dart';
 import 'editor_page.dart';
 import 'wallhaven_page.dart';
+import 'look_dialog.dart';
 
 const previewSeconds = 5;
 const maxDrops = 10;
@@ -570,6 +571,16 @@ class _WallpapersPageState extends State<WallpapersPage> {
                     tooltip: 'Find wallpapers on wallhaven.cc (Ctrl+F)',
                     onPressed: openSearch,
                   ),
+                  if (app.can('fonts') || app.can('uiFont') || app.can('blur'))
+                    OutlineAction(
+                      icon: Icons.text_format,
+                      label: 'Font & effects…',
+                      tooltip: "Fonts and blur for this theme; the theme files stay as they are",
+                      onPressed: () async {
+                        await lookDialog(context, app, widget.slug);
+                        if (mounted) focus.requestFocus();
+                      },
+                    ),
                 ]),
                 const SizedBox(height: 8),
                 Expanded(

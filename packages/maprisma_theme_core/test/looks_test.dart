@@ -92,6 +92,17 @@ void main() {
     expect(File(env.paths.file('looks.json')).existsSync(), isFalse);
   });
 
+  test('a saved font no longer installed may stay, and Undo may put it back', () async {
+    await call('looks.set', {'slug': 'nord', 'look': {'mono_font': 'Fira Code'}});
+    env.desktop.fonts = ['JetBrains Mono']; // Fira Code uninstalled
+    // only blur changes: the stored font stays
+    await call('looks.set', {'slug': 'nord', 'look': {'mono_font': 'Fira Code', 'blur': {'on': true, 'strength': 3}}});
+    final r = await call('looks.set', {'slug': 'nord', 'look': {'mono_font': 'JetBrains Mono'}});
+    await expectLater(call('looks.set', {'slug': 'nord', 'look': r['previous']}), throwsA(isA<RouteError>()));
+    await call('looks.set', {'slug': 'nord', 'look': r['previous'], 'restore': true});
+    expect(Looks(env.core.ctx).of('nord')['mono_font'], 'Fira Code');
+  });
+
   test('a desktop without an interface font only has the monospace field', () async {
     env.dispose();
     env = TestEnv.create(desktop: FakeDesktop(caps: Cap.values.toSet().difference({Cap.uiFont})));
