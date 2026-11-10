@@ -532,13 +532,16 @@ class _WallhavenPageState extends State<WallhavenPage> {
         if (!mounted) return;
         // A wallhaven thumb of an older search, or a web picture no longer shown
         // (a newer Ask replaced the list): nothing changes.
-        if (isWeb(item) ? !webPictures.contains(item) : gen != generation) return;
+        if (isWeb(item) ? !webPictures.contains(item) : gen != generation) {
+          _pumpThumbs(generation); // the worker is free: the current search's thumbs go on
+          return;
+        }
         setState(() {
           thumbs[item['id'] as String] = path;
           // A web link that is no usable picture (or not public) is left out.
           if (path == null && isWeb(item)) webPictures.remove(item);
         });
-        _pumpThumbs(gen);
+        _pumpThumbs(generation);
       }();
     }
   }
@@ -556,6 +559,7 @@ class _WallhavenPageState extends State<WallhavenPage> {
       if (!mounted) return;
       setState(() {
         item['added'] = true;
+        if (r['path'] is String) item['added_path'] = r['path']; // Apply uses this copy, never a second one
         status = trf("Added {0} to {1}.", [r['name'], widget.themeName]);
       });
       app.notify(trf("Wallpaper added: {0} → {1}", [r['name'], widget.themeName]));

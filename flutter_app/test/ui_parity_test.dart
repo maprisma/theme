@@ -476,6 +476,12 @@ void main() {
     await tester.enterText(find.byType(TextField).at(1), 'calm');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await settle(tester);
+    // Add first, then Apply: Apply uses the copy Add made, never a second one.
+    await tester.tap(find.byIcon(Icons.menu).first);
+    await settle(tester, 100);
+    await tester.tap(find.text('Add to Fireside'));
+    await settle(tester);
+    expect(applied, ['add https://img.example.com/snow-peak.jpg']);
     await tester.tap(find.byIcon(Icons.menu).first);
     await settle(tester, 100);
     expect(find.text('Apply'), findsOneWidget);
