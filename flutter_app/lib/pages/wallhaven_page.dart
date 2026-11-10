@@ -74,6 +74,11 @@ class _WallhavenPageState extends State<WallhavenPage> {
   Map? aiHelper;
   bool asking = false;
 
+  /// The ready helpers (signed in) for the choice at the title's right, and
+  /// whether Settings › Ask AI lets a helper search the web.
+  List<Map> aiReady = [];
+  bool aiWebAllowed = true;
+
   /// The helper also searches the web (it can, and Settings › Ask AI allows it).
   bool aiWeb = false;
   String aiSummary = '';
@@ -104,13 +109,60 @@ class _WallhavenPageState extends State<WallhavenPage> {
     }
     if (!mounted || r['enabled'] != true) return;
     final chosen = r['chosen'];
-    final h = [for (final h in (r['helpers'] as List?) ?? const []) if (h is Map && h['id'] == chosen && h['signed_in'] == true) h].firstOrNull;
+    final ready = [for (final h in (r['helpers'] as List?) ?? const []) if (h is Map && h['signed_in'] == true) h];
+    // The chosen helper, else the first ready one (as the plugin).
+    final h = ready.where((h) => h['id'] == chosen).firstOrNull ?? ready.firstOrNull;
     if (h == null) return;
     setState(() {
+      aiReady = ready;
+      aiWebAllowed = r!['web'] != false;
       aiHelper = h;
-      aiWeb = h['web'] == true && r!['web'] != false;
+      aiWeb = h['web'] == true && aiWebAllowed;
     });
     if (widget.askAi) WidgetsBinding.instance.addPostFrameCallback((_) => aiFocus.requestFocus());
+  }
+
+  /// Another helper chosen: it asks from now on (an answer on its way stays),
+  /// and the Ask AI page uses it too (the same remembered choice).
+  Future<void> chooseHelper(String id) async {
+    final h = aiReady.where((h) => h['id'] == id).firstOrNull;
+    if (h == null || h['id'] == aiHelper?['id']) return;
+    setState(() {
+      aiHelper = h;
+      aiWeb = h['web'] == true && aiWebAllowed;
+    });
+    await app.run('settings.set', {'key': 'ask_ai_helper', 'value': id}, tr("Could not save the setting"));
+    app.changed();
+  }
+
+  static String helperName(Map h) => '${h['name']}${h['local'] == true ? tr(" · on this PC") : ''}';
+
+  /// [name ▾] at the title's right, as the Ask AI page's helper choice.
+  Widget helperChoice() {
+    final scheme = Theme.of(context).colorScheme;
+    final current = aiHelper!;
+    return PopupMenuButton<String>(
+      key: const ValueKey('wallpaper-helper'),
+      tooltip: '${tr("Helper:")} ${helperName(current)}',
+      enabled: aiReady.isNotEmpty,
+      onSelected: chooseHelper,
+      position: PopupMenuPosition.under,
+      itemBuilder: (_) => [
+        for (final h in aiReady)
+          CheckedPopupMenuItem(value: h['id'] as String, checked: h['id'] == current['id'], child: Text(helperName(h))),
+      ],
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 200),
+        padding: const EdgeInsets.fromLTRB(10, 6, 6, 6),
+        decoration: BoxDecoration(
+            color: scheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(cornerSizes(context).control)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Flexible(child: Text(helperName(current), maxLines: 1, overflow: TextOverflow.ellipsis)),
+          const SizedBox(width: 4),
+          Icon(Icons.expand_more, size: 18, color: scheme.onSurfaceVariant),
+        ]),
+      ),
+    );
   }
 
   Future<void> askAi() async {
@@ -855,6 +907,7 @@ class _WallhavenPageState extends State<WallhavenPage> {
       title: trf("{0} — search wallpapers", [widget.themeName]),
       section: false,
       backTooltip: tr("Back to the wallpapers (Backspace or Esc)"),
+      actions: [if (aiHelper != null) ...[const SizedBox(width: 8), helperChoice()]],
       body: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Row(children: [
           Expanded(

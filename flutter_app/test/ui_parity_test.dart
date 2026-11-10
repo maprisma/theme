@@ -140,6 +140,7 @@ void main() {
           ? {
               'helpers': [
                 {'id': 'claude', 'name': 'Claude Code', 'signed_in': true, 'web': true},
+                {'id': 'codex', 'name': 'Codex', 'signed_in': true, 'web': false},
               ],
               'chosen': 'claude',
               'enabled': true,
@@ -349,6 +350,18 @@ void main() {
     expect(find.text('Broken'), findsNothing, reason: 'a link that is no picture is left out');
     expect(find.text('web'), findsOneWidget);
     await shoot(tester, key, 'wallhaven-ai-1300');
+    // The helper choice at the title's right, the same remembered choice as the Ask AI page.
+    final choice = find.byKey(const ValueKey('wallpaper-helper'));
+    expect(choice, findsOneWidget);
+    expect(find.descendant(of: choice, matching: find.text('Claude Code')), findsOneWidget);
+    await tester.tap(choice);
+    await settle(tester);
+    await tester.tap(find.text('Codex').last);
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 300)));
+    await settle(tester);
+    expect(find.descendant(of: choice, matching: find.text('Codex')), findsOneWidget);
+    final saved = await tester.runAsync(() => core.call('settings.get', {}));
+    expect((saved?['settings'] ?? saved)['ask_ai_helper'], 'codex');
     expect(tester.takeException(), isNull);
   });
 
