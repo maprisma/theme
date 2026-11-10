@@ -289,15 +289,15 @@ void main() {
       if (m == 'create.status') return {'ready': true};
       if (m == 'create.make') {
         calls.add('make ${p['prompt']}');
-        if (held == null) {
-          held = Completer();
-          return held!.future; // the first picture takes long
+        if (held == null || !held!.isCompleted) {
+          held ??= Completer();
+          return held!.future; // this picture takes long (until cancelled)
         }
         return {'path': '${root.path}/made.png'};
       }
       if (m == 'create.cancel') {
         calls.add('cancel');
-        held?.completeError(StateError('cancelled'));
+        if (held != null && !held!.isCompleted) held!.completeError(StateError('cancelled'));
         return {'cancelled': true};
       }
       if (m == 'wallhaven.search') return {'results': <Map>[], 'page': 1, 'last_page': 1};
@@ -335,6 +335,17 @@ void main() {
     expect(find.text('New Sea'), findsWidgets);
     expect(calls, ['make a sea for Old Sea', 'cancel', 'make a sea for New Sea'],
         reason: 'the replaced card\'s picture stops; the new card does not wait behind it');
+    // "Not this" on a card whose picture is being made stops that picture too.
+    held = Completer();
+    await tester.enterText(find.byType(TextField).first, 'the calmest sea');
+    await tester.tap(find.text('Ask'));
+    await settle();
+    await settle();
+    expect(calls.last, 'make a sea for New Sea');
+    await tester.ensureVisible(find.text('Not this').first);
+    await tester.tap(find.text('Not this').first);
+    await settle();
+    expect(calls.last, 'cancel');
     expect(tester.takeException(), isNull);
   });
 }

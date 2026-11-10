@@ -794,6 +794,7 @@ class _AskPageState extends State<AskPage> {
     final c = card.c;
     rejected.add('${c['kind'] == 'catalog' ? c['theme'] : (c['agent_name'] ?? c['name'] ?? c['theme'])}');
     if (c['wallpaper_query'] is String && c['query_by_user'] != true) rejected.add(c['wallpaper_query'] as String);
+    _dropCards([card]); // its picture stops; the others' don't wait behind it
     cards.remove(card);
     card.refine?.dispose();
     card.search?.dispose();

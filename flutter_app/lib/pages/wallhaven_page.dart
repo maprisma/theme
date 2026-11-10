@@ -483,6 +483,7 @@ class _WallhavenPageState extends State<WallhavenPage> {
     final q = field.text.trim();
     if (q.isEmpty) return;
     generation++;
+    endPreview(); // the old search's preview ends; one still loading never shows
     dropAsk(); // a new search: an Ask still on its way never starts its own
     if (!fromAsk) dropMaking();
     _thumbQueue.removeWhere((x) => !isWeb(x));
