@@ -150,7 +150,6 @@ void main() {
     if (m == 'create.status') {
       return {
         'ready': generatorReady,
-        'playground': true,
         'setting_up': settingUp,
         'fraction': .25,
         'text': '(models)',

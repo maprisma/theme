@@ -53,7 +53,7 @@ class _WallhavenPageState extends State<WallhavenPage> {
   /// Pictures per batch (Settings key wallpaper_count: 5, 10 or 20).
   late int count;
 
-  // Making pictures (Maprisma Playground's generator).
+  // Making pictures (Maprisma Theme's own picture generator).
   String? picturePrompt;
   Map<String, dynamic>? generator;
   bool making = false, stopMaking = false;
@@ -742,16 +742,14 @@ class _WallhavenPageState extends State<WallhavenPage> {
     );
   }
 
-  /// Ask AI wants a picture made: the generator is Maprisma Playground's;
-  /// set it up here once (shared), or install Playground first.
+  /// Ask AI wants a picture made: Maprisma Theme's own picture generator,
+  /// set up here once (a download), with progress and Cancel.
   Widget generatorBanner() {
     final look = Look.of(context);
     final g = generator!;
     final gb = ((g['download_bytes'] as num?) ?? 0) / 1e9;
     final Widget body;
-    if (g['playground'] != true) {
-      body = Text(tr("Making pictures needs Maprisma Playground's picture generator: install Maprisma Playground (Maprisma Manager), then ask again."));
-    } else if (g['setting_up'] == true) {
+    if (g['setting_up'] == true) {
       body = Row(children: [
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -771,7 +769,7 @@ class _WallhavenPageState extends State<WallhavenPage> {
       body = Row(children: [
         Expanded(
           child: Text([
-            trf("Ask AI wants to make this picture on this computer. That uses Maprisma Playground's picture generator, which is not set up yet: {0} GB to download once, shared with Playground.", [gb.toStringAsFixed(1)]),
+            trf("Ask AI wants to make this picture on this computer. The picture generator is not set up yet: {0} GB to download once.", [gb.toStringAsFixed(1)]),
             if ('${g['error'] ?? ''}'.isNotEmpty) trf("Last try: {0}", [g['error']]),
           ].join(' ')),
         ),

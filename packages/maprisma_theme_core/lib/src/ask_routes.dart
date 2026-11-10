@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'ask_ai.dart';
 import 'context.dart';
-import 'created_pictures.dart';
 import 'posix.dart';
 import 'theme_ai.dart';
 
@@ -87,9 +86,8 @@ Map<String, Handler> askRoutes(Ctx ctx) {
           if (r is String && r.isNotEmpty) plainText(r, 80),
       ];
       final web = searchesWeb(helper);
-      final canCreate = CreatedPictures(ctx).playgroundCore != null;
       final prompt = buildPrompt(request, themes, catalog, fonts,
-          previous: parent == null ? null : forRefine(parent), rejected: rejected, web: web, canCreate: canCreate);
+          previous: parent == null ? null : forRefine(parent), rejected: rejected, web: web, canCreate: true);
       String text;
       try {
         text = await runner.run(helper, prompt, web: web);
@@ -100,7 +98,7 @@ Map<String, Handler> askRoutes(Ctx ctx) {
       if (json == null) throw RouteError('bad_answer', tr("no JSON object in the answer"));
       final limit = parent == null || wantsOptions(request) ? maxCandidates : 1;
       final (summary, candidates) = verify(json, themes, catalog, fonts,
-          parent: parent, limit: limit, current: ctx.current.slug, web: web, canCreate: canCreate);
+          parent: parent, limit: limit, current: ctx.current.slug, web: web, canCreate: true);
       return {
         'summary': summary,
         'candidates': candidates,
@@ -131,13 +129,11 @@ Map<String, Handler> askRoutes(Ctx ctx) {
       final seen = [
         for (final u in p['seen'] is List ? (p['seen'] as List).take(60) : const []) ?publicHttpsUrl(u),
       ];
-      // Pictures can be made here when Maprisma Playground is installed (its generator, set up on first use).
-      final canCreate = CreatedPictures(ctx).playgroundCore != null;
       String text;
       try {
         text = await runner.run(
             helper,
-            buildWallpaperPrompt(request, theme, rejected: rejected, web: web, count: count, seen: seen, canCreate: canCreate),
+            buildWallpaperPrompt(request, theme, rejected: rejected, web: web, count: count, seen: seen, canCreate: true),
             web: web);
       } on AskError catch (e) {
         throw RouteError(e.message == 'cancelled' ? 'cancelled' : 'helper_failed', e.message == 'cancelled' ? tr('Cancelled') : e.message);
@@ -148,7 +144,7 @@ Map<String, Handler> askRoutes(Ctx ctx) {
       final images = web
           ? [for (final i in verifyWallpaperImages(json, limit: 20)) if (!seen.contains(i['url'])) i].take(count).toList()
           : const <Map<String, String>>[];
-      final picturePrompt = canCreate ? verifyPicturePrompt(json) : null;
+      final picturePrompt = verifyPicturePrompt(json); // made here: set up from Maprisma Theme itself when needed
       if (queries.isEmpty && images.isEmpty && picturePrompt == null) {
         throw RouteError('bad_answer', tr("no usable search words in the answer"));
       }

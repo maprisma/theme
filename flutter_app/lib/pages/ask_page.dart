@@ -72,7 +72,7 @@ class _AskPageState extends State<AskPage> {
   final cards = <_Card>[];
   final rejected = <String>[];
 
-  /// Maprisma Playground's picture generator (create.status), for cards whose
+  /// Maprisma Theme's picture generator (create.status), for cards whose
   /// wallpaper is to be made; pictures are made one after another.
   Map<String, dynamic>? generator;
   Timer? _setupPoll;
@@ -586,7 +586,7 @@ class _AskPageState extends State<AskPage> {
     }
   }
 
-  // --- wallpapers made here (Maprisma Playground's generator) -------------------------
+  // --- wallpapers made here (Maprisma Theme's picture generator) ----------------------
 
   Future<Map<String, dynamic>?> _generatorStatus() async {
     try {
@@ -1074,19 +1074,17 @@ class _AskPageState extends State<AskPage> {
   String _generatorNote() {
     final g = generator;
     if (g == null || g['ready'] == true) return '';
-    if (g['playground'] != true) return tr("Making it needs Maprisma Playground");
     if (g['setting_up'] == true) {
       return trf("Setting up the picture generator… {0} %", [(((g['fraction'] as num?) ?? 0) * 100).round()]);
     }
     return trf("Picture generator not set up ({0} GB once)", [(((g['download_bytes'] as num?) ?? 0) / 1e9).toStringAsFixed(1)]);
   }
 
-  /// Make another wallpaper; or set the generator up first (shared with Playground).
+  /// Make another wallpaper; or set the picture generator up first.
   Widget _makeButton(_Card card) {
     const tight = VisualDensity(horizontal: -4, vertical: -4);
     final g = generator;
     if (g != null && g['ready'] != true) {
-      if (g['playground'] != true) return const SizedBox();
       if (g['setting_up'] == true) {
         return TextButton.icon(
           onPressed: _cancelSetup,
