@@ -77,6 +77,16 @@ class _AskPageState extends State<AskPage> {
   Map<String, dynamic>? generator;
   Timer? _setupPoll;
   Future<void> _makeChain = Future.value();
+
+  /// The card whose picture is being made now (one job at a time).
+  _Card? _makingCard;
+
+  /// Cards a new Ask or a Refine replaced: the picture being made for one of
+  /// them stops, so the new cards don't wait behind it (queued ones skip).
+  void _dropCards(Iterable<_Card> gone) {
+    final now = _makingCard;
+    if (now != null && gone.contains(now)) app.call('create.cancel').ignore();
+  }
   List<Map>? catalog;
   StreamSubscription? _hidden;
   late MaprismaThemeAppState _app;
@@ -114,6 +124,7 @@ class _AskPageState extends State<AskPage> {
 
   @override
   void dispose() {
+    if (_makingCard != null) app.call('create.cancel').ignore(); // the page left: its picture stops
     _askGen++;
     if (asking) app.call('ask.cancel').ignore();
     _ticker?.cancel();
@@ -424,6 +435,7 @@ class _AskPageState extends State<AskPage> {
         } else {
           status = '${r['summary'] ?? ''}';
           if (parent != null) {
+            _dropCards([parent]);
             var at = cards.indexOf(parent);
             if (at < 0) {
               at = 0;
@@ -433,6 +445,7 @@ class _AskPageState extends State<AskPage> {
             cards.insertAll(at, found);
             found.first.refine = TextEditingController(); // refine again right where you are
           } else {
+            _dropCards(List.of(cards));
             cards
               ..clear()
               ..addAll(found);
@@ -617,9 +630,10 @@ class _AskPageState extends State<AskPage> {
     setState(() => card.making = true);
     _makeChain = _makeChain.then((_) async {
       if (!mounted || !cards.contains(card)) return;
+      _makingCard = card;
       try {
         final r = await app.call('create.make', {'prompt': prompt, 'seed': math.Random().nextInt(1 << 31)});
-        if (!mounted) return;
+        if (!mounted || !cards.contains(card)) return; // replaced meanwhile: not shown
         final path = r['path'] as String;
         setState(() {
           card.walls = [
@@ -630,8 +644,9 @@ class _AskPageState extends State<AskPage> {
           card.wallNote = null;
         });
       } catch (e) {
-        if (mounted) setState(() => card.wallNote = trf("Could not make the picture: {0}", [_why(e)]));
+        if (mounted && cards.contains(card)) setState(() => card.wallNote = trf("Could not make the picture: {0}", [_why(e)]));
       } finally {
+        _makingCard = null;
         if (mounted) setState(() => card.making = false);
       }
     });

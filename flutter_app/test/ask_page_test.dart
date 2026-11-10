@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -252,4 +253,88 @@ void main() {
       await picture('editor-from-ask-${width.round()}');
     });
   }
+
+  testWidgets('a new Ask stops the picture being made for the cards it replaces', (tester) async {
+    tester.view.physicalSize = const Size(1300, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final calls = <String>[];
+    var asks = 0;
+    Completer<Map<String, dynamic>>? held;
+    Future<Map<String, dynamic>> call(String m, [Map<String, dynamic> p = const {}]) async {
+      if (m == 'ask.helpers') {
+        final real = await core.call(m, p);
+        return {
+          ...real,
+          'helpers': [
+            {'id': 'claude', 'name': 'Claude Code', 'installed': true, 'signed_in': true, 'local': false, 'login': ''},
+          ],
+          'chosen': 'claude',
+        };
+      }
+      if (m == 'ask.run') {
+        asks++;
+        final name = asks == 1 ? 'Old Sea' : 'New Sea';
+        return {
+          'summary': '',
+          'candidates': [
+            {
+              'kind': 'custom', 'mode': 'new', 'theme': 'nord', 'base_name': 'Nord', 'name': name,
+              'colors': {'background': '#102030', 'foreground': '#e0e0e0', 'accent': '#3366ff'},
+              'changes': {'background': '#102030'}, 'summary': name, 'picture_prompt': 'a sea for $name',
+            },
+          ],
+        };
+      }
+      if (m == 'create.status') return {'ready': true};
+      if (m == 'create.make') {
+        calls.add('make ${p['prompt']}');
+        if (held == null) {
+          held = Completer();
+          return held!.future; // the first picture takes long
+        }
+        return {'path': '${root.path}/made.png'};
+      }
+      if (m == 'create.cancel') {
+        calls.add('cancel');
+        held?.completeError(StateError('cancelled'));
+        return {'cancelled': true};
+      }
+      if (m == 'wallhaven.search') return {'results': <Map>[], 'page': 1, 'last_page': 1};
+      if (m == 'import.omarchy_list') return {'themes': <Map>[]};
+      return core.call(m, p);
+    }
+
+    await core.call('settings.set', {'key': 'ask_ai', 'value': true});
+    await tester.runAsync(() async {
+      await tester.pumpWidget(MaprismaThemeApp(call: call));
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    });
+    final state = tester.state<MaprismaThemeAppState>(find.byType(MaprismaThemeApp));
+    state.navigator.currentState!.push(MaterialPageRoute<void>(builder: (_) => const AskPage()));
+    Future<void> settle() async {
+      await tester.runAsync(() async {
+        await tester.pump();
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pump(const Duration(seconds: 1));
+    }
+
+    await settle();
+    await settle();
+    await tester.enterText(find.byType(TextField).first, 'a calm sea');
+    await tester.tap(find.text('Ask'));
+    await settle();
+    await settle();
+    expect(find.text('Old Sea'), findsWidgets);
+    expect(calls, ['make a sea for Old Sea']);
+    await tester.enterText(find.byType(TextField).first, 'a calmer sea');
+    await tester.tap(find.text('Ask'));
+    await settle();
+    await settle();
+    expect(find.text('New Sea'), findsWidgets);
+    expect(calls, ['make a sea for Old Sea', 'cancel', 'make a sea for New Sea'],
+        reason: 'the replaced card\'s picture stops; the new card does not wait behind it');
+    expect(tester.takeException(), isNull);
+  });
 }
