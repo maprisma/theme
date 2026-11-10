@@ -77,6 +77,8 @@ class _WallpapersPageState extends State<WallpapersPage> {
     super.initState();
     app = AppScope.read(context);
     app.revision.addListener(load);
+    app.revision.addListener(loadAi);
+    loadAi();
     _subs.add(AppWindow.instance.dragging.stream.listen((at) {
       if (!_onTop) return;
       final on = at != null;
@@ -92,6 +94,7 @@ class _WallpapersPageState extends State<WallpapersPage> {
   @override
   void dispose() {
     app.revision.removeListener(load);
+    app.revision.removeListener(loadAi);
     for (final s in _subs) {
       s.cancel();
     }
@@ -322,10 +325,22 @@ class _WallpapersPageState extends State<WallpapersPage> {
   void newTheme(Map w) =>
       Navigator.of(context).push(MaterialPageRoute(builder: (_) => EditorPage(wallpaper: w['path'] as String)));
 
-  void openSearch() {
+  /// Ask AI on the search page: only while Ask AI is on and a helper is ready.
+  bool aiReady = false;
+
+  Future<void> loadAi() async {
+    try {
+      final r = await app.call('ask.helpers');
+      final ready = r['enabled'] == true && r['chosen'] != null;
+      if (mounted && ready != aiReady) setState(() => aiReady = ready);
+    } catch (_) {}
+  }
+
+  void openSearch({bool askAi = false}) {
     stopPreview();
     Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => WallhavenPage(slug: widget.slug, themeName: themeName, current: isCurrent)))
+        .push(MaterialPageRoute(
+            builder: (_) => WallhavenPage(slug: widget.slug, themeName: themeName, current: isCurrent, askAi: askAi)))
         .then((_) {
       load();
       focus.requestFocus();
@@ -567,6 +582,13 @@ class _WallpapersPageState extends State<WallpapersPage> {
                     tooltip: tr("Find wallpapers on wallhaven.cc (Ctrl+F)"),
                     onPressed: openSearch,
                   ),
+                  if (aiReady)
+                    OutlineAction(
+                      icon: Icons.auto_awesome_outlined,
+                      label: tr("Ask AI…"),
+                      tooltip: tr("Describe the wallpaper you want: Ask AI turns it into searches on wallhaven.cc"),
+                      onPressed: () => openSearch(askAi: true),
+                    ),
                   if (app.can('fonts') || app.can('uiFont') || app.can('blur'))
                     OutlineAction(
                       icon: Icons.text_format,

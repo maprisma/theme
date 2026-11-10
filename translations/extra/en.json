@@ -606,5 +606,13 @@
   "Rounded ({0} px)": "Rounded ({0} px)",
   "Saved as {0}": "Saved as {0}",
   "The screenshot could not be saved: {0}": "The screenshot could not be saved: {0}",
-  "The note could not be saved: {0}": "The note could not be saved: {0}"
+  "The note could not be saved: {0}": "The note could not be saved: {0}",
+  "Asking {0} for wallpaper ideas…": "Asking {0} for wallpaper ideas…",
+  "Ask AI failed: {0}": "Ask AI failed: {0}",
+  "no usable search words in the answer": "no usable search words in the answer",
+  "Ask AI, e.g. “calm and wintry, fits this theme”": "Ask AI, e.g. “calm and wintry, fits this theme”",
+  "Ask {0} for search words: it gets your words and this theme's name and colors; the search itself uses no tokens": "Ask {0} for search words: it gets your words and this theme's name and colors; the search itself uses no tokens",
+  "Search for “{0}”": "Search for “{0}”",
+  "Ask AI…": "Ask AI…",
+  "Describe the wallpaper you want: Ask AI turns it into searches on wallhaven.cc": "Describe the wallpaper you want: Ask AI turns it into searches on wallhaven.cc"
 }

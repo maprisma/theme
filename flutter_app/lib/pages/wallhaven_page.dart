@@ -16,8 +16,11 @@ const _thumbWorkers = 4;
 /// Search wallpapers on wallhaven.cc for one theme (the plugin's web search
 /// page): safe for work, landscape, at least 1920×1080, more as you scroll.
 class WallhavenPage extends StatefulWidget {
-  const WallhavenPage({super.key, required this.slug, required this.themeName, this.current = false});
+  const WallhavenPage({super.key, required this.slug, required this.themeName, this.current = false, this.askAi = false});
   final String slug, themeName;
+
+  /// Opened from the wallpapers page's Ask AI: the AI prompt has the focus.
+  final bool askAi;
 
   /// The theme is in use (Add and set as background is offered).
   final bool current;
@@ -42,6 +45,15 @@ class _WallhavenPageState extends State<WallhavenPage> {
   final _thumbQueue = <Map<String, dynamic>>[];
   int _thumbsRunning = 0;
 
+  // Ask AI (only while it is on and a helper is ready): words → search phrases.
+  final aiField = TextEditingController();
+  final aiFocus = FocusNode();
+  Map? aiHelper;
+  bool asking = false;
+  String aiSummary = '';
+  List<String> aiQueries = [];
+  final aiSearched = <String>[];
+
   /// The result whose preview is loading or shown (`web:<id>`), null when none.
   String? previewing;
   bool previewShown = false;
@@ -55,6 +67,69 @@ class _WallhavenPageState extends State<WallhavenPage> {
       if (scroll.position.pixels > scroll.position.maxScrollExtent - 400) loadMore();
     });
     WidgetsBinding.instance.addPostFrameCallback((_) => fieldFocus.requestFocus());
+    loadHelper();
+  }
+
+  Future<void> loadHelper() async {
+    Map<String, dynamic>? r;
+    try {
+      r = await app.call('ask.helpers');
+    } catch (_) {
+      return;
+    }
+    if (!mounted || r['enabled'] != true) return;
+    final chosen = r['chosen'];
+    final h = [for (final h in (r['helpers'] as List?) ?? const []) if (h is Map && h['id'] == chosen && h['signed_in'] == true) h].firstOrNull;
+    if (h == null) return;
+    setState(() => aiHelper = h);
+    if (widget.askAi) WidgetsBinding.instance.addPostFrameCallback((_) => aiFocus.requestFocus());
+  }
+
+  Future<void> askAi() async {
+    final words = aiField.text.trim();
+    final helper = aiHelper;
+    if (words.isEmpty || helper == null || asking) return;
+    setState(() {
+      asking = true;
+      aiSummary = '';
+      status = trf("Asking {0} for wallpaper ideas…", [helper['name']]);
+    });
+    Map<String, dynamic>? r;
+    String? error;
+    try {
+      r = await app.call('ask.wallpapers', {
+        'helper': helper['id'],
+        'request': words,
+        'slug': widget.slug,
+        'rejected': aiSearched.take(20).toList(),
+      });
+    } catch (e) {
+      error = failText(e);
+    }
+    if (!mounted) return;
+    final queries = [for (final q in (r?['queries'] as List?) ?? const []) if (q is String) q];
+    setState(() {
+      asking = false;
+      if (r == null || queries.isEmpty) {
+        status = trf("Ask AI failed: {0}", [error ?? tr("no usable search words in the answer")]);
+        return;
+      }
+      aiQueries = queries;
+      aiSummary = '${r['summary'] ?? ''}';
+    });
+    if (queries.isNotEmpty) searchFor(queries.first);
+  }
+
+  Future<void> stopAsking() async {
+    try {
+      await app.call('ask.cancel');
+    } catch (_) {}
+  }
+
+  void searchFor(String phrase) {
+    if (!aiSearched.contains(phrase)) aiSearched.add(phrase);
+    field.text = phrase;
+    search();
   }
 
   @override
@@ -64,6 +139,9 @@ class _WallhavenPageState extends State<WallhavenPage> {
     previewTimer?.cancel();
     field.dispose();
     fieldFocus.dispose();
+    aiField.dispose();
+    aiFocus.dispose();
+    if (asking) app.call('ask.cancel').ignore();
     gridFocus.dispose();
     scroll.dispose();
     super.dispose();
@@ -337,6 +415,59 @@ class _WallhavenPageState extends State<WallhavenPage> {
     );
   }
 
+  /// Ask AI: the words, Ask (Stop while asking), the phrases it came back with.
+  Widget aiRow() {
+    final helper = aiHelper!;
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Row(children: [
+        Expanded(
+          child: Focus(
+            onKeyEvent: (node, e) {
+              if (e is KeyDownEvent && e.logicalKey == LogicalKeyboardKey.escape) {
+                Navigator.of(context).maybePop();
+                return KeyEventResult.handled;
+              }
+              return KeyEventResult.ignored;
+            },
+            child: TextField(
+              controller: aiField,
+              focusNode: aiFocus,
+              maxLength: 600,
+              enabled: !asking,
+              decoration: InputDecoration(
+                prefixIcon: Icon(Icons.auto_awesome_outlined, size: 18),
+                hintText: tr("Ask AI, e.g. “calm and wintry, fits this theme”"),
+                counterText: '',
+              ),
+              onSubmitted: (_) => askAi(),
+            ),
+          ),
+        ),
+        const SizedBox(width: 6),
+        // As the Ask AI page: a filled Ask (Stop while asking); corners from the theme.
+        asking
+            ? FilledButton.icon(onPressed: stopAsking, icon: const Icon(Icons.stop, size: 16), label: Text(tr("Stop")))
+            : Tooltip(
+                message: trf("Ask {0} for search words: it gets your words and this theme's name and colors; the search itself uses no tokens", [helper['name']]),
+                child: FilledButton.icon(onPressed: askAi, icon: const Icon(Icons.send, size: 16), label: Text(tr("Ask"))),
+              ),
+      ]),
+      if (aiQueries.isNotEmpty) ...[
+        const SizedBox(height: 6),
+        Wrap(spacing: 6, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
+          if (aiSummary.isNotEmpty) Text(aiSummary, style: hintStyle(context)),
+          for (final q in aiQueries)
+            ActionChip(
+              label: Text(q),
+              tooltip: trf("Search for “{0}”", [q]),
+              visualDensity: VisualDensity.compact,
+              onPressed: () => searchFor(q),
+            ),
+        ]),
+      ],
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) {
     return SubPage(
@@ -359,7 +490,14 @@ class _WallhavenPageState extends State<WallhavenPage> {
             onSubmitted: (_) => search(),
           ),
         ),
-        const SizedBox(height: 8),
+        if (aiHelper != null) ...[
+          const SizedBox(height: 8),
+          aiRow(),
+        ],
+        const SizedBox(height: 6),
+        // Busy: Ask AI is thinking or a search is loading (fixed height, no jump).
+        SizedBox(height: 2, child: asking || loading ? const LinearProgressIndicator() : null),
+        const SizedBox(height: 6),
         Text(hint, style: hintStyle(context)),
         const SizedBox(height: 8),
         Expanded(

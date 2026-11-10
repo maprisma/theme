@@ -100,6 +100,36 @@ Map<String, Handler> askRoutes(Ctx ctx) {
         if (parent != null && candidates.isEmpty) 'unchanged': true,
       };
     },
+    // Words for the wallpaper search of one theme: the helper turns the
+    // request and the theme's colors into wallhaven.cc search phrases.
+    'ask.wallpapers': (p) async {
+      if (ctx.settings.get('ask_ai') != true) throw RouteError('off', tr("Ask AI is off"));
+      final helper = str(p, 'helper');
+      final request = (p['request'] is String ? p['request'] as String : '').split(RegExp(r'\s+')).join(' ').trim();
+      if (request.isEmpty || request.length > maxRequest) throw RouteError('bad_params', 'request');
+      final slug = str(p, 'slug');
+      final theme = themeFacts(ctx).where((t) => t.slug == slug).firstOrNull;
+      if (theme == null) throw RouteError('bad_params', 'slug');
+      if (!states().any((h) => h['id'] == helper && h['signed_in'] == true)) {
+        throw RouteError('not_ready', tr("that helper is not installed or not signed in"));
+      }
+      if (runner.busy) throw RouteError('busy', tr("another Ask is running"));
+      final rejected = [
+        for (final r in p['rejected'] is List ? (p['rejected'] as List).take(20) : const [])
+          if (r is String && r.isNotEmpty) plainText(r, 80),
+      ];
+      String text;
+      try {
+        text = await runner.run(helper, buildWallpaperPrompt(request, theme, rejected: rejected));
+      } on AskError catch (e) {
+        throw RouteError(e.message == 'cancelled' ? 'cancelled' : 'helper_failed', e.message == 'cancelled' ? tr('Cancelled') : e.message);
+      }
+      final json = firstJson(text);
+      if (json == null) throw RouteError('bad_answer', tr("no JSON object in the answer"));
+      final (summary, queries) = verifyWallpaperAnswer(json);
+      if (queries.isEmpty) throw RouteError('bad_answer', tr("no usable search words in the answer"));
+      return {'summary': summary, 'queries': queries};
+    },
     'ask.cancel': (p) async {
       runner.cancel();
       return {'cancelled': true};

@@ -606,5 +606,13 @@
   "Rounded ({0} px)": "Afgerond ({0} px)",
   "Saved as {0}": "Bewaard als {0}",
   "The screenshot could not be saved: {0}": "De schermafbeelding kon niet worden bewaard: {0}",
-  "The note could not be saved: {0}": "De notitie kon niet worden bewaard: {0}"
+  "The note could not be saved: {0}": "De notitie kon niet worden bewaard: {0}",
+  "Asking {0} for wallpaper ideas…": "{0} vragen om ideeën voor achtergronden…",
+  "Ask AI failed: {0}": "Ask AI mislukt: {0}",
+  "no usable search words in the answer": "geen bruikbare zoekwoorden in het antwoord",
+  "Ask AI, e.g. “calm and wintry, fits this theme”": "Ask AI, bijv. „rustig en winters, past bij dit thema”",
+  "Ask {0} for search words: it gets your words and this theme's name and colors; the search itself uses no tokens": "{0} om zoekwoorden vragen: het krijgt je woorden en de naam en kleuren van dit thema; het zoeken zelf gebruikt geen tokens",
+  "Search for “{0}”": "Zoeken naar „{0}”",
+  "Ask AI…": "Ask AI…",
+  "Describe the wallpaper you want: Ask AI turns it into searches on wallhaven.cc": "Beschrijf de achtergrond die je wilt: Ask AI maakt er zoekopdrachten op wallhaven.cc van"
 }

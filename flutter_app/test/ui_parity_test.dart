@@ -59,6 +59,7 @@ void main() {
   late Directory root;
   late CoreService core;
   final shots = shotsDir;
+  var aiOn = false;
 
   setUpAll(loadShotFonts);
 
@@ -123,7 +124,20 @@ void main() {
     if (m == 'import.omarchy_preview') return {'path': null};
     if (m == 'import.cosmic_list') return {'themes': <Map>[], 'next_page': null};
     if (m == 'info.plugins') return core.call(m, {'cached': true});
-    if (m == 'ask.helpers') return {'helpers': <Map>[], 'chosen': null};
+    if (m == 'ask.helpers') {
+      return aiOn
+          ? {
+              'helpers': [
+                {'id': 'claude', 'name': 'Claude Code', 'signed_in': true},
+              ],
+              'chosen': 'claude',
+              'enabled': true,
+            }
+          : {'helpers': <Map>[], 'chosen': null, 'enabled': false};
+    }
+    if (m == 'ask.wallpapers') {
+      return {'summary': 'Calm, wintry scenes in the theme\'s blues.', 'queries': ['snowy mountains night', 'winter forest', 'frozen lake']};
+    }
     return core.call(m, p);
   }
 
@@ -218,6 +232,7 @@ void main() {
       await open(const WallpapersPage(slug: 'kanagawa'), 'wallpapers');
       expect(find.text('Add wallpapers…'), findsOneWidget);
       expect(find.text('Search the web'), findsOneWidget);
+      expect(find.text('Ask AI…'), findsNothing, reason: 'Ask AI is off: no AI feature');
       await open(const WallhavenPage(slug: 'kanagawa', themeName: 'Kanagawa', current: true), 'wallhaven');
       await tester.enterText(find.byType(TextField).first, 'misty forest');
       await tester.testTextInput.receiveAction(TextInputAction.search);
@@ -239,4 +254,42 @@ void main() {
       await settle(tester, 100);
     });
   }
+
+  testWidgets('wallpapers: Ask AI only while it is on and a helper is ready', (tester) async {
+    aiOn = true;
+    tester.view.physicalSize = const Size(1300, 820);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final key = GlobalKey();
+    await tester.runAsync(() async {
+      await tester.pumpWidget(RepaintBoundary(key: key, child: MaprismaThemeApp(call: call)));
+    });
+    await settle(tester);
+    final app = tester.state<MaprismaThemeAppState>(find.byType(MaprismaThemeApp));
+    Future<void> open(Widget page) async {
+      await tester.runAsync(() async {
+        app.navigator.currentState!.push(MaterialPageRoute<void>(builder: (_) => page));
+        for (var i = 0; i < 4; i++) {
+          await tester.pump(const Duration(milliseconds: 100));
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+        }
+      });
+      await settle(tester);
+    }
+
+    await open(const WallpapersPage(slug: 'kanagawa'));
+    expect(find.text('Ask AI…'), findsOneWidget);
+    await shoot(tester, key, 'wallpapers-ai-1300');
+    await open(const WallhavenPage(slug: 'kanagawa', themeName: 'Kanagawa', current: true, askAi: true));
+    expect(find.text('Ask'), findsOneWidget);
+    await tester.enterText(find.byType(TextField).at(1), 'calm and wintry');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await settle(tester);
+    for (final q in ['snowy mountains night', 'winter forest', 'frozen lake']) {
+      expect(find.widgetWithText(ActionChip, q), findsOneWidget, reason: q);
+    }
+    expect(find.text('snowy mountains night'), findsWidgets);
+    await shoot(tester, key, 'wallhaven-ai-1300');
+    expect(tester.takeException(), isNull);
+  });
 }

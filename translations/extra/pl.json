@@ -606,5 +606,13 @@
   "Rounded ({0} px)": "Zaokrąglone ({0} px)",
   "Saved as {0}": "Zapisano jako {0}",
   "The screenshot could not be saved: {0}": "Nie udało się zapisać zrzutu ekranu: {0}",
-  "The note could not be saved: {0}": "Nie udało się zapisać notatki: {0}"
+  "The note could not be saved: {0}": "Nie udało się zapisać notatki: {0}",
+  "Asking {0} for wallpaper ideas…": "Pytam {0} o pomysły na tapety…",
+  "Ask AI failed: {0}": "Ask AI nie powiodło się: {0}",
+  "no usable search words in the answer": "brak użytecznych słów wyszukiwania w odpowiedzi",
+  "Ask AI, e.g. “calm and wintry, fits this theme”": "Ask AI, np. „spokojna i zimowa, pasująca do tego motywu”",
+  "Ask {0} for search words: it gets your words and this theme's name and colors; the search itself uses no tokens": "Zapytaj {0} o słowa wyszukiwania: otrzymuje Twoje słowa oraz nazwę i kolory tego motywu; samo wyszukiwanie nie zużywa tokenów",
+  "Search for “{0}”": "Szukaj „{0}”",
+  "Ask AI…": "Ask AI…",
+  "Describe the wallpaper you want: Ask AI turns it into searches on wallhaven.cc": "Opisz tapetę, której szukasz: Ask AI zamieni to w wyszukiwania na wallhaven.cc"
 }

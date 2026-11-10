@@ -1302,7 +1302,15 @@ const translationCatalogs = <String, Map<String, String>>{
     "Rounded ({0} px)": "Rounded ({0} px)",
     "Saved as {0}": "Saved as {0}",
     "The screenshot could not be saved: {0}": "The screenshot could not be saved: {0}",
-    "The note could not be saved: {0}": "The note could not be saved: {0}"
+    "The note could not be saved: {0}": "The note could not be saved: {0}",
+    "Asking {0} for wallpaper ideas…": "Asking {0} for wallpaper ideas…",
+    "Ask AI failed: {0}": "Ask AI failed: {0}",
+    "no usable search words in the answer": "no usable search words in the answer",
+    "Ask AI, e.g. “calm and wintry, fits this theme”": "Ask AI, e.g. “calm and wintry, fits this theme”",
+    "Ask {0} for search words: it gets your words and this theme's name and colors; the search itself uses no tokens": "Ask {0} for search words: it gets your words and this theme's name and colors; the search itself uses no tokens",
+    "Search for “{0}”": "Search for “{0}”",
+    "Ask AI…": "Ask AI…",
+    "Describe the wallpaper you want: Ask AI turns it into searches on wallhaven.cc": "Describe the wallpaper you want: Ask AI turns it into searches on wallhaven.cc"
   },
   "de": {
     "A key that applies this theme from anywhere": "Eine Taste, die dieses Theme von überall anwendet",
@@ -2606,7 +2614,15 @@ const translationCatalogs = <String, Map<String, String>>{
     "Rounded ({0} px)": "Abgerundet ({0} px)",
     "Saved as {0}": "Gespeichert als {0}",
     "The screenshot could not be saved: {0}": "Das Bildschirmfoto konnte nicht gespeichert werden: {0}",
-    "The note could not be saved: {0}": "Die Notiz konnte nicht gespeichert werden: {0}"
+    "The note could not be saved: {0}": "Die Notiz konnte nicht gespeichert werden: {0}",
+    "Asking {0} for wallpaper ideas…": "Frage {0} nach Ideen für Hintergründe…",
+    "Ask AI failed: {0}": "Ask AI fehlgeschlagen: {0}",
+    "no usable search words in the answer": "keine brauchbaren Suchwörter in der Antwort",
+    "Ask AI, e.g. “calm and wintry, fits this theme”": "Ask AI, z. B. „ruhig und winterlich, passend zu diesem Theme“",
+    "Ask {0} for search words: it gets your words and this theme's name and colors; the search itself uses no tokens": "{0} nach Suchwörtern fragen: Es bekommt deine Wörter sowie Name und Farben dieses Themes; die Suche selbst braucht keine Tokens",
+    "Search for “{0}”": "Nach „{0}“ suchen",
+    "Ask AI…": "Ask AI…",
+    "Describe the wallpaper you want: Ask AI turns it into searches on wallhaven.cc": "Beschreibe den gewünschten Hintergrund: Ask AI macht daraus Suchen auf wallhaven.cc"
   },
   "fr": {
     "A key that applies this theme from anywhere": "Une touche qui applique ce thème de partout",
@@ -3910,7 +3926,15 @@ const translationCatalogs = <String, Map<String, String>>{
     "Rounded ({0} px)": "Arrondis ({0} px)",
     "Saved as {0}": "Enregistrée sous {0}",
     "The screenshot could not be saved: {0}": "La capture n'a pas pu être enregistrée : {0}",
-    "The note could not be saved: {0}": "La note n'a pas pu être enregistrée : {0}"
+    "The note could not be saved: {0}": "La note n'a pas pu être enregistrée : {0}",
+    "Asking {0} for wallpaper ideas…": "Demande d’idées de fonds d’écran à {0}…",
+    "Ask AI failed: {0}": "Échec d’Ask AI : {0}",
+    "no usable search words in the answer": "aucun mot de recherche utilisable dans la réponse",
+    "Ask AI, e.g. “calm and wintry, fits this theme”": "Ask AI, p. ex. « calme et hivernal, assorti à ce thème »",
+    "Ask {0} for search words: it gets your words and this theme's name and colors; the search itself uses no tokens": "Demander des mots de recherche à {0} : il reçoit vos mots ainsi que le nom et les couleurs de ce thème ; la recherche elle-même n’utilise aucun jeton",
+    "Search for “{0}”": "Rechercher « {0} »",
+    "Ask AI…": "Ask AI…",
+    "Describe the wallpaper you want: Ask AI turns it into searches on wallhaven.cc": "Décrivez le fond d’écran souhaité : Ask AI en fait des recherches sur wallhaven.cc"
   },
   "es": {
     "A key that applies this theme from anywhere": "Una tecla que aplica este tema desde cualquier lugar",
@@ -5214,7 +5238,15 @@ const translationCatalogs = <String, Map<String, String>>{
     "Rounded ({0} px)": "Redondeadas ({0} px)",
     "Saved as {0}": "Guardada como {0}",
     "The screenshot could not be saved: {0}": "No se pudo guardar la captura: {0}",
-    "The note could not be saved: {0}": "No se pudo guardar la nota: {0}"
+    "The note could not be saved: {0}": "No se pudo guardar la nota: {0}",
+    "Asking {0} for wallpaper ideas…": "Pidiendo a {0} ideas de fondos…",
+    "Ask AI failed: {0}": "Ask AI falló: {0}",
+    "no usable search words in the answer": "no hay palabras de búsqueda útiles en la respuesta",
+    "Ask AI, e.g. “calm and wintry, fits this theme”": "Ask AI, p. ej. «tranquilo e invernal, a juego con este tema»",
+    "Ask {0} for search words: it gets your words and this theme's name and colors; the search itself uses no tokens": "Pedir palabras de búsqueda a {0}: recibe tus palabras y el nombre y los colores de este tema; la búsqueda en sí no usa tokens",
+    "Search for “{0}”": "Buscar «{0}»",
+    "Ask AI…": "Ask AI…",
+    "Describe the wallpaper you want: Ask AI turns it into searches on wallhaven.cc": "Describe el fondo que quieres: Ask AI lo convierte en búsquedas en wallhaven.cc"
   },
   "it": {
     "A key that applies this theme from anywhere": "Un tasto che applica questo tema ovunque",
@@ -6518,7 +6550,15 @@ const translationCatalogs = <String, Map<String, String>>{
     "Rounded ({0} px)": "Arrotondati ({0} px)",
     "Saved as {0}": "Salvato come {0}",
     "The screenshot could not be saved: {0}": "Impossibile salvare lo screenshot: {0}",
-    "The note could not be saved: {0}": "Impossibile salvare la nota: {0}"
+    "The note could not be saved: {0}": "Impossibile salvare la nota: {0}",
+    "Asking {0} for wallpaper ideas…": "Chiedo a {0} idee per sfondi…",
+    "Ask AI failed: {0}": "Ask AI non riuscito: {0}",
+    "no usable search words in the answer": "nessuna parola di ricerca utilizzabile nella risposta",
+    "Ask AI, e.g. “calm and wintry, fits this theme”": "Ask AI, ad es. «calmo e invernale, adatto a questo tema»",
+    "Ask {0} for search words: it gets your words and this theme's name and colors; the search itself uses no tokens": "Chiedi a {0} parole di ricerca: riceve le tue parole e il nome e i colori di questo tema; la ricerca in sé non usa token",
+    "Search for “{0}”": "Cerca «{0}»",
+    "Ask AI…": "Ask AI…",
+    "Describe the wallpaper you want: Ask AI turns it into searches on wallhaven.cc": "Descrivi lo sfondo che vuoi: Ask AI lo trasforma in ricerche su wallhaven.cc"
   },
   "pt": {
     "A key that applies this theme from anywhere": "Uma tecla que aplica este tema de qualquer lugar",
@@ -7822,7 +7862,15 @@ const translationCatalogs = <String, Map<String, String>>{
     "Rounded ({0} px)": "Arredondados ({0} px)",
     "Saved as {0}": "Guardada como {0}",
     "The screenshot could not be saved: {0}": "Não foi possível guardar a captura: {0}",
-    "The note could not be saved: {0}": "Não foi possível guardar a nota: {0}"
+    "The note could not be saved: {0}": "Não foi possível guardar a nota: {0}",
+    "Asking {0} for wallpaper ideas…": "A pedir a {0} ideias de fundos…",
+    "Ask AI failed: {0}": "Ask AI falhou: {0}",
+    "no usable search words in the answer": "nenhuma palavra de pesquisa utilizável na resposta",
+    "Ask AI, e.g. “calm and wintry, fits this theme”": "Ask AI, p. ex. «calmo e invernal, a condizer com este tema»",
+    "Ask {0} for search words: it gets your words and this theme's name and colors; the search itself uses no tokens": "Pedir palavras de pesquisa a {0}: recebe as suas palavras e o nome e as cores deste tema; a pesquisa em si não usa tokens",
+    "Search for “{0}”": "Pesquisar «{0}»",
+    "Ask AI…": "Ask AI…",
+    "Describe the wallpaper you want: Ask AI turns it into searches on wallhaven.cc": "Descreva o fundo que quer: o Ask AI transforma-o em pesquisas no wallhaven.cc"
   },
   "nl": {
     "A key that applies this theme from anywhere": "Een toets die dit thema overal toepast",
@@ -9126,7 +9174,15 @@ const translationCatalogs = <String, Map<String, String>>{
     "Rounded ({0} px)": "Afgerond ({0} px)",
     "Saved as {0}": "Bewaard als {0}",
     "The screenshot could not be saved: {0}": "De schermafbeelding kon niet worden bewaard: {0}",
-    "The note could not be saved: {0}": "De notitie kon niet worden bewaard: {0}"
+    "The note could not be saved: {0}": "De notitie kon niet worden bewaard: {0}",
+    "Asking {0} for wallpaper ideas…": "{0} vragen om ideeën voor achtergronden…",
+    "Ask AI failed: {0}": "Ask AI mislukt: {0}",
+    "no usable search words in the answer": "geen bruikbare zoekwoorden in het antwoord",
+    "Ask AI, e.g. “calm and wintry, fits this theme”": "Ask AI, bijv. „rustig en winters, past bij dit thema”",
+    "Ask {0} for search words: it gets your words and this theme's name and colors; the search itself uses no tokens": "{0} om zoekwoorden vragen: het krijgt je woorden en de naam en kleuren van dit thema; het zoeken zelf gebruikt geen tokens",
+    "Search for “{0}”": "Zoeken naar „{0}”",
+    "Ask AI…": "Ask AI…",
+    "Describe the wallpaper you want: Ask AI turns it into searches on wallhaven.cc": "Beschrijf de achtergrond die je wilt: Ask AI maakt er zoekopdrachten op wallhaven.cc van"
   },
   "pl": {
     "A key that applies this theme from anywhere": "Klawisz, który stosuje ten motyw z dowolnego miejsca",
@@ -10430,6 +10486,14 @@ const translationCatalogs = <String, Map<String, String>>{
     "Rounded ({0} px)": "Zaokrąglone ({0} px)",
     "Saved as {0}": "Zapisano jako {0}",
     "The screenshot could not be saved: {0}": "Nie udało się zapisać zrzutu ekranu: {0}",
-    "The note could not be saved: {0}": "Nie udało się zapisać notatki: {0}"
+    "The note could not be saved: {0}": "Nie udało się zapisać notatki: {0}",
+    "Asking {0} for wallpaper ideas…": "Pytam {0} o pomysły na tapety…",
+    "Ask AI failed: {0}": "Ask AI nie powiodło się: {0}",
+    "no usable search words in the answer": "brak użytecznych słów wyszukiwania w odpowiedzi",
+    "Ask AI, e.g. “calm and wintry, fits this theme”": "Ask AI, np. „spokojna i zimowa, pasująca do tego motywu”",
+    "Ask {0} for search words: it gets your words and this theme's name and colors; the search itself uses no tokens": "Zapytaj {0} o słowa wyszukiwania: otrzymuje Twoje słowa oraz nazwę i kolory tego motywu; samo wyszukiwanie nie zużywa tokenów",
+    "Search for “{0}”": "Szukaj „{0}”",
+    "Ask AI…": "Ask AI…",
+    "Describe the wallpaper you want: Ask AI turns it into searches on wallhaven.cc": "Opisz tapetę, której szukasz: Ask AI zamieni to w wyszukiwania na wallhaven.cc"
   }
 };

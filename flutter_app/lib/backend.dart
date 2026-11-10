@@ -85,7 +85,7 @@ final class Backend {
     // Ask AI waits for a helper (the core stops it after 4 minutes); installs clone.
     return pending.future.timeout(
       switch (method) {
-        'ask.run' => const Duration(minutes: 7),
+        'ask.run' || 'ask.wallpapers' => const Duration(minutes: 7),
         'import.omarchy_install' || 'import.cosmic_install' || 'presets.apply' || 'apppresets.restore' ||
         'custom.save' => const Duration(minutes: 5),
         _ => const Duration(seconds: 90),
