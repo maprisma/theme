@@ -1,3 +1,4 @@
+use crate::i18n::tr;
 use crate::Result;
 use cosmic_client_toolkit::cosmic_protocols::{
     toplevel_info::v1::client::zcosmic_toplevel_handle_v1::State as TopState,
@@ -177,11 +178,11 @@ impl State {
         let idx = |i: usize| -> Result<&Workspace> {
             let n = a
                 .get(i)
-                .ok_or("missing workspace")?
+                .ok_or(tr("missing workspace"))?
                 .parse::<usize>()
-                .map_err(|_| "invalid workspace")?;
+                .map_err(|_| tr("invalid workspace"))?;
             self.ordered()
-                .get(n.checked_sub(1).ok_or("invalid workspace")?)
+                .get(n.checked_sub(1).ok_or(tr("invalid workspace"))?)
                 .copied()
                 .ok_or("not_found".into())
         };
@@ -194,16 +195,16 @@ impl State {
                     .cosmic_capabilities
                     .contains(WorkspaceCapabilities::SetTilingState)
                 {
-                    return Err("tiling unavailable".into());
+                    return Err(tr("tiling unavailable").into());
                 }
                 let mode = match a[2].as_str() {
                     "on" => TilingState::TilingEnabled,
                     "off" => TilingState::FloatingOnly,
-                    _ => return Err("expected on or off".into()),
+                    _ => return Err(tr("expected on or off").into()),
                 };
                 w.cosmic_handle
                     .as_ref()
-                    .ok_or("tiling unavailable")?
+                    .ok_or(tr("tiling unavailable"))?
                     .set_tiling_state(mode);
                 self.ws
                     .workspace_manager()
@@ -213,18 +214,18 @@ impl State {
             }
             "move" | "close" | "activate" => {
                 if a.len() != if cmd == "move" { 3 } else { 2 } {
-                    return Err("invalid arguments".into());
+                    return Err(tr("invalid arguments").into());
                 }
                 let t = self
                     .tops
                     .toplevels()
                     .find(|t| t.identifier == a[1])
                     .ok_or("not_found")?;
-                let h = t.cosmic_toplevel.as_ref().ok_or("management unavailable")?;
+                let h = t.cosmic_toplevel.as_ref().ok_or(tr("management unavailable"))?;
                 let m = &self
                     .manager
                     .as_ref()
-                    .ok_or("management unavailable")?
+                    .ok_or(tr("management unavailable"))?
                     .manager;
                 let capability = match cmd {
                     "move" => {
@@ -234,24 +235,24 @@ impl State {
                     _ => manager::ZcosmicToplelevelManagementCapabilitiesV1::Activate,
                 };
                 if !self.caps.contains(&WEnum::Value(capability)) {
-                    return Err("management capability unavailable".into());
+                    return Err(tr("management capability unavailable").into());
                 }
                 match cmd {
                     "move" => {
                         if m.version() < 4 {
-                            return Err("move requires management v4".into());
+                            return Err(tr("move requires management v4").into());
                         }
                         m.move_to_ext_workspace(
                             h,
                             &idx(2)?.handle,
-                            &self.output().ok_or("no output")?,
+                            &self.output().ok_or(tr("no output"))?,
                         );
                     }
                     "close" => m.close(h),
-                    _ => m.activate(h, &self.seats.seats().next().ok_or("no seat")?),
+                    _ => m.activate(h, &self.seats.seats().next().ok_or(tr("no seat"))?),
                 }
             }
-            _ => return Err("invalid arguments".into()),
+            _ => return Err(tr("invalid arguments").into()),
         };
         Ok(json!({"done":true}))
     }
@@ -265,7 +266,7 @@ pub fn run(a: &[String]) -> Result<Value> {
         outputs: OutputState::new(&globals, &qh),
         seats: SeatState::new(&globals, &qh),
         ws: WorkspaceState::new(&registry, &qh),
-        tops: ToplevelInfoState::try_new(&registry, &qh).ok_or("toplevel protocol unavailable")?,
+        tops: ToplevelInfoState::try_new(&registry, &qh).ok_or(tr("toplevel protocol unavailable"))?,
         manager: ToplevelManagerState::try_new(&registry, &qh),
         registry,
         caps: vec![],
@@ -307,7 +308,7 @@ pub fn run(a: &[String]) -> Result<Value> {
         return Ok(value);
     }
     if a.len() != 1 {
-        return Err("invalid arguments".into());
+        return Err(tr("invalid arguments").into());
     }
     let mut old_ws = state.workspace_json();
     let mut old_windows = state.window_json();

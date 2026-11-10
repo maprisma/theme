@@ -1,3 +1,4 @@
+import 'i18n.dart';
 import 'dart:io';
 import 'dart:math';
 
@@ -113,7 +114,7 @@ Future<(List<OmarchyTheme>, DateTime)> loadOmarchyCatalog(Ctx ctx, {bool force =
     return (themes, now);
   }
   if (cached.isNotEmpty) return (cached, fetchedAt);
-  throw RouteError('offline', 'could not load the theme list from omarchy.org');
+  throw RouteError('offline', tr("could not load the theme list from omarchy.org"));
 }
 
 /// The preview already in the cache (fresh or not), without the network.
@@ -182,19 +183,19 @@ Future<bool> treeTooLarge(String dir) async {
 /// [maxCloneBytes] or [maxCloneEntries], so a huge repository can't fill the disk or stall the core.
 Future<String> installOmarchyTheme(Ctx ctx, OmarchyTheme theme) async {
   final slug = slugForRepo(theme.repo);
-  if (slug == null || slug != theme.slug) throw RouteError('bad_url', 'not a GitHub theme repository: ${theme.repo}');
+  if (slug == null || slug != theme.slug) throw RouteError('bad_url', trf("not a GitHub theme repository: {0}", [theme.repo]));
   final base = ctx.paths.userThemes;
   final dest = '$base/$slug';
   if (FileSystemEntity.typeSync(dest, followLinks: false) != FileSystemEntityType.notFound) {
-    throw RouteError('exists', 'a theme named “$slug” is already installed');
+    throw RouteError('exists', trf("a theme named “{0}” is already installed", [slug]));
   }
   final git = which('git', ctx.environment);
-  if (git == null) throw RouteError('no_git', 'git is not installed');
+  if (git == null) throw RouteError('no_git', tr("git is not installed"));
   // Omarchy's own check, where it exists (an Omarchy install sharing this PATH).
   final check = which('omarchy-git-url-check', ctx.environment);
   if (check != null) {
     final (code, _) = await runBounded([check, theme.repo], timeout: const Duration(seconds: 10));
-    if (code != 0) throw RouteError('bad_url', 'Omarchy refuses this repository URL: ${theme.repo}');
+    if (code != 0) throw RouteError('bad_url', trf("Omarchy refuses this repository URL: {0}", [theme.repo]));
   }
   Directory(base).createSync(recursive: true);
   // Cloned beside the target first, then renamed into place, so a failed or
@@ -211,7 +212,7 @@ Future<String> installOmarchyTheme(Ctx ctx, OmarchyTheme theme) async {
   // Its own process group (setsid execs git, so pid = group): a stopped clone
   // takes its transport and checkout helpers with it.
   final setsid = which('setsid', ctx.environment);
-  if (setsid == null) throw RouteError('no_setsid', 'setsid (util-linux) is needed to install themes');
+  if (setsid == null) throw RouteError('no_setsid', tr("setsid (util-linux) is needed to install themes"));
   final (code, _) = await runBounded(
     [
       setsid,
@@ -251,21 +252,21 @@ Future<String> installOmarchyTheme(Ctx ctx, OmarchyTheme theme) async {
 
   if (code != 0) {
     await cleanup();
-    throw RouteError('clone_failed', 'git clone failed or the theme is too large (over 512 MiB or 20000 files): ${theme.repo}');
+    throw RouteError('clone_failed', trf("git clone failed or the theme is too large (over 512 MiB or 20000 files): {0}", [theme.repo]));
   }
   if (await treeTooLarge(tmp)) {
     await cleanup();
-    throw RouteError('too_large', 'the theme is too large (over 512 MiB or 20000 files): ${theme.repo}');
+    throw RouteError('too_large', trf("the theme is too large (over 512 MiB or 20000 files): {0}", [theme.repo]));
   }
   if (FileSystemEntity.typeSync(dest, followLinks: false) != FileSystemEntityType.notFound) {
     await cleanup();
-    throw RouteError('exists', 'a theme named “$slug” is already installed');
+    throw RouteError('exists', trf("a theme named “{0}” is already installed", [slug]));
   }
   try {
     Directory(tmp).renameSync(dest);
   } on FileSystemException {
     await cleanup();
-    throw RouteError('install_failed', 'could not move the theme into place');
+    throw RouteError('install_failed', tr("could not move the theme into place"));
   }
   return dest;
 }

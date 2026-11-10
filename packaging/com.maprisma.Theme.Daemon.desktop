@@ -1,7 +1,21 @@
 [Desktop Entry]
 Type=Application
 Name=Maprisma Theme tray
+Name[de]=Maprisma Theme im Tray
+Name[fr]=Maprisma Theme dans la zone de notification
+Name[es]=Maprisma Theme en la bandeja
+Name[it]=Maprisma Theme nell’area di notifica
+Name[pt]=Maprisma Theme na área de notificação
+Name[nl]=Maprisma Theme in het systeemvak
+Name[pl]=Maprisma Theme w zasobniku
 Comment=Tray icon and automation of Maprisma Theme (desktops without its panel applet)
+Comment[de]=Tray-Symbol und Automation von Maprisma Theme (Desktops ohne Panel-Applet)
+Comment[fr]=Icône de notification et automatisation de Maprisma Theme (bureaux sans son applet)
+Comment[es]=Icono de bandeja y automatización de Maprisma Theme (escritorios sin su applet)
+Comment[it]=Icona di notifica e automazione di Maprisma Theme (desktop senza il suo applet)
+Comment[pt]=Ícone de notificação e automação do Maprisma Theme (ambientes sem o seu applet)
+Comment[nl]=Systeemvakpictogram en automatisering van Maprisma Theme (bureaubladen zonder paneelapplet)
+Comment[pl]=Ikona zasobnika i automatyzacja Maprisma Theme (pulpity bez jego apletu)
 Exec=maprisma-theme-core daemon
 Icon=com.maprisma.Theme
 OnlyShowIn=KDE;

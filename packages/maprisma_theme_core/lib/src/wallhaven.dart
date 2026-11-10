@@ -1,3 +1,4 @@
+import 'i18n.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -116,7 +117,7 @@ String searchUrl(String query, {int page = 1}) => Uri.parse(wallhavenApi).replac
 typedef Fetch = Future<Uint8List?> Function(String url, int maxBytes, Duration timeout);
 
 Future<Uint8List?> fetchHttps(String url, int maxBytes, Duration timeout) async {
-  if (!url.startsWith('https://')) throw ArgumentError('not an https URL');
+  if (!url.startsWith('https://')) throw ArgumentError(tr("not an https URL"));
   final data = await readBoundedBytes([
     'curl', '--silent', '--fail', '--proto', '=https', '--max-redirs', '0',
     '--max-time', '${timeout.inSeconds}', '--max-filesize', '$maxBytes', '--', url,
@@ -134,7 +135,7 @@ final class Wallhaven {
   Future<(List<WebWallpaper>, int)> search(String query, {int page = 1}) async {
     if (cleanQuery(query).isEmpty) return (const <WebWallpaper>[], 0);
     final raw = await fetch(searchUrl(query, page: page), maxApiBytes, const Duration(seconds: 15));
-    if (raw == null) throw RouteError('network', 'wallhaven.cc did not answer');
+    if (raw == null) throw RouteError('network', tr("wallhaven.cc did not answer"));
     return parseResults(utf8.decode(raw, allowMalformed: true));
   }
 
@@ -160,10 +161,10 @@ final class Wallhaven {
   }
 
   Future<Uint8List> _download(WebWallpaper w) async {
-    if (!fullRe.hasMatch(w.full)) throw RouteError('bad_params', 'unexpected image address');
+    if (!fullRe.hasMatch(w.full)) throw RouteError('bad_params', tr("unexpected image address"));
     if (w.fileSize > maxBackgroundBytes) throw RouteError('too_large', tooLarge);
     final data = await fetch(w.full, maxBackgroundBytes, const Duration(seconds: 60));
-    if (data == null || !isImageData(data)) throw RouteError('network', 'the image could not be downloaded');
+    if (data == null || !isImageData(data)) throw RouteError('network', tr("the image could not be downloaded"));
     return data;
   }
 
@@ -188,7 +189,7 @@ final class Wallhaven {
   /// Downloads the full image into the theme's added-wallpaper folder.
   Future<String> add(String slug, WebWallpaper w) async {
     slug = ctx.theme(validSlug(slug)).slug;
-    if (alreadyAdded(slug, w)) throw RouteError('exists', '${w.fileName} is already in this theme');
+    if (alreadyAdded(slug, w)) throw RouteError('exists', trf("{0} is already in this theme", [w.fileName]));
     final data = await _download(w);
     return addBackgroundBytes(ctx, slug, data, w.fileName);
   }
@@ -212,7 +213,7 @@ final class Wallhaven {
 
 /// Opens a Wallhaven page in the default browser (xdg-open, detached).
 Future<bool> openWallhavenPage(Ctx ctx, String page) async {
-  if (!pageRe.hasMatch(page)) throw RouteError('bad_params', 'not a wallhaven.cc page');
+  if (!pageRe.hasMatch(page)) throw RouteError('bad_params', tr("not a wallhaven.cc page"));
   final opener = which('xdg-open', ctx.environment);
   if (opener == null) return false;
   try {

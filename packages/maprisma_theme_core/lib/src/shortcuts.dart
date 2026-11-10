@@ -8,6 +8,8 @@
 /// simply overridden by the custom entry, and works again when it goes.
 library;
 
+import 'i18n.dart';
+
 import 'dart:io';
 
 import 'context.dart';
@@ -26,11 +28,11 @@ const defaultShortcutMods = ['SUPER', 'CTRL'];
 const levelFree = 'free', levelSame = 'same', levelOurs = 'ours', levelCustom = 'custom', levelDesktop = 'desktop';
 
 /// The global targets (besides `apply:<slug>`), with their labels.
-const shortcutTargets = {
-  'open': 'Open Maprisma Theme',
-  'bg:next': 'Next wallpaper',
-  'bg:prev': 'Previous wallpaper',
-  'theme:next': 'Next favorite theme',
+Map<String, String> get shortcutTargets => {
+  'open': tr("Open Maprisma Theme"),
+  'bg:next': tr("Next wallpaper"),
+  'bg:prev': tr("Previous wallpaper"),
+  'theme:next': tr("Next favorite theme"),
 };
 
 /// The plugin's action names (backups made with Theme Manager).
@@ -135,7 +137,7 @@ int ronSkip(String text, int index) {
       index = end < 0 ? text.length : end + 1;
     } else if (text.startsWith('/*', index)) {
       final end = text.indexOf('*/', index);
-      if (end < 0) throw const FormatException('unterminated comment');
+      if (end < 0) throw FormatException(tr("unterminated comment"));
       index = end + 2;
     } else {
       break;
@@ -153,7 +155,7 @@ int ronFind(String text, int index, String stops) {
       while (index < text.length && text[index] != char) {
         index += text[index] == r'\' ? 2 : 1;
       }
-      if (index >= text.length) throw const FormatException('unterminated string');
+      if (index >= text.length) throw FormatException(tr("unterminated string"));
     } else if (text.startsWith('//', index) || text.startsWith('/*', index)) {
       index = ronSkip(text, index);
       continue;
@@ -166,7 +168,7 @@ int ronFind(String text, int index, String stops) {
     }
     index++;
   }
-  throw const FormatException('unterminated map');
+  throw FormatException(tr("unterminated map"));
 }
 
 String ronQuote(String text) => '"${text.replaceAll(r'\', r'\\').replaceAll('"', r'\"')}"';
@@ -191,13 +193,13 @@ Map<String, dynamic> cosmicEntry(String gap, String raw) {
 /// is not a map: such a file is never rewritten.
 (String, List<Map<String, dynamic>>, String) parseCosmicShortcuts(String text) {
   final start = ronSkip(text, 0);
-  if (!text.startsWith('{', start)) throw const FormatException('not a map');
+  if (!text.startsWith('{', start)) throw FormatException(tr('not a map'));
   final headEnd = start + 1;
   var position = headEnd;
   final entries = <Map<String, dynamic>>[];
   while (true) {
     final begin = ronSkip(text, position);
-    if (begin >= text.length) throw const FormatException('unterminated map');
+    if (begin >= text.length) throw FormatException(tr('unterminated map'));
     if (text[begin] == '}') return (text.substring(0, headEnd), entries, text.substring(position));
     final end = ronFind(text, ronFind(text, begin, ':') + 1, ',}');
     final raw = text.substring(begin, end).trimRight();
@@ -337,11 +339,11 @@ final class ThemeShortcuts {
     final List<String> argv;
     if (target == 'open') {
       final gui = program('maprisma-theme');
-      if (gui == null) throw RouteError('not_installed', 'maprisma-theme was not found in ~/.local/bin or on PATH');
+      if (gui == null) throw RouteError('not_installed', tr("maprisma-theme was not found in ~/.local/bin or on PATH"));
       argv = [gui, '--toggle'];
     } else {
       final core = program('maprisma-theme-core');
-      if (core == null) throw RouteError('not_installed', 'maprisma-theme-core was not found in ~/.local/bin or on PATH');
+      if (core == null) throw RouteError('not_installed', tr("maprisma-theme-core was not found in ~/.local/bin or on PATH"));
       argv = switch (target) {
         'bg:next' => [core, 'bg', 'next'],
         'bg:prev' => [core, 'bg', 'prev'],
@@ -351,7 +353,7 @@ final class ThemeShortcuts {
     }
     for (final part in argv) {
       if (part.startsWith('/') ? !_safePath.hasMatch(part) : !(_safeWord.hasMatch(part) && !part.startsWith('-') || part == '--toggle')) {
-        throw RouteError('unsafe', 'unsafe word for a key binding: $part');
+        throw RouteError('unsafe', trf("unsafe word for a key binding: {0}", [part]));
       }
     }
     return argv.join(' ');
@@ -391,7 +393,7 @@ final class ThemeShortcuts {
   }
 
   void _writable() {
-    if (!available) throw RouteError('not_available', "${ctx.desktop.name}'s keyboard settings were not found");
+    if (!available) throw RouteError('not_available', trf("{0}'s keyboard settings were not found", [ctx.desktop.name]));
   }
 
   /// Gives [combo] to [target]; a key of another Maprisma Theme target moves

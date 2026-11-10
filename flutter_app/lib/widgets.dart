@@ -1,3 +1,4 @@
+import 'i18n.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -124,10 +125,10 @@ class TileBadge extends StatelessWidget {
 /// The ☰ button in a tile's top-right corner (`button.tm-tile-menu`): dark
 /// glass, white icon, accent while hovered. [menuKey] lets the keyboard open it.
 class TileMenuButton extends StatefulWidget {
-  const TileMenuButton({super.key, required this.menu, this.menuKey, this.tooltip = 'Actions', this.enabled = true});
+  const TileMenuButton({super.key, required this.menu, this.menuKey, this.tooltip, this.enabled = true});
   final List<PopupMenuEntry<VoidCallback>> Function() menu;
   final GlobalKey<PopupMenuButtonState<VoidCallback>>? menuKey;
-  final String tooltip;
+  final String? tooltip;
   final bool enabled;
   @override
   State<TileMenuButton> createState() => _TileMenuButtonState();
@@ -144,7 +145,7 @@ class _TileMenuButtonState extends State<TileMenuButton> {
       onExit: (_) => setState(() => hover = false),
       child: PopupMenuButton<VoidCallback>(
         key: widget.menuKey,
-        tooltip: widget.tooltip,
+        tooltip: widget.tooltip ?? tr("Actions"),
         enabled: widget.enabled,
         padding: EdgeInsets.zero,
         position: PopupMenuPosition.under,
@@ -372,7 +373,7 @@ class ColorPreview extends StatelessWidget {
 
 /// A confirmation as the plugin's (a question, a muted note, Cancel and a
 /// red action button that has the keyboard).
-Future<bool> confirm(BuildContext context, String title, String body, {String action = 'OK', bool danger = true}) async =>
+Future<bool> confirm(BuildContext context, String title, String body, {String? action, bool danger = true}) async =>
     await showDialog<bool>(
       context: context,
       builder: (context) {
@@ -381,12 +382,12 @@ Future<bool> confirm(BuildContext context, String title, String body, {String ac
           title: Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
           content: body.isEmpty ? null : Text(body, style: hintStyle(context)),
           actions: [
-            OutlinedButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+            OutlinedButton(onPressed: () => Navigator.pop(context, false), child: Text(tr("Cancel"))),
             FilledButton(
               autofocus: true,
               style: danger ? FilledButton.styleFrom(backgroundColor: look.red, foregroundColor: Colors.white) : null,
               onPressed: () => Navigator.pop(context, true),
-              child: Text(action),
+              child: Text(action ?? tr('OK')),
             ),
           ],
         );
@@ -415,8 +416,8 @@ Future<Set<int>?> pickWorkspaces(BuildContext context, String title, Set<int> in
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, picked), child: const Text('Save')),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text(tr("Cancel"))),
+          FilledButton(onPressed: () => Navigator.pop(context, picked), child: Text(tr("Save"))),
         ],
       ),
     );
@@ -504,7 +505,7 @@ class _WorkspaceGridState extends State<_WorkspaceGrid> {
               )),
         ),
       );
-      final tip = widget.tooltipOf?.call(ws) ?? (other != null ? 'Replaces $other' : null);
+      final tip = widget.tooltipOf?.call(ws) ?? (other != null ? trf("Replaces {0}", [other]) : null);
       return Expanded(child: tip == null ? button : Tooltip(message: tip, child: button));
     }
 
@@ -537,14 +538,14 @@ Rect? rectOf(GlobalKey key) {
 
 /// "← Back · ⌫" as in Maprisma: accent text, no border.
 class PluginBackButton extends StatelessWidget {
-  const PluginBackButton({super.key, this.tooltip = 'Back (Backspace, Esc)', this.onPressed});
-  final String tooltip;
+  const PluginBackButton({super.key, this.tooltip, this.onPressed});
+  final String? tooltip;
   final VoidCallback? onPressed;
   @override
   Widget build(BuildContext context) {
     final look = Look.of(context);
     return Tooltip(
-      message: tooltip,
+      message: tooltip ?? tr("Back (Backspace, Esc)"),
       child: TextButton(
         onPressed: onPressed ?? () => Navigator.of(context).maybePop(),
         style: TextButton.styleFrom(
@@ -552,10 +553,10 @@ class PluginBackButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
           minimumSize: const Size(0, 28),
         ),
-        child: const Row(mainAxisSize: MainAxisSize.min, children: [
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
           Icon(Icons.chevron_left, size: 18),
           SizedBox(width: 2),
-          Text('Back', style: TextStyle(fontSize: 14)),
+          Text(tr("Back"), style: TextStyle(fontSize: 14)),
           SizedBox(width: 6),
           Text('· ⌫', style: TextStyle(fontSize: 14)),
         ]),
@@ -610,7 +611,7 @@ class SubPage extends StatelessWidget {
         floatingActionButton: floating,
         body: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Row(children: [
-            PluginBackButton(tooltip: backTooltip ?? 'Back to themes (Backspace, Esc)'),
+            PluginBackButton(tooltip: backTooltip ?? tr("Back to themes (Backspace, Esc)")),
             const SizedBox(width: 8),
             Expanded(
               child: Text(

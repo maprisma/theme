@@ -1,5 +1,6 @@
 //! Wire schema verified against cosmic-term src/config.rs and installed 1.11 strings.
 //! Hex colors serialize as strings, not RON Some(...); scheme IDs are transparent u64.
+use crate::i18n::tr;
 use crate::{Result, read_bounded, theme};
 use cosmic_config::{Config, ConfigSet};
 use serde::{Deserialize, Serialize};
@@ -153,7 +154,7 @@ pub fn write(v: &Value, name: &str) -> Result<()> {
 }
 pub fn write_at(v: &Value, name: &str, config: &Config, dir: &Path) -> Result<()> {
     if name.is_empty() || name.len() > 256 {
-        return Err("invalid scheme name".into());
+        return Err(tr("invalid scheme name").into());
     }
     let dark = theme::dark(v)?;
     let key = if dark {
@@ -185,7 +186,7 @@ pub fn write_at(v: &Value, name: &str, config: &Config, dir: &Path) -> Result<()
             .copied()
             .unwrap_or(0)
             .checked_add(1)
-            .ok_or("scheme IDs exhausted")?
+            .ok_or(tr("scheme IDs exhausted"))?
     };
     schemes.retain(|_, s| !s.name.starts_with("Maprisma: "));
     let get = |k: &str| v.get(k).and_then(Value::as_str).map(str::to_owned);
@@ -283,7 +284,7 @@ pub fn restore() -> Result<()> {
     let config = Config::new("com.system76.CosmicTerm", 1).map_err(|e| e.to_string())?;
     let dir = config_dir();
     for key in SELECTIONS {
-        match previous.get(key).ok_or("incomplete terminal backup")? {
+        match previous.get(key).ok_or(tr("incomplete terminal backup"))? {
             Some(name) => config.set(key, name).map_err(|e| e.to_string())?,
             None => {
                 if dir.join(key).exists() {

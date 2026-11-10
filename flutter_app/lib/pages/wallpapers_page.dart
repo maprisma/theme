@@ -1,3 +1,4 @@
+import '../i18n.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -154,11 +155,9 @@ class _WallpapersPageState extends State<WallpapersPage> {
     final added = [for (final a in (r['added'] as List?) ?? const []) '$a'];
     final errors = [for (final e in (r['errors'] as List?) ?? const []) '$e'];
     if (added.isNotEmpty) {
-      app.notify('${added.length == 1 ? 'Wallpaper' : 'Wallpapers'} added: '
-          '${added.take(5).join(', ')}${added.length > 5 ? '…' : ''}'
-          '${errors.isEmpty ? '' : ' — skipped: ${errors.take(3).join('; ')}'}');
+      app.notify(trf("{0} added: {1}{2}{3}", [added.length == 1 ? tr("Wallpaper") : tr("Wallpapers"), added.take(5).join(', '), added.length > 5 ? '…' : '', errors.isEmpty ? '' : trf(" — skipped: {0}", [errors.take(3).join('; ')])]));
     } else if (errors.isNotEmpty) {
-      app.notify('Some files were skipped: ${errors.take(3).join('; ')}${errors.length > 3 ? '…' : ''}');
+      app.notify(trf("Some files were skipped: {0}{1}", [errors.take(3).join('; '), errors.length > 3 ? '…' : '']));
     }
     load();
     app.changed();
@@ -166,33 +165,33 @@ class _WallpapersPageState extends State<WallpapersPage> {
 
   Future<void> addFiles(List<String> paths) async {
     if (paths.isEmpty) {
-      app.notify('Nothing added: drop local image files (JPG, PNG, WebP, GIF, BMP, HEIC).');
+      app.notify(tr("Nothing added: drop local image files (JPG, PNG, WebP, GIF, BMP, HEIC)."));
       return;
     }
-    if (paths.length > maxDrops) app.notify('At most $maxDrops files at once; the first $maxDrops are added.');
+    if (paths.length > maxDrops) app.notify(trf("At most {0} files at once; the first {1} are added.", [maxDrops, maxDrops]));
     setState(() => busy = true);
     final r = await _try('wallpapers.add_files', {'slug': widget.slug, 'paths': paths.take(maxDrops).toList()},
-        'Could not add wallpaper');
+        tr("Could not add wallpaper"));
     if (mounted) setState(() => busy = false);
     reportAdded(r);
   }
 
   Future<void> choose() async {
-    const group = XTypeGroup(
-      label: 'Images',
+    final group = XTypeGroup(
+      label: tr("Images"),
       extensions: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'heic', 'heif'],
       mimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/bmp', 'image/webp', 'image/heic', 'image/heif'],
     );
     final home = Platform.environment['HOME'] ?? '/';
     final pictures = Directory('$home/Pictures').existsSync() ? '$home/Pictures' : home;
-    final files = await openFiles(acceptedTypeGroups: [group], initialDirectory: pictures, confirmButtonText: 'Add');
+    final files = await openFiles(acceptedTypeGroups: [group], initialDirectory: pictures, confirmButtonText: tr("Add"));
     if (files.isEmpty || !mounted) return;
     await addFiles([for (final f in files) f.path]);
   }
 
   Future<void> paste() async {
     setState(() => busy = true);
-    final r = await _try('wallpapers.add_clipboard', {'slug': widget.slug}, 'Could not add wallpaper');
+    final r = await _try('wallpapers.add_clipboard', {'slug': widget.slug}, tr("Could not add wallpaper"));
     if (mounted) setState(() => busy = false);
     reportAdded(r);
   }
@@ -203,14 +202,14 @@ class _WallpapersPageState extends State<WallpapersPage> {
       return;
     }
     if (d.data.isEmpty) {
-      app.notify('Nothing added: the image could not be read (or is over 50 MiB).');
+      app.notify(tr("Nothing added: the image could not be read (or is over 50 MiB)."));
       return;
     }
     setState(() => busy = true);
     Map<String, dynamic>? r;
     if (d.data.length <= _inlineDropBytes) {
       r = await _try('wallpapers.add_bytes', {'slug': widget.slug, 'data': base64Encode(d.data), 'type': d.type},
-          'Could not add wallpaper');
+          tr("Could not add wallpaper"));
     } else {
       // The protocol carries small requests only: hand the bytes over in a
       // private file of the runtime folder, which the core reads and removes.
@@ -225,9 +224,9 @@ class _WallpapersPageState extends State<WallpapersPage> {
       }
       if (ok) {
         r = await _try('wallpapers.add_bytes', {'slug': widget.slug, 'file': file, 'type': d.type},
-            'Could not add wallpaper');
+            tr("Could not add wallpaper"));
       } else {
-        app.notify('Nothing added: the image could not be stored.');
+        app.notify(tr("Nothing added: the image could not be stored."));
       }
     }
     if (mounted) setState(() => busy = false);
@@ -237,7 +236,7 @@ class _WallpapersPageState extends State<WallpapersPage> {
   // --- actions -------------------------------------------------------------------
 
   Future<void> setBackground(Map w) async {
-    final r = await _try('wallpapers.set', {'slug': widget.slug, 'path': w['path']}, 'Could not set background');
+    final r = await _try('wallpapers.set', {'slug': widget.slug, 'path': w['path']}, tr("Could not set background"));
     if (r == null) return;
     previewing = false;
     load();
@@ -248,7 +247,7 @@ class _WallpapersPageState extends State<WallpapersPage> {
     if (!app.can('wallpaper')) return;
     previewTimer?.cancel();
     previewTimer = null;
-    final r = await _try('wallpapers.preview', {'path': path}, 'No preview');
+    final r = await _try('wallpapers.preview', {'path': path}, tr("No preview"));
     if (r == null) return;
     previewing = true;
     if (seconds > 0) previewTimer = Timer(Duration(seconds: seconds), stopPreview);
@@ -271,18 +270,18 @@ class _WallpapersPageState extends State<WallpapersPage> {
     final ws = await showWorkspaceMenu(
       context,
       anchor: anchor,
-      title: 'Show on workspace',
+      title: tr("Show on workspace"),
       mine: mine,
       others: others,
       namesOthers: false,
-      clearLabel: mine.isEmpty ? null : 'Not on any workspace',
-      tooltipOf: (ws) => 'Workspace $ws: ${mine.contains(ws) ? 'shows this wallpaper (click to clear)' : others[ws] != null ? 'shows ${others[ws]} (click to use this one)' : 'use this wallpaper'}',
+      clearLabel: mine.isEmpty ? null : tr("Not on any workspace"),
+      tooltipOf: (ws) => trf("Workspace {0}: {1}", [ws, mine.contains(ws) ? tr("shows this wallpaper (click to clear)") : others[ws] != null ? trf("shows {0} (click to use this one)", [others[ws]]) : tr("use this wallpaper")]),
     );
     if (ws == null || !mounted) return;
     final wanted = ws == 0 ? <int>{} : (mine.contains(ws) ? ({...mine}..remove(ws)) : {...mine, ws});
     final r = await _try('auto.set_workspace_wallpaper',
         {'slug': widget.slug, 'name': name, 'workspaces': wanted.toList()..sort()},
-        'Could not change the workspace wallpaper');
+        tr("Could not change the workspace wallpaper"));
     if (r == null) return;
     load();
     app.changed();
@@ -290,13 +289,13 @@ class _WallpapersPageState extends State<WallpapersPage> {
 
   Future<void> setHidden(Map w, bool hide) async {
     final r = await _try('wallpapers.hide', {'slug': widget.slug, 'name': w['name'], 'hidden': hide},
-        hide ? 'Could not hide wallpaper' : 'Could not unhide wallpaper');
+        hide ? tr("Could not hide wallpaper") : tr("Could not unhide wallpaper"));
     if (r == null) return;
     load();
     app.changed();
     if (hide) {
-      app.notify('${w['name']} hidden', undo: () async {
-        await _try('wallpapers.hide', {'slug': widget.slug, 'name': w['name'], 'hidden': false}, 'Could not unhide wallpaper');
+      app.notify(trf("{0} hidden", [w['name']]), undo: () async {
+        await _try('wallpapers.hide', {'slug': widget.slug, 'name': w['name'], 'hidden': false}, tr("Could not unhide wallpaper"));
         load();
         app.changed();
       });
@@ -304,17 +303,17 @@ class _WallpapersPageState extends State<WallpapersPage> {
   }
 
   Future<void> delete(Map w) async {
-    final ok = await confirm(context, 'Delete wallpaper “${w['name']}” from “$themeName”?',
-        'It goes to the trash: Undo brings it back.', action: 'Delete wallpaper');
+    final ok = await confirm(context, trf("Delete wallpaper “{0}” from “{1}”?", [w['name'], themeName]),
+        tr("It goes to the trash: Undo brings it back."), action: tr("Delete wallpaper"));
     if (!ok) return;
-    final r = await _try('wallpapers.delete', {'slug': widget.slug, 'name': w['name']}, 'Could not delete wallpaper');
+    final r = await _try('wallpapers.delete', {'slug': widget.slug, 'name': w['name']}, tr("Could not delete wallpaper"));
     if (r == null) return;
     load();
     app.changed();
     final receipt = r['receipt'];
-    app.notify('“${w['name']}” moved to the trash', undo: receipt is! String ? null : () async {
-      final u = await _try('wallpapers.undo_delete', {'receipt': receipt}, 'Could not undo');
-      if (u != null) app.notify('Restored ${w['name']}');
+    app.notify(trf("“{0}” moved to the trash", [w['name']]), undo: receipt is! String ? null : () async {
+      final u = await _try('wallpapers.undo_delete', {'receipt': receipt}, tr("Could not undo"));
+      if (u != null) app.notify(trf("Restored {0}", [w['name']]));
       load();
       app.changed();
     });
@@ -337,29 +336,28 @@ class _WallpapersPageState extends State<WallpapersPage> {
     final hidden = w['hidden'] == true;
     final ws = workspacesOf('${w['name']}');
     return [
-      if (app.can('wallpaper') && isCurrent && !hidden) item(Icons.wallpaper_outlined, 'Set as background', () => setBackground(w)),
+      if (app.can('wallpaper') && isCurrent && !hidden) item(Icons.wallpaper_outlined, tr("Set as background"), () => setBackground(w)),
       if (app.can('wallpaper') && !hidden)
-        item(Icons.visibility_outlined, 'Preview on desktop', () => startPreview(w['path'] as String, seconds: previewSeconds),
-            tooltip: 'Shows it for $previewSeconds seconds; or hold Space on the tile'),
+        item(Icons.visibility_outlined, tr("Preview on desktop"), () => startPreview(w['path'] as String, seconds: previewSeconds),
+            tooltip: trf("Shows it for {0} seconds; or hold Space on the tile", [previewSeconds])),
       if (!hidden)
-        item(Icons.palette_outlined, 'New theme from this wallpaper…', () => newTheme(w),
-            tooltip: "A theme in this picture's colors, with this wallpaper"),
+        item(Icons.palette_outlined, tr("New theme from this wallpaper…"), () => newTheme(w),
+            tooltip: tr("A theme in this picture's colors, with this wallpaper")),
       if (app.can('workspaces') && !hidden)
-        item(Icons.grid_view, ws.isEmpty ? 'Show on workspace…' : 'On workspace ${ws.join(', ')}…', () => showOnWorkspaces(w),
+        item(Icons.grid_view, ws.isEmpty ? tr("Show on workspace…") : trf("On workspace {0}…", [ws.join(', ')]), () => showOnWorkspaces(w),
             end: Icons.chevron_right,
-            tooltip: 'This wallpaper appears whenever you switch to that workspace'
-                '${isCurrent ? '' : ' (while this theme is applied)'}'),
+            tooltip: trf("This wallpaper appears whenever you switch to that workspace{0}", [isCurrent ? '' : tr(" (while this theme is applied)")])),
       menuLine(),
       if (hidden)
-        item(Icons.visibility_outlined, 'Unhide', () => setHidden(w, false), tooltip: 'Show it again here and in the rotation')
+        item(Icons.visibility_outlined, tr("Unhide"), () => setHidden(w, false), tooltip: tr("Show it again here and in the rotation"))
       else
-        item(Icons.visibility_off_outlined, 'Hide', () => setHidden(w, true),
-            tooltip: 'Keep it out of the rotation and the next-wallpaper step; the file stays'),
+        item(Icons.visibility_off_outlined, tr("Hide"), () => setHidden(w, true),
+            tooltip: tr("Keep it out of the rotation and the next-wallpaper step; the file stays")),
       menuLine(),
       if (w['deletable'] == true)
-        item(Icons.delete_outline, 'Delete…', () => delete(w), destructive: true)
+        item(Icons.delete_outline, tr("Delete…"), () => delete(w), destructive: true)
       else
-        item(Icons.lock_outline, "Can't delete: hide instead", () {}, enabled: false, tooltip: '${w['locked_reason'] ?? ''}'),
+        item(Icons.lock_outline, tr("Can't delete: hide instead"), () {}, enabled: false, tooltip: '${w['locked_reason'] ?? ''}'),
     ];
   }
 
@@ -464,7 +462,7 @@ class _WallpapersPageState extends State<WallpapersPage> {
   // --- view ----------------------------------------------------------------------
 
   Widget brokenPicture(ColorScheme scheme, [String? why]) => Tooltip(
-    message: why ?? 'unreadable image',
+    message: why ?? tr("unreadable image"),
     child: Container(color: scheme.surfaceContainerHighest, child: const Center(child: Icon(Icons.broken_image_outlined))),
   );
 
@@ -478,8 +476,7 @@ class _WallpapersPageState extends State<WallpapersPage> {
       dashed: true,
       lit: lit,
       selected: selectedTile,
-      tooltip: 'Choose image files (Enter), drag them anywhere onto this page, or paste an image or file with Ctrl+V. '
-          'HEIC photos are converted. ${data?['system'] == true ? 'Stored in your wallpaper folder for this theme, next to its own wallpapers.' : "Stored in the theme's user wallpaper folder."}',
+      tooltip: trf("Choose image files (Enter), drag them anywhere onto this page, or paste an image or file with Ctrl+V. HEIC photos are converted. {0}", [data?['system'] == true ? tr("Stored in your wallpaper folder for this theme, next to its own wallpapers.") : tr("Stored in the theme's user wallpaper folder.")]),
       onTap: () {
         focus.requestFocus();
         select(0);
@@ -492,7 +489,7 @@ class _WallpapersPageState extends State<WallpapersPage> {
           const SizedBox(height: 6),
           Flexible(
             child: Text(
-              '${empty ? 'No wallpapers yet. ' : ''}Drop images here, paste with Ctrl+V or click to choose',
+              trf("{0}Drop images here, paste with Ctrl+V or click to choose", [empty ? tr("No wallpapers yet. ") : '']),
               textAlign: TextAlign.center,
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
@@ -501,7 +498,7 @@ class _WallpapersPageState extends State<WallpapersPage> {
           ),
         ]),
       ),
-      captionText: 'Add wallpapers…',
+      captionText: tr("Add wallpapers…"),
     );
   }
 
@@ -532,12 +529,12 @@ class _WallpapersPageState extends State<WallpapersPage> {
         select(index);
       },
       onSecondaryTap: () => menuKey.currentState?.showButtonMenu(),
-      menu: TileMenuButton(menuKey: menuKey, tooltip: 'Wallpaper actions (Enter)', menu: () => menuFor(w)),
+      menu: TileMenuButton(menuKey: menuKey, tooltip: tr("Wallpaper actions (Enter)"), menu: () => menuFor(w)),
       topLeft: [
         if (app.can('workspaces') && ws.isNotEmpty)
-          TileBadge('ws ${ws.join(' · ')}', kind: BadgeKind.workspace, tooltip: 'Shown on workspace ${ws.join(', ')}'),
+          TileBadge(trf("ws {0}", [ws.join(' · ')]), kind: BadgeKind.workspace, tooltip: trf("Shown on workspace {0}", [ws.join(', ')])),
       ],
-      bottomLeft: [if (hidden) const TileBadge('hidden')],
+      bottomLeft: [if (hidden) TileBadge(tr("hidden"))],
     );
   }
 
@@ -545,11 +542,11 @@ class _WallpapersPageState extends State<WallpapersPage> {
   Widget build(BuildContext context) {
     AppScope.of(context); // the header's eye button shows hidden wallpapers too
     final list = tiles;
-    final title = '$themeName — wallpapers${filter.isEmpty ? '' : ' — $filter'}';
+    final title = trf("{0} — wallpapers{1}", [themeName, filter.isEmpty ? '' : ' — $filter']);
     return SubPage(
       title: title,
       section: false,
-      backTooltip: 'Back to themes (Left, Backspace or Esc)',
+      backTooltip: tr("Back to themes (Left, Backspace or Esc)"),
       body: Focus(
         focusNode: focus,
         autofocus: true,
@@ -560,22 +557,21 @@ class _WallpapersPageState extends State<WallpapersPage> {
                 Wrap(spacing: 8, runSpacing: 6, children: [
                   OutlineAction(
                     icon: Icons.content_paste,
-                    label: 'Paste image (Ctrl+V)',
-                    tooltip: 'Add the image copied to the clipboard (from the web or the file manager)'
-                        '${data?['system'] == true ? ' — stored in your per-theme folder' : ''}',
+                    label: tr("Paste image (Ctrl+V)"),
+                    tooltip: trf("Add the image copied to the clipboard (from the web or the file manager){0}", [data?['system'] == true ? tr(" — stored in your per-theme folder") : '']),
                     onPressed: busy ? null : paste,
                   ),
                   OutlineAction(
                     icon: Icons.search,
-                    label: 'Search the web',
-                    tooltip: 'Find wallpapers on wallhaven.cc (Ctrl+F)',
+                    label: tr("Search the web"),
+                    tooltip: tr("Find wallpapers on wallhaven.cc (Ctrl+F)"),
                     onPressed: openSearch,
                   ),
                   if (app.can('fonts') || app.can('uiFont') || app.can('blur'))
                     OutlineAction(
                       icon: Icons.text_format,
-                      label: 'Font & effects…',
-                      tooltip: "Fonts and blur for this theme; the theme files stay as they are",
+                      label: tr("Font & effects…"),
+                      tooltip: tr("Fonts and blur for this theme; the theme files stay as they are"),
                       onPressed: () async {
                         await lookDialog(context, app, widget.slug);
                         if (mounted) focus.requestFocus();
@@ -589,7 +585,7 @@ class _WallpapersPageState extends State<WallpapersPage> {
                     if (list.isEmpty) {
                       return Align(
                         alignment: Alignment.topLeft,
-                        child: Text('No wallpaper matches “$filter”', style: hintStyle(context)),
+                        child: Text(trf("No wallpaper matches “{0}”", [filter]), style: hintStyle(context)),
                       );
                     }
                     return TileGrid(

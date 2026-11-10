@@ -1,3 +1,4 @@
+import '../i18n.dart';
 import 'dart:async';
 
 import 'package:file_selector/file_selector.dart';
@@ -20,35 +21,33 @@ final class _Row {
 }
 
 /// The plugin's sections, in its order.
-const _sections = [
-  ('general', 'General'),
-  ('themes', 'Themes'),
-  ('day-night', 'Day and night'),
-  ('wallpapers', 'Wallpapers'),
-  ('shortcuts', 'Keyboard shortcuts'),
-  ('screenshots', 'Screenshots'),
-  ('ask-ai', 'Ask AI'),
-  ('integration', 'Integration and backup'),
+List<(String, String)> get _sections => [
+  ('general', tr("General")),
+  ('themes', tr("Themes")),
+  ('day-night', tr("Day and night")),
+  ('wallpapers', tr("Wallpapers")),
+  ('shortcuts', tr("Keyboard shortcuts")),
+  ('screenshots', tr("Screenshots")),
+  ('ask-ai', tr("Ask AI")),
+  ('integration', tr("Integration and backup")),
 ];
 
-const _sectionHints = {
-  'wallpapers': 'Scroll on the panel icon for the next or previous wallpaper; right-click it for your favorite themes.',
+Map<String, String> get _sectionHints => {
+  'wallpapers': tr("Scroll on the panel icon for the next or previous wallpaper; right-click it for your favorite themes."),
   'shortcuts':
-      "Give a theme its own key in its ⋮ menu → Shortcut…. Keys are desktop custom shortcuts; "
-      "a key taken from another shortcut works again when you remove yours.",
+      tr("Give a theme its own key in its ⋮ menu → Shortcut…. Keys are desktop custom shortcuts; a key taken from another shortcut works again when you remove yours."),
   'themes':
-      'Apps get the theme colors through one marked include line in their own config (a backup is kept). '
-      'Switching an app off removes that line again.',
+      tr("Apps get the theme colors through one marked include line in their own config (a backup is kept). Switching an app off removes that line again."),
 };
 
-const _slideshow = [
-  (0, 'Never'),
-  (5, 'Every 5 minutes'),
-  (10, 'Every 10 minutes'),
-  (15, 'Every 15 minutes'),
-  (30, 'Every 30 minutes'),
-  (60, 'Every hour'),
-  (120, 'Every 2 hours'),
+List<(int, String)> get _slideshow => [
+  (0, tr("Never")),
+  (5, tr("Every 5 minutes")),
+  (10, tr("Every 10 minutes")),
+  (15, tr("Every 15 minutes")),
+  (30, tr("Every 30 minutes")),
+  (60, tr("Every hour")),
+  (120, tr("Every 2 hours")),
 ];
 
 final _times = [
@@ -135,6 +134,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final r = await app.run('settings.set', {'key': key, 'value': value});
     if (r == null || !mounted) return;
     setState(() => settings = Map<String, dynamic>.from(r['settings'] as Map));
+    if (key == 'language') app.useLanguage(value as String);
     app.changed();
   }
 
@@ -169,15 +169,14 @@ class _SettingsPageState extends State<SettingsPage> {
     switch (r['result']) {
       case 'manual':
         app.notify(
-          "${a['label']}'s config is laid out so that a line cannot be added safely: include "
-          '~/.config/maprisma-theme/current/ yourself',
+          trf("{0}'s config is laid out so that a line cannot be added safely: include ~/.config/maprisma-theme/current/ yourself", [a['label']]),
         );
       case 'failed':
-        app.notify("${a['label']}'s config could not be changed");
+        app.notify(trf("{0}'s config could not be changed", [a['label']]));
       case 'ok':
-        app.notify(on ? '${a['label']} uses the theme colors' : '${a['label']} keeps its own colors');
+        app.notify(on ? trf("{0} uses the theme colors", [a['label']]) : trf("{0} keeps its own colors", [a['label']]));
       default:
-        if (!on) app.notify('${a['label']} keeps its own colors');
+        if (!on) app.notify(trf("{0} keeps its own colors", [a['label']]));
     }
   }
 
@@ -261,7 +260,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _chooseScreenshotFolder() async {
     final dir = await getDirectoryPath(
-      confirmButtonText: 'Choose',
+      confirmButtonText: tr("Choose"),
       initialDirectory: settings['screenshot_dir'] as String?,
     );
     if (dir != null) await set('screenshot_dir', dir);
@@ -278,7 +277,7 @@ class _SettingsPageState extends State<SettingsPage> {
     );
     if (where == null) return;
     final r = await app.run('backup.export', {'path': where.path});
-    if (r != null) app.notify('Backup saved: ${r['path']}');
+    if (r != null) app.notify(trf("Backup saved: {0}", [r['path']]));
   }
 
   Future<void> _restore() async {
@@ -294,16 +293,14 @@ class _SettingsPageState extends State<SettingsPage> {
     final removes = [for (final f in preview['removes'] as List) '$f'];
     final ok = await confirm(
       context,
-      'Restore this backup?',
-      'Replaces: ${files.join(', ')}.'
-          '${removes.isEmpty ? '' : '\nRemoves (not in the backup): ${removes.join(', ')}.'}'
-          '\nA copy of the current state is saved in ~/.config/maprisma-theme/backups/ first.',
-      action: 'Restore',
+      tr("Restore this backup?"),
+      trf("Replaces: {0}.{1}\nA copy of the current state is saved in ~/.config/maprisma-theme/backups/ first.", [files.join(', '), removes.isEmpty ? '' : trf("\nRemoves (not in the backup): {0}.", [removes.join(', ')])]),
+      action: tr("Restore"),
     );
     if (!ok) return;
     final r = await app.run('backup.restore', {'path': file.path});
     if (r == null) return;
-    app.notify('Backup restored. The previous state is in ${r['safety_copy']}');
+    app.notify(trf("Backup restored. The previous state is in {0}", [r['safety_copy']]));
     app.changed();
   }
 
@@ -311,29 +308,28 @@ class _SettingsPageState extends State<SettingsPage> {
     final r = await app.run('health.repair');
     if (r == null || !mounted) return;
     setState(() => health = r);
-    app.notify('Written again');
+    app.notify(tr("Written again"));
   }
 
   Future<void> _reset() async {
     final ok = await confirm(
       context,
-      'Reset to defaults?',
-      'Resets corners, sorting, header button order, schedule, wallpaper rotation, and screenshot key and folder. '
-          'Keeps favorites, hidden themes, shortcuts and saved workspace assignments; themes per workspace turn off.',
-      action: 'Reset',
+      tr("Reset to defaults?"),
+      tr("Resets corners, sorting, header button order, schedule, wallpaper rotation, and screenshot key and folder. Keeps favorites, hidden themes, shortcuts and saved workspace assignments; themes per workspace turn off."),
+      action: tr("Reset"),
     );
     if (!ok) return;
     final r = await app.run('settings.reset');
     if (r == null) return;
     app.changed();
     await load();
-    app.notify('Settings reset');
+    app.notify(tr("Settings reset"));
   }
 
   // --- rows ------------------------------------------------------------------------
 
   String get _cornersTip =>
-      "Corners of the window and its theme cards. “Like windows” follows the ${app.desktopName} theme's corner radius.";
+      trf("Corners of the window and its theme cards. “Like windows” follows the {0} theme's corner radius.", [app.desktopName]);
 
   List<_Row> rows() {
     final marks = markColors(context);
@@ -345,7 +341,7 @@ class _SettingsPageState extends State<SettingsPage> {
         Text(text, style: const TextStyle(fontSize: 12)),
       ],
     );
-    final themeChoices = <(String, String)>[('', 'Choose…'), for (final t in themes) ('${t['slug']}', '${t['name']}')];
+    final themeChoices = <(String, String)>[('', tr("Choose…")), for (final t in themes) ('${t['slug']}', '${t['name']}')];
     final shotDir = settings['screenshot_dir'] as String?;
     final radius = app.windowRadius;
     final ready = [
@@ -353,48 +349,53 @@ class _SettingsPageState extends State<SettingsPage> {
         if (h['signed_in'] != false) h,
     ];
     final out = <_Row>[
+      _Row('general', tr('Language'), '',
+        _dropdown(settings['language'] as String? ?? 'auto', [
+          ('auto', trf('System ({0})', [languageNames[systemLanguage()]!])),
+          ...languageNames.entries.map((e) => (e.key, e.value)),
+        ], (value) => set('language', value))),
       _Row(
         'general',
-        'Corners',
+        tr("Corners"),
         _cornersTip,
         _dropdown('${settings['corners'] ?? 'windows'}', [
-          ('windows', radius == null ? 'Like windows' : 'Like windows ($radius px)'),
-          ('rounded', 'Rounded'),
-          ('square', 'Square'),
+          ('windows', radius == null ? tr("Like windows") : trf("Like windows ({0} px)", [radius])),
+          ('rounded', tr("Rounded")),
+          ('square', tr("Square")),
         ], (v) => set('corners', v)),
       ),
       if (app.can('animations')) ...[
         _Row(
           'general',
-          'Workspace switch animation',
-          'The slide when you switch workspaces. Off switches at once.',
+          tr("Workspace switch animation"),
+          tr("The slide when you switch workspaces. Off switches at once."),
           _animationSwitch('workspace'),
         ),
         _Row(
           'general',
-          'Window open animation',
-          'The zoom or fade when a window opens or closes. Off places a new tiled window at once.',
+          tr("Window open animation"),
+          tr("The zoom or fade when a window opens or closes. Off places a new tiled window at once."),
           _animationSwitch('window'),
         ),
       ],
       _Row(
         'themes',
-        'Sort the list',
-        "Favorites (★ in a theme's menu) always come first.",
-        _dropdown('${settings['sort'] ?? 'name'}', const [
-          ('name', 'By name'),
-          ('recent', 'Recently used first'),
+        tr("Sort the list"),
+        tr("Favorites (★ in a theme's menu) always come first."),
+        _dropdown('${settings['sort'] ?? 'name'}', [
+          ('name', tr("By name")),
+          ('recent', tr("Recently used first")),
         ], (v) => set('sort', v)),
       ),
       for (final a in apps)
         _Row(
           'themes',
-          'App colors: ${a['label']}',
+          trf("App colors: {0}", [a['label']]),
           a['supported'] == false
               ? '${a['note']}'
               : a['installed'] == true
-              ? '${a['note']}${a['enabled'] == true && a['included'] != true ? ' · not set up yet (applied with the next theme)' : ''}'
-              : 'Not installed',
+              ? '${a['note']}${a['enabled'] == true && a['included'] != true ? tr(" · not set up yet (applied with the next theme)") : ''}'
+              : tr("Not installed"),
           _switch(
             a['enabled'] == true && a['supported'] != false,
             a['installed'] == true && a['supported'] != false ? (on) => setApp(a, on) : null,
@@ -403,11 +404,11 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
       _Row(
         'day-night',
-        'Switch themes by time of day',
-        'At the times below. A theme you pick by hand stays until the next switch.',
+        tr("Switch themes by time of day"),
+        tr("At the times below. A theme you pick by hand stays until the next switch."),
         _switch(plan['enabled'] == true, (on) => setSchedule({'enabled': on})),
       ),
-      for (final (k, at, label) in const [('day', 'day_at', 'Day theme'), ('night', 'night_at', 'Night theme')])
+      for (final (k, at, label) in [('day', 'day_at', tr("Day theme")), ('night', 'night_at', tr("Night theme"))])
         _Row(
           'day-night',
           label,
@@ -419,29 +420,28 @@ class _SettingsPageState extends State<SettingsPage> {
             children: [
               _dropdown('${plan[k] ?? ''}', themeChoices, (v) => v.isEmpty ? null : setSchedule({k: v})),
               _dropdown('${plan[at] ?? (k == 'day' ? '07:00' : '19:00')}', [
-                for (final t in _times) (t, 'from $t'),
-                if (!_times.contains(plan[at]) && plan[at] is String) ('${plan[at]}', 'from ${plan[at]}'),
+                for (final t in _times) (t, trf("from {0}", [t])),
+                if (!_times.contains(plan[at]) && plan[at] is String) ('${plan[at]}', trf("from {0}", [plan[at]])),
               ], (v) => setSchedule({at: v})),
             ],
           ),
         ),
       _Row(
         'wallpapers',
-        'A wallpaper for each workspace',
-        "Choose workspaces in a wallpaper's ☰ menu → Show on workspace. Workspaces without one keep the theme's background.",
+        tr("A wallpaper for each workspace"),
+        tr("Choose workspaces in a wallpaper's ☰ menu → Show on workspace. Workspaces without one keep the theme's background."),
         _switch(settings['workspace_wallpapers'] == true, (on) => set('workspace_wallpapers', on)),
       ),
       _Row(
         'wallpapers',
-        'A theme for each workspace',
-        "Switches ${app.desktopName}'s theme when you focus a workspace with an assigned theme. Switching takes a moment and changes "
-            'every monitor. Leaving the workspace goes back to the theme you used before.',
+        tr("A theme for each workspace"),
+        trf("Switches {0}'s theme when you focus a workspace with an assigned theme. Switching takes a moment and changes every monitor. Leaving the workspace goes back to the theme you used before.", [app.desktopName]),
         _switch(settings['workspace_themes'] == true, (on) => set('workspace_themes', on)),
       ),
       _Row(
         'wallpapers',
-        'Change the wallpaper',
-        "Goes through the current theme's visible wallpapers.",
+        tr("Change the wallpaper"),
+        tr("Goes through the current theme's visible wallpapers."),
         _dropdown(
           settings['slideshow_minutes'] is int ? settings['slideshow_minutes'] as int : 0,
           _slideshow,
@@ -451,8 +451,8 @@ class _SettingsPageState extends State<SettingsPage> {
       if (shortcuts['available'] == false)
         _Row(
           'shortcuts',
-          'Keyboard shortcuts',
-          "${app.desktopName}'s keyboard settings were not found, so shortcuts cannot be set here.",
+          tr("Keyboard shortcuts"),
+          trf("{0}'s keyboard settings were not found, so shortcuts cannot be set here.", [app.desktopName]),
           const SizedBox(),
         ),
       for (final s in [
@@ -463,16 +463,16 @@ class _SettingsPageState extends State<SettingsPage> {
           'shortcuts',
           '${s['title']}',
           s['label'] == null
-              ? 'No key yet'
+              ? tr("No key yet")
               : (s['replaces'] ?? '') != ''
-              ? 'Overrides “${s['replaces']}”'
+              ? trf("Overrides “{0}”", [s['replaces']])
               : '',
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               if (s['label'] != null) ...[_caps('${s['label']}'), const SizedBox(width: 6)],
               _small(
-                s['label'] == null ? 'Set…' : 'Change…',
+                s['label'] == null ? tr("Set…") : tr("Change…"),
                 shortcuts['available'] == true ? () => _openShortcut('${s['target']}', '${s['title']}') : null,
                 key: ValueKey('shortcut-${s['target']}'),
               ),
@@ -481,13 +481,13 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
       _Row(
         'screenshots',
-        'F12 saves a screenshot',
-        'Save a picture of the Maprisma Theme window while it is open.',
+        tr("F12 saves a screenshot"),
+        tr("Save a picture of the Maprisma Theme window while it is open."),
         _switch(settings['screenshot_key'] != false, (on) => set('screenshot_key', on)),
       ),
       _Row(
         'screenshots',
-        'Screenshots go to',
+        tr("Screenshots go to"),
         shotDir ?? '~/Pictures/MaprismaTheme',
         Row(
           mainAxisSize: MainAxisSize.min,
@@ -501,21 +501,20 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ),
             const SizedBox(width: 6),
-            if (shotDir != null) ...[_small('Default', () => set('screenshot_dir', null)), const SizedBox(width: 6)],
+            if (shotDir != null) ...[_small(tr("Default"), () => set('screenshot_dir', null)), const SizedBox(width: 6)],
             _small(
-              'Choose folder…',
+              tr("Choose folder…"),
               _chooseScreenshotFolder,
               icon: Icons.folder_open_outlined,
-              tooltip: 'Choose folder…',
+              tooltip: tr("Choose folder…"),
             ),
           ],
         ),
       ),
       _Row(
         'ask-ai',
-        'Ask AI',
-        'Describe a theme and an installed, signed-in AI helper (Claude Code, Codex, pi, Hermes or a local model) suggests it. '
-            'Off until you turn it on; it runs only when you click Ask.',
+        tr("Ask AI"),
+        tr("Describe a theme and an installed, signed-in AI helper (Claude Code, Codex, pi, Hermes or a local model) suggests it. Off until you turn it on; it runs only when you click Ask."),
         _switch(settings['ask_ai'] == true, (on) => set('ask_ai', on)),
       ),
       _Row(
@@ -525,31 +524,31 @@ class _SettingsPageState extends State<SettingsPage> {
         const SizedBox(),
         below: Text(
           !helpersKnown
-              ? 'Helpers: not available in this version'
+              ? tr("Helpers: not available in this version")
               : ready.isEmpty
-              ? 'Helpers: none is installed and signed in'
-              : 'Helpers: ${ready.map((h) => '${h['name'] ?? h['id']}${h['local'] == true ? ' (on this PC)' : ''}').join(', ')}',
+              ? tr("Helpers: none is installed and signed in")
+              : trf("Helpers: {0}", [ready.map((h) => '${h['name'] ?? h['id']}${h['local'] == true ? tr(" (on this PC)") : ''}').join(', ')]),
           style: hintStyle(context),
         ),
       ),
       if (helpers.isNotEmpty)
         _Row(
           'ask-ai',
-          'Helper',
-          'The first ready one unless you choose',
+          tr("Helper"),
+          tr("The first ready one unless you choose"),
           _dropdown<String>('${settings['ask_ai_helper'] ?? ''}', [
-            ('', 'First ready one'),
+            ('', tr("First ready one")),
             for (final h in helpers)
               (
                 '${h['id']}',
-                '${h['name'] ?? h['id']}${h['local'] == true ? ' (on this PC)' : ''}${h['signed_in'] == false ? ' — not signed in' : ''}',
+                '${h['name'] ?? h['id']}${h['local'] == true ? tr(" (on this PC)") : ''}${h['signed_in'] == false ? tr(" — not signed in") : ''}',
               ),
           ], (v) => set('ask_ai_helper', v.isEmpty ? null : v)),
         ),
       _Row(
         'ask-ai',
-        'Maprisma hints',
-        'A ? here and on the Ask AI page opens the note on easy AI setup with Maprisma.',
+        tr("Maprisma hints"),
+        tr("A ? here and on the Ask AI page opens the note on easy AI setup with Maprisma."),
         _switch(settings['maprisma_hints'] != false, (on) => set('maprisma_hints', on)),
       ),
     ];
@@ -558,61 +557,61 @@ class _SettingsPageState extends State<SettingsPage> {
     out.addAll([
       _Row(
         'integration',
-        helper?['name'] as String? ?? (app.desktopName == 'COSMIC' ? 'maprisma-theme-helper' : '${app.desktopName} integration'),
-        app.can('workspaces') ? 'Applies themes to ${app.desktopName} and reads the workspaces.' : app.can('appearance') ? 'Applies themes to ${app.desktopName}.' : 'App colors use templates; desktop integration is not available yet.',
-        status(helper?['ok'] == true, !app.can('appearance') ? 'Not available' : helper?['ok'] == true ? 'Found' : 'Not found'),
+        helper?['name'] as String? ?? (app.desktopName == 'COSMIC' ? 'maprisma-theme-helper' : trf("{0} integration", [app.desktopName])),
+        app.can('workspaces') ? trf("Applies themes to {0} and reads the workspaces.", [app.desktopName]) : app.can('appearance') ? trf("Applies themes to {0}.", [app.desktopName]) : tr("App colors use templates; desktop integration is not available yet."),
+        status(helper?['ok'] == true, !app.can('appearance') ? tr("Not available") : helper?['ok'] == true ? tr("Found") : tr("Not found")),
       ),
       _Row(
         'integration',
         'maprisma-theme-core',
-        'Applies themes and manages app settings.',
-        status(core?['ok'] == true, core?['ok'] == true ? 'Found' : 'Not found'),
+        tr("Applies themes and manages app settings."),
+        status(core?['ok'] == true, core?['ok'] == true ? tr("Found") : tr("Not found")),
       ),
       _Row(
         'integration',
-        'Panel applet',
+        tr("Panel applet"),
         applet?['in_panel'] == true
-            ? 'In the panel: click toggles this window, scroll changes the wallpaper, right-click shows your favorites'
-            : 'Add “Maprisma Theme” in ${app.desktopName} Settings → Desktop → Panel → Applets',
+            ? tr("In the panel: click toggles this window, scroll changes the wallpaper, right-click shows your favorites")
+            : trf("Add “Maprisma Theme” in {0} Settings → Desktop → Panel → Applets", [app.desktopName]),
         status(
           applet?['ok'] == true && applet?['in_panel'] == true,
           applet?['ok'] != true
-              ? 'Not installed'
+              ? tr("Not installed")
               : applet?['in_panel'] == true
-              ? 'Ready'
-              : 'Not in the panel',
+              ? tr("Ready")
+              : tr("Not in the panel"),
         ),
       ),
       _Row(
         'integration',
-        'Shortcut file',
+        tr("Shortcut file"),
         '${keys?['note'] ?? ''}'.isNotEmpty
             ? '${keys!['note']}'
-            : "${keys?['keys'] ?? 0} key(s) in ${app.desktopName}'s custom shortcuts",
+            : trf("{0} key(s) in {1}'s custom shortcuts", [keys?['keys'] ?? 0, app.desktopName]),
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            status(keys?['ok'] == true, keys?['ok'] == true ? 'OK' : 'Needs attention'),
+            status(keys?['ok'] == true, keys?['ok'] == true ? 'OK' : tr("Needs attention")),
             const SizedBox(width: 8),
-            _small('Repair', _repair),
+            _small(tr("Repair"), _repair),
           ],
         ),
       ),
       _Row(
         'integration',
-        'Backup and restore',
-        'Includes settings, lists, workspace assignments, presets and shortcuts; themes and wallpapers remain in their folders.',
+        tr("Backup and restore"),
+        tr("Includes settings, lists, workspace assignments, presets and shortcuts; themes and wallpapers remain in their folders."),
         Row(
           mainAxisSize: MainAxisSize.min,
-          children: [_small('Export…', _export), const SizedBox(width: 6), _small('Restore…', _restore)],
+          children: [_small(tr("Export…"), _export), const SizedBox(width: 6), _small(tr("Restore…"), _restore)],
         ),
       ),
     ]);
     out.removeWhere((r) =>
-      (!app.can('shortcuts') && (r.section == 'shortcuts' || r.title == 'Shortcut file')) ||
-      (!app.can('panel') && r.title == 'Panel applet') ||
-      (!app.can('wallpaper') && r.title == 'Change the wallpaper') ||
-      (!app.can('workspaces') && (r.title == 'A wallpaper for each workspace' || r.title == 'A theme for each workspace')));
+      (!app.can('shortcuts') && (r.section == 'shortcuts' || r.title == tr('Shortcut file'))) ||
+      (!app.can('panel') && r.title == tr('Panel applet')) ||
+      (!app.can('wallpaper') && r.title == tr('Change the wallpaper')) ||
+      (!app.can('workspaces') && (r.title == tr('A wallpaper for each workspace') || r.title == tr('A theme for each workspace'))));
     return out;
   }
 
@@ -676,16 +675,16 @@ class _SettingsPageState extends State<SettingsPage> {
       children.add(_rowWidget(r));
     }
     if (search.trim().isEmpty && section == 'general' && !app.can('shortcuts')) {
-      children.add(Text('Keyboard shortcuts are not available on ${app.desktopName} yet.', style: hintStyle(context)));
+      children.add(Text(trf("Keyboard shortcuts are not available on {0} yet.", [app.desktopName]), style: hintStyle(context)));
     }
     if (search.trim().isEmpty && section == 'wallpapers' && !app.can('workspaces')) {
-      children.add(Text('Workspaces are not available on ${app.desktopName} yet.', style: hintStyle(context)));
+      children.add(Text(trf("Workspaces are not available on {0} yet.", [app.desktopName]), style: hintStyle(context)));
     }
     if (shown.isEmpty && search.trim().isNotEmpty) {
       children.add(
         Padding(
           padding: const EdgeInsets.only(top: 8),
-          child: Text('No setting matches your search.', style: hintStyle(context)),
+          child: Text(tr("No setting matches your search."), style: hintStyle(context)),
         ),
       );
     }
@@ -704,15 +703,14 @@ class _SettingsPageState extends State<SettingsPage> {
     final look = Look.of(context);
     final r = corners(context);
     final reset = _small(
-      'Reset to defaults',
+      tr("Reset to defaults"),
       _reset,
       key: const ValueKey('settings-reset'),
       tooltip:
-          'Resets corners, sorting, header button order, schedule, wallpaper rotation, and screenshot key and folder. '
-          'Keeps favorites, hidden themes, shortcuts and saved workspace assignments; themes per workspace turn off.',
+          tr("Resets corners, sorting, header button order, schedule, wallpaper rotation, and screenshot key and folder. Keeps favorites, hidden themes, shortcuts and saved workspace assignments; themes per workspace turn off."),
     );
     return SubPage(
-      title: 'Settings',
+      title: tr("Settings"),
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : Focus(
@@ -752,9 +750,9 @@ class _SettingsPageState extends State<SettingsPage> {
                       controller: _search,
                       focusNode: _searchFocus,
                       style: const TextStyle(fontSize: 14),
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         prefixIcon: Icon(Icons.search, size: 18),
-                        hintText: 'Find in Settings',
+                        hintText: tr("Find in Settings"),
                       ),
                       onChanged: (v) => setState(() => search = v),
                     ),

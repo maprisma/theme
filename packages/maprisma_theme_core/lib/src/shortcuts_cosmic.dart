@@ -3,6 +3,8 @@
 /// own entry is shadowed (cosmic-shadowed.json) while ours exists.
 library;
 
+import 'i18n.dart';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -29,7 +31,7 @@ final class CosmicShortcutBinder implements ShortcutBinder {
   static String? _read(String path) {
     if (FileSystemEntity.typeSync(path) == FileSystemEntityType.notFound) return null;
     final bytes = Posix.instance.readRegular(path, 1024 * 1024);
-    if (bytes == null) throw RouteError('not_available', 'cannot read $path');
+    if (bytes == null) throw RouteError('not_available', trf("cannot read {0}", [path]));
     return utf8.decode(bytes, allowMalformed: true);
   }
 
@@ -37,7 +39,7 @@ final class CosmicShortcutBinder implements ShortcutBinder {
     try {
       return parseCosmicShortcuts(_read(customFile) ?? '{\n}\n');
     } on FormatException catch (e) {
-      throw RouteError('not_available', "COSMIC's custom shortcuts file cannot be read: ${e.message}");
+      throw RouteError('not_available', trf("COSMIC's custom shortcuts file cannot be read: {0}", [e.message]));
     }
   }
 
@@ -190,11 +192,11 @@ final class CosmicShortcutBinder implements ShortcutBinder {
       }
     } on FormatException catch (e) {
       fileOk = false;
-      note = "COSMIC's custom shortcuts file cannot be read: ${e.message}";
+      note = trf("COSMIC's custom shortcuts file cannot be read: {0}", [e.message]);
     }
     if (fileOk && written != expected) {
       fileOk = false;
-      note = '$expected key(s) set, $written in COSMIC\'s file: Repair writes them again';
+      note = trf("{0} key(s) set, {1} in COSMIC's file: Repair writes them again", [expected, written]);
     }
     return {'ok': fileOk, 'written': written, 'note': note};
   }

@@ -1,3 +1,4 @@
+import 'i18n.dart';
 import 'dart:ffi';
 import 'dart:io';
 
@@ -73,18 +74,33 @@ const moreKeys = ['orange', 'brown', ...shadeKeys];
 /// Keys whose change moves the shades and bright variants not edited by hand.
 const baseColorKeys = [...mainKeys, ...paletteKeys];
 
-const _labels = {
-  'background': 'Background',
-  'foreground': 'Text',
-  'accent': 'Accent',
-  'selection': 'Selection',
-  'muted': 'Muted text',
-  'dark_background': 'Background, darker',
-  'darker_background': 'Background, darkest',
-  'lighter_background': 'Background, lighter',
-  'dark_foreground': 'Text, dim',
-  'light_foreground': 'Text, soft',
-  'bright_foreground': 'Text, bright',
+Map<String, String> get _labels => {
+  'red': tr("Red"),
+  'yellow': tr("Yellow"),
+  'orange': tr("Orange"),
+  'green': tr("Green"),
+  'cyan': tr("Cyan"),
+  'blue': tr("Blue"),
+  'magenta': tr("Magenta"),
+  'brown': tr("Brown"),
+  'bright_red': tr("Bright red"),
+  'bright_yellow': tr("Bright yellow"),
+  'bright_green': tr("Bright green"),
+  'bright_cyan': tr("Bright cyan"),
+  'bright_blue': tr("Bright blue"),
+  'bright_magenta': tr("Bright magenta"),
+
+  'background': tr("Background"),
+  'foreground': tr("Text"),
+  'accent': tr("Accent"),
+  'selection': tr("Selection"),
+  'muted': tr("Muted text"),
+  'dark_background': tr("Background, darker"),
+  'darker_background': tr("Background, darkest"),
+  'lighter_background': tr("Background, lighter"),
+  'dark_foreground': tr("Text, dim"),
+  'light_foreground': tr("Text, soft"),
+  'bright_foreground': tr("Text, bright"),
 };
 
 const defaultColors = {
@@ -165,7 +181,7 @@ final class Palette {
   void take(Map<String, String> given) {
     for (final e in given.entries) {
       if (!canSet(e.key)) continue;
-      if (!_hexRe.hasMatch(e.value)) throw RouteError('bad_color', '${e.key}: use #rrggbb');
+      if (!_hexRe.hasMatch(e.value)) throw RouteError('bad_color', trf('{0}: use #rrggbb', [e.key]));
     }
     var moved = false;
     for (final e in given.entries) {
@@ -282,7 +298,7 @@ Future<Palette> loadPalette(Ctx ctx, ThemeInfo theme) async {
     final f = '$dir/colors.toml';
     if (FileSystemEntity.typeSync(f) == FileSystemEntityType.notFound) continue;
     final text = readSmall(f, limit: maxColorsBytes);
-    if (text == null) throw RouteError('bad_theme', 'colors.toml is too large or unreadable');
+    if (text == null) throw RouteError('bad_theme', tr("colors.toml is too large or unreadable"));
     return parsePalette(text);
   }
   if (theme.cosmicNative) {
@@ -300,7 +316,7 @@ String slugFor(String name) {
   slug = slug.replaceAll(RegExp(r'^-+|-+$'), '').replaceAll(RegExp(r'-{2,}'), '-');
   if (slug.length > maxNameLength) slug = slug.substring(0, maxNameLength);
   slug = slug.replaceAll(RegExp(r'^-+|-+$'), '');
-  if (slug.isEmpty) throw RouteError('bad_name', 'give the theme a name (letters or digits)');
+  if (slug.isEmpty) throw RouteError('bad_name', tr("give the theme a name (letters or digits)"));
   return slug;
 }
 
@@ -383,7 +399,7 @@ Map<String, dynamic>? _blurOrNull(Object? v) => checkLook({'blur': v})?['blur'] 
 /// A blur given to a save: null (none) or {on: bool, strength: 1..15}.
 Map<String, dynamic>? _checkBlur(Object? v) {
   if (v == null) return null;
-  return _blurOrNull(v) ?? (throw RouteError('bad_blur', 'blur: {on, strength 1..15}'));
+  return _blurOrNull(v) ?? (throw RouteError('bad_blur', tr('blur: {on, strength 1..15}')));
 }
 
 // --- file system --------------------------------------------------------------------
@@ -423,11 +439,11 @@ void _renameNoReplace(String from, String to) {
       malloc.free(b);
     }
     if (FileSystemEntity.typeSync(to, followLinks: false) != FileSystemEntityType.notFound) {
-      throw RouteError('exists', '${baseName(to)} already exists');
+      throw RouteError('exists', trf("{0} already exists", [baseName(to)]));
     }
   }
   if (FileSystemEntity.typeSync(to, followLinks: false) != FileSystemEntityType.notFound) {
-    throw RouteError('exists', '${baseName(to)} already exists');
+    throw RouteError('exists', trf("{0} already exists", [baseName(to)]));
   }
   Directory(from).renameSync(to);
 }
@@ -520,7 +536,7 @@ Future<bool> makePreview(Ctx ctx, String dir, Palette palette, {String? wallpape
 
 String? _checkFont(String? font) {
   if (font == null || font.isEmpty) return null;
-  if (!fontRe.hasMatch(font)) throw RouteError('bad_font', 'bad font name');
+  if (!fontRe.hasMatch(font)) throw RouteError('bad_font', tr("bad font name"));
   return font;
 }
 
@@ -544,18 +560,18 @@ Future<String> createThemeFolder(
   Map<String, dynamic>? blur,
 }) async {
   final slug = slugFor(name);
-  if (!slugRe.hasMatch(slug)) throw RouteError('bad_name', 'give the theme a name (letters or digits)');
+  if (!slugRe.hasMatch(slug)) throw RouteError('bad_name', tr("give the theme a name (letters or digits)"));
   font = _checkFont(font);
   blur = _checkBlur(blur);
-  if (cosmicRon != null && cosmicRon.length > maxRonBytes) throw RouteError('too_large', 'cosmic.ron is too large');
+  if (cosmicRon != null && cosmicRon.length > maxRonBytes) throw RouteError('too_large', tr("cosmic.ron is too large"));
   final base = baseSlug == null ? null : findTheme(ctx.paths, baseSlug);
-  if (baseSlug != null && base == null) throw RouteError('not_found', 'no theme $baseSlug');
+  if (baseSlug != null && base == null) throw RouteError('not_found', trf("no theme {0}", [baseSlug]));
   final palette = base != null ? (await loadPalette(ctx, base)).copy() : parsePalette('');
   palette.take(colors);
-  if (_taken(ctx).contains(slug)) throw RouteError('exists', 'a theme called ${displayName(slug)} already exists');
+  if (_taken(ctx).contains(slug)) throw RouteError('exists', trf("a theme called {0} already exists", [displayName(slug)]));
   Directory(ctx.paths.userThemes).createSync(recursive: true);
   final dir = '${ctx.paths.userThemes}/$slug';
-  if (!_mkdirNew(dir)) throw RouteError('exists', 'a theme called ${displayName(slug)} already exists');
+  if (!_mkdirNew(dir)) throw RouteError('exists', trf("a theme called {0} already exists", [displayName(slug)]));
   try {
     writeText('$dir/colors.toml', renderColors(palette, displayName(slug), base?.name ?? 'scratch'), mode: 420);
     if (base != null) _copyIcons(base, dir);
@@ -585,7 +601,7 @@ Future<String> createThemeFolder(
 
 ThemeInfo _editable(Ctx ctx, String slug) {
   final theme = ctx.theme(slug);
-  if (!isCustom(theme)) throw RouteError('not_custom', 'only themes made with Maprisma Theme can be edited here');
+  if (!isCustom(theme)) throw RouteError('not_custom', tr("only themes made with Maprisma Theme can be edited here"));
   return theme;
 }
 
@@ -593,7 +609,7 @@ ThemeInfo _editable(Ctx ctx, String slug) {
 Future<void> updateTheme(Ctx ctx, ThemeInfo theme, Palette palette, String? font, {Map<String, dynamic>? blur}) async {
   final marker = markerOf(theme);
   if (marker == null || theme.fromGit) {
-    throw RouteError('not_custom', 'only themes made with Maprisma Theme can be edited here');
+    throw RouteError('not_custom', tr("only themes made with Maprisma Theme can be edited here"));
   }
   font = _checkFont(font);
   blur = _checkBlur(blur);
@@ -612,17 +628,17 @@ Future<void> updateTheme(Ctx ctx, ThemeInfo theme, Palette palette, String? font
 /// Gives a custom theme a new name: its folder, its added wallpapers' folder
 /// and every list that names it move along. Returns the new slug.
 String renameTheme(Ctx ctx, ThemeInfo theme, String newName) {
-  if (!isCustom(theme)) throw RouteError('not_custom', 'only themes made with Maprisma Theme can be renamed here');
+  if (!isCustom(theme)) throw RouteError('not_custom', tr("only themes made with Maprisma Theme can be renamed here"));
   final old = theme.slug, slug = slugFor(newName);
   if (slug == old) return old;
-  if (_taken(ctx).contains(slug)) throw RouteError('exists', 'a theme called ${displayName(slug)} already exists');
+  if (_taken(ctx).contains(slug)) throw RouteError('exists', trf("a theme called {0} already exists", [displayName(slug)]));
   final source = '${ctx.paths.userThemes}/$old';
   if (FileSystemEntity.isLinkSync(source) || !FileSystemEntity.isDirectorySync(source)) {
-    throw RouteError('not_custom', 'not a theme folder of yours');
+    throw RouteError('not_custom', tr("not a theme folder of yours"));
   }
   final oldWalls = '${ctx.paths.backgrounds}/$old', newWalls = '${ctx.paths.backgrounds}/$slug';
   if (FileSystemEntity.typeSync(newWalls, followLinks: false) != FileSystemEntityType.notFound) {
-    throw RouteError('exists', '$newWalls already exists');
+    throw RouteError('exists', trf("{0} already exists", [newWalls]));
   }
   _renameNoReplace(source, '${ctx.paths.userThemes}/$slug');
   if (FileSystemEntity.isDirectorySync(oldWalls) && !FileSystemEntity.isLinkSync(oldWalls)) {
@@ -687,7 +703,7 @@ ThemeInfo _defaultBase(Ctx ctx) {
   final t = current.isEmpty ? null : findTheme(ctx.paths, current);
   if (t != null) return t;
   final all = ctx.themes();
-  if (all.isEmpty) throw RouteError('not_found', 'no themes installed');
+  if (all.isEmpty) throw RouteError('not_found', tr("no themes installed"));
   return all.first;
 }
 
@@ -705,7 +721,7 @@ Future<Map<String, dynamic>> editorData(Ctx ctx, {String? base, String? edit, St
     theme = _editable(ctx, edit);
     palette = await loadPalette(ctx, theme);
     name = theme.name;
-    title = 'Edit ${theme.name}';
+    title = trf('Edit {0}', [theme.name]);
     font = fontOf(theme);
     blur = blurOf(theme);
     copy = false;
@@ -715,12 +731,12 @@ Future<Map<String, dynamic>> editorData(Ctx ctx, {String? base, String? edit, St
       if (!wallpaper.startsWith('/')) throw RouteError('bad_params', 'wallpaper');
       palette = paletteFromColors(await _colorsFromPicture(wallpaper));
       name = uniqueName(ctx, nameFromFile(baseName(wallpaper)) ?? defaultThemeName);
-      title = 'New theme from ${baseName(wallpaper)}';
+      title = trf('New theme from {0}', [baseName(wallpaper)]);
       copy = false; // the picture is always included; the base's others only if wanted
     } else {
       palette = await loadPalette(ctx, theme);
       name = suggestedName(ctx, theme.slug);
-      title = 'New theme from ${theme.name}';
+      title = trf('New theme from {0}', [theme.name]);
     }
   }
   final visible = visibleBackgrounds(ctx.paths, theme);
@@ -759,7 +775,7 @@ Future<Map<String, String>> _colorsFromPicture(String path) async {
   try {
     return await colorsFromImageFile(path);
   } on FormatException catch (e) {
-    throw RouteError('bad_image', 'could not read the colors: ${e.message}');
+    throw RouteError('bad_image', trf("could not read the colors: {0}", [e.message]));
   }
 }
 
@@ -776,7 +792,7 @@ Map<String, String> _colorsParam(Map<String, dynamic> p) {
   final out = <String, String>{};
   for (final e in v.entries) {
     if (e.key is! String || e.value is! String) throw RouteError('bad_params', 'colors');
-    if (!_hexRe.hasMatch(e.value as String)) throw RouteError('bad_color', '${e.key}: use #rrggbb');
+    if (!_hexRe.hasMatch(e.value as String)) throw RouteError('bad_color', trf('{0}: use #rrggbb', [e.key]));
     out[e.key as String] = (e.value as String).toLowerCase();
   }
   return out;

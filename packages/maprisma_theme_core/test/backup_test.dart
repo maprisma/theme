@@ -64,7 +64,7 @@ void main() {
     }));
     await call('backup.restore', {'path': file});
     expect(env.core.ctx.settings.get('corners'), 'square');
-    expect(jsonDecode(File(env.paths.file('settings.json')).readAsStringSync()).containsKey('language'), isFalse);
+    expect(jsonDecode(File(env.paths.file('settings.json')).readAsStringSync())['language'], 'de');
     expect(jsonDecode(File(env.paths.file('shortcuts.json')).readAsStringSync()).keys, ['theme:next']);
     expect(File(env.paths.file('presets.json')).readAsStringSync(), isNot(contains('rm -rf')));
 

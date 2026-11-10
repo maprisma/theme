@@ -1,3 +1,4 @@
+import 'i18n.dart';
 import 'desktop.dart';
 import 'paths.dart';
 import 'settings.dart';
@@ -38,7 +39,7 @@ final class Ctx {
   ThemeInfo theme(String? slug) {
     if (slug == null) throw RouteError('bad_params', 'slug');
     final t = findTheme(paths, slug);
-    if (t == null) throw RouteError('not_found', 'no theme $slug');
+    if (t == null) throw RouteError('not_found', trf("no theme {0}", [slug]));
     return t;
   }
 }

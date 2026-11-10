@@ -1,3 +1,4 @@
+import 'i18n.dart';
 import 'dart:convert';
 
 import 'apply.dart';
@@ -164,7 +165,7 @@ Map<String, Handler> presetRoutes(Ctx ctx) {
       final hasTheme = p.containsKey('theme');
       final hasWall = p.containsKey('wallpaper');
       if (!hasTheme && !hasWall) {
-        throw RouteError('bad_params', 'theme or wallpaper');
+        throw RouteError('bad_params', tr("theme or wallpaper"));
       }
       final slug = hasTheme && p['theme'] != null
           ? ctx.theme(str(p, 'theme')).slug
@@ -188,7 +189,7 @@ Map<String, Handler> presetRoutes(Ctx ctx) {
               : ctx.current.slug;
           final theme = ctx.theme(shown);
           if (name != null && wallpaperNamed(ctx, theme, name) == null) {
-            throw RouteError('not_found', 'Wallpaper missing');
+            throw RouteError('not_found', tr("Wallpaper missing"));
           }
           setWorkspaceWallpaper(ctx, theme.slug, ws, name);
           if (name != null) ctx.settings.set('workspace_wallpapers', true);
@@ -230,7 +231,7 @@ Map<String, Handler> presetRoutes(Ctx ctx) {
       final ws = workspace(p);
       final id = str(p, 'desktop_id');
       if (!scanLaunchers(ctx).any((l) => l.id == id)) {
-        throw RouteError('not_found', 'Installed launcher not found');
+        throw RouteError('not_found', tr("Installed launcher not found"));
       }
       return change((s) {
         final layout = s['workspaceLayouts']['$ws'] ??= {
@@ -238,7 +239,7 @@ Map<String, Handler> presetRoutes(Ctx ctx) {
           'autostart': false,
         };
         final apps = layout['apps'] as List;
-        if (apps.length >= 64) throw RouteError('limit', 'Too many apps');
+        if (apps.length >= 64) throw RouteError('limit', tr("Too many apps"));
         apps.add(id);
       });
     },
@@ -273,7 +274,7 @@ Map<String, Handler> presetRoutes(Ctx ctx) {
     }),
     'apppresets.autostart': (p) => change((s) {
       final layout = s['workspaceLayouts']['${workspace(p)}'];
-      if (layout is! Map) throw RouteError('not_found', 'Save apps first');
+      if (layout is! Map) throw RouteError('not_found', tr("Save apps first"));
       layout['autostart'] = boolParam(p, 'enabled');
     }),
     'apppresets.restore': (p) async {
@@ -379,7 +380,7 @@ Map<String, Handler> presetRoutes(Ctx ctx) {
 }
 
 Map<String, dynamic> _wmOrThrow(Map<String, dynamic>? r) {
-  if (r == null) throw RouteError('unavailable', 'the desktop did not answer');
+  if (r == null) throw RouteError('unavailable', tr("the desktop did not answer"));
   final e = r['error'];
   if (e != null) throw RouteError('$e', '${r['message'] ?? e}');
   return r;

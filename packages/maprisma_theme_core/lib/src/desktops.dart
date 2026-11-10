@@ -1,6 +1,8 @@
 /// Choosing the desktop backend (docs/multi-desktop.md, "Selection").
 library;
 
+import 'i18n.dart';
+
 import 'desktop.dart';
 import 'desktop_cosmic.dart';
 import 'desktop_kde.dart';
@@ -23,7 +25,7 @@ Desktop selectDesktop(Paths paths, Map<String, String> environment) {
       'cosmic' => CosmicDesktop(paths, environment),
       'kde' => KdeDesktop(paths, environment),
       'generic' => GenericDesktop(paths, environment),
-      _ => throw ArgumentError.value(override, 'MAPRISMA_THEME_DESKTOP', 'one of ${desktopIds.join(', ')}'),
+      _ => throw ArgumentError.value(override, 'MAPRISMA_THEME_DESKTOP', trf("one of {0}", [desktopIds.join(', ')])),
     };
   }
   for (final token in (environment['XDG_CURRENT_DESKTOP'] ?? '').split(':')) {
@@ -46,7 +48,7 @@ final class GenericDesktop extends DesktopBase {
   @override
   String get id => 'generic';
   @override
-  String get name => 'your desktop';
+  String get name => tr("your desktop");
   @override
   String? get terminalName => null;
   @override

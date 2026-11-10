@@ -1,3 +1,4 @@
+import '../i18n.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -96,7 +97,7 @@ class _EditorPageState extends State<EditorPage> {
         if (widget.wallpaper != null) 'wallpaper': widget.wallpaper,
       });
     } catch (e) {
-      if (mounted) setState(() => loadError = 'Could not read the colors: ${_reason(e)}');
+      if (mounted) setState(() => loadError = trf("Could not read the colors: {0}", [_reason(e)]));
       return;
     }
     if (!mounted) return;
@@ -172,7 +173,7 @@ class _EditorPageState extends State<EditorPage> {
     if (value == colors[key]) return true;
     if (!_hexRe.hasMatch(value)) {
       setState(() {
-        hint = '“${text.trim()}” is not a color: use #rrggbb, e.g. #3a6ea5.';
+        hint = trf("“{0}” is not a color: use #rrggbb, e.g. #3a6ea5.", [text.trim()]);
         hex[key]!.text = colors[key]!;
       });
       return false;
@@ -200,14 +201,14 @@ class _EditorPageState extends State<EditorPage> {
     }
     final n = name.text.trim();
     if (!RegExp('[A-Za-z0-9]').hasMatch(n)) {
-      setState(() => hint = 'Give the theme a name (letters or digits).');
+      setState(() => hint = tr("Give the theme a name (letters or digits)."));
       return;
     }
     final app = AppScope.read(context);
     final d = data!;
     setState(() {
       saving = true;
-      hint = apply || d['current'] == true ? 'Saving and applying…' : 'Saving…';
+      hint = apply || d['current'] == true ? tr("Saving and applying…") : tr("Saving…");
     });
     Map<String, dynamic> r;
     try {
@@ -225,7 +226,7 @@ class _EditorPageState extends State<EditorPage> {
       if (mounted) {
         setState(() {
           saving = false;
-          hint = 'Could not save: ${_reason(e)}';
+          hint = trf("Could not save: {0}", [_reason(e)]);
         });
       }
       return;
@@ -235,8 +236,8 @@ class _EditorPageState extends State<EditorPage> {
     final applyError = r['apply_error'] as String?;
     app.notify(
       applyError != null
-          ? '$shown saved, but could not be applied: $applyError'
-          : '${editing ? 'Theme saved' : 'Theme created'}: $shown${r['applied'] == true ? ' (applied)' : ''}',
+          ? trf("{0} saved, but could not be applied: {1}", [shown, applyError])
+          : '${editing ? tr("Theme saved") : tr("Theme created")}: $shown${r['applied'] == true ? tr(" (applied)") : ''}',
     );
     app.changed();
     Navigator.of(context).pop(r['slug']);
@@ -266,8 +267,8 @@ class _EditorPageState extends State<EditorPage> {
     final d = data;
     final askName = widget.initial?['name']?.trim();
     final title = widget.fromAsk
-        ? (askName == null || askName.isEmpty ? 'New theme' : askName)
-        : d?['title'] as String? ?? (editing ? 'Edit theme' : 'New theme');
+        ? (askName == null || askName.isEmpty ? tr("New theme") : askName)
+        : d?['title'] as String? ?? (editing ? tr("Edit theme") : tr("New theme"));
     Widget body;
     if (loadError != null) {
       body = Center(
@@ -315,7 +316,7 @@ class _EditorPageState extends State<EditorPage> {
       child: SubPage(
         title: title,
         section: false,
-        backTooltip: 'Back without saving (Esc)',
+        backTooltip: tr("Back without saving (Esc)"),
         body: Column(
           children: [
             Expanded(child: body),
@@ -345,13 +346,13 @@ class _EditorPageState extends State<EditorPage> {
           Row(
             children: [
               Expanded(
-                child: OutlinedButton(onPressed: saving ? null : () => save(false), child: Text(editing ? 'Save' : 'Create')),
+                child: OutlinedButton(onPressed: saving ? null : () => save(false), child: Text(editing ? tr("Save") : tr("Create"))),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: FilledButton(
                   onPressed: saving ? null : () => save(true),
-                  child: Text(editing ? 'Save and apply' : 'Create and apply'),
+                  child: Text(editing ? tr("Save and apply") : tr("Create and apply")),
                 ),
               ),
             ],
@@ -399,27 +400,24 @@ class _EditorPageState extends State<EditorPage> {
 
   Widget _controls(BuildContext context, Map<String, dynamic> d) {
     final (main, more) = _keyGroups(d);
-    final baseName = d['base_name'] as String? ?? 'the base theme';
+    final baseName = d['base_name'] as String? ?? tr("the base theme");
     final count = (d['base_wallpapers'] as num?)?.toInt() ?? 0;
     final fromPicture = widget.wallpaper != null;
     final scheme = Theme.of(context).colorScheme;
     final heading = TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: scheme.onSurface);
     String wallLabel, wallTip;
     if (widget.askWallpaper != null && !fromPicture) {
-      wallLabel = "Also $baseName's wallpapers";
+      wallLabel = trf("Also {0}'s wallpapers", [baseName]);
       wallTip =
-          "The picture from the Ask AI card is always included; on: also $baseName's $count wallpapers. "
-          "Change them later on the new theme's wallpaper page.";
+          trf("The picture from the Ask AI card is always included; on: also {0}'s {1} wallpapers. Change them later on the new theme's wallpaper page.", [baseName, count]);
     } else if (fromPicture) {
-      wallLabel = "Also $baseName's wallpapers";
+      wallLabel = trf("Also {0}'s wallpapers", [baseName]);
       wallTip =
-          "${_fileName(widget.wallpaper!)} is always included; on: also $baseName's $count. "
-          "Change them later on the new theme's wallpaper page.";
+          trf("{0} is always included; on: also {1}'s {2}. Change them later on the new theme's wallpaper page.", [_fileName(widget.wallpaper!), baseName, count]);
     } else {
-      wallLabel = 'Take over its wallpapers ($count)';
+      wallLabel = trf("Take over its wallpapers ({0})", [count]);
       wallTip =
-          "Copies of $baseName's $count visible wallpapers. Add, hide or delete them later on the new "
-          "theme's wallpaper page.";
+          trf("Copies of {0}'s {1} visible wallpapers. Add, hide or delete them later on the new theme's wallpaper page.", [baseName, count]);
     }
     return ListView(
       padding: const EdgeInsets.fromLTRB(_pad, 0, _pad + 4, 12),
@@ -427,11 +425,11 @@ class _EditorPageState extends State<EditorPage> {
         // Name and font as compact rows (explanations in tooltips), so the
         // colors still start on the first screen at the default size.
         _row(
-          'Name',
+          tr("Name"),
           SizedBox(
             width: 180,
             child: Tooltip(
-              message: editing ? 'Renaming keeps its wallpapers, favorites and other settings' : 'Shown in the theme list',
+              message: editing ? tr("Renaming keeps its wallpapers, favorites and other settings") : tr("Shown in the theme list"),
               child: TextField(
                 controller: name,
                 focusNode: nameFocus,
@@ -444,17 +442,16 @@ class _EditorPageState extends State<EditorPage> {
         ),
         if (AppScope.of(context).can('fonts'))
           _row(
-            'Font',
+            tr("Font"),
             Tooltip(
               message:
-                  'The monospace font (terminals, editors). It is switched when this theme is applied, '
-                  'and back to your own font with other themes.',
+                  tr("The monospace font (terminals, editors). It is switched when this theme is applied, and back to your own font with other themes."),
               child: DropdownButton<String?>(
                 value: font,
                 isDense: true,
                 underline: const SizedBox.shrink(),
                 items: [
-                  const DropdownMenuItem<String?>(value: null, child: Text('Keep the current font')),
+                  DropdownMenuItem<String?>(value: null, child: Text(tr("Keep the current font"))),
                   for (final f in fonts) DropdownMenuItem<String?>(value: f, child: Text(f)),
                 ],
                 onChanged: (v) => setState(() => font = v),
@@ -463,20 +460,19 @@ class _EditorPageState extends State<EditorPage> {
           ),
         if (AppScope.of(context).can('blur')) ...[
           _row(
-            'Blur',
+            tr("Blur"),
             Tooltip(
               message:
-                  'Frosted glass behind see-through windows and panels. It is switched when this theme is applied, '
-                  'and back to your own with other themes.',
+                  tr("Frosted glass behind see-through windows and panels. It is switched when this theme is applied, and back to your own with other themes."),
               child: DropdownButton<String>(
                 key: const ValueKey('editor-blur'),
                 value: blur == null ? 'keep' : (blur!['on'] == true ? 'on' : 'off'),
                 isDense: true,
                 underline: const SizedBox.shrink(),
-                items: const [
-                  DropdownMenuItem(value: 'keep', child: Text('Keep the current blur')),
-                  DropdownMenuItem(value: 'on', child: Text('On')),
-                  DropdownMenuItem(value: 'off', child: Text('Off')),
+                items: [
+                  DropdownMenuItem(value: 'keep', child: Text(tr("Keep the current blur"))),
+                  DropdownMenuItem(value: 'on', child: Text(tr("On"))),
+                  DropdownMenuItem(value: 'off', child: Text(tr("Off"))),
                 ],
                 onChanged: (v) => setState(() {
                   final strength = (blur?['strength'] as int?) ?? 8;
@@ -491,7 +487,7 @@ class _EditorPageState extends State<EditorPage> {
           ),
           if (blur?['on'] == true)
             _row(
-              'Blur strength',
+              tr("Blur strength"),
               SizedBox(
                 width: 200,
                 child: Slider(
@@ -514,7 +510,7 @@ class _EditorPageState extends State<EditorPage> {
             ),
           ),
         const SizedBox(height: 10),
-        Text('Colors', style: heading),
+        Text(tr("Colors"), style: heading),
         const SizedBox(height: 4),
         for (final k in main) _colorRow(k),
         Theme(
@@ -524,14 +520,14 @@ class _EditorPageState extends State<EditorPage> {
             childrenPadding: EdgeInsets.zero,
             dense: true,
             controlAffinity: ListTileControlAffinity.leading,
-            title: Text('More colors: shades and bright variants', style: heading),
+            title: Text(tr("More colors: shades and bright variants"), style: heading),
             children: [
               Align(
                 alignment: Alignment.centerLeft,
                 child: Padding(
                   padding: const EdgeInsets.only(bottom: 4),
                   child: Text(
-                    'These follow the colors above until you change them here.',
+                    tr("These follow the colors above until you change them here."),
                     style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
                   ),
                 ),
@@ -567,7 +563,7 @@ class _EditorPageState extends State<EditorPage> {
       child: Row(
         children: [
           Tooltip(
-            message: 'Pick a color',
+            message: tr("Pick a color"),
             child: InkWell(
               borderRadius: BorderRadius.circular(6),
               onTap: () => pick(key),
@@ -692,7 +688,7 @@ class _EditorPageState extends State<EditorPage> {
                             margin: const EdgeInsets.symmetric(vertical: 1),
                             padding: const EdgeInsets.symmetric(horizontal: 6),
                             decoration: BoxDecoration(color: k('selection'), borderRadius: BorderRadius.circular(3)),
-                            child: Text('selected line', style: s('foreground'), maxLines: 1),
+                            child: Text(tr("selected line"), style: s('foreground'), maxLines: 1),
                           ),
                           line([t('~/code', 'cyan'), t(' ❯ ', 'accent'), t('maprisma-theme apply  ', 'foreground'), t('✗ 1 error', 'red')]),
                         ],
@@ -779,7 +775,7 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
             Row(
               children: [
                 Tooltip(
-                  message: 'Before',
+                  message: tr("Before"),
                   child: Container(
                     width: 34,
                     height: 26,
@@ -787,7 +783,7 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
                   ),
                 ),
                 Tooltip(
-                  message: 'Now',
+                  message: tr("Now"),
                   child: Container(
                     width: 34,
                     height: 26,
@@ -816,8 +812,8 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-        FilledButton(onPressed: () => Navigator.pop(context, value), child: Text('Use for ${widget.label.toLowerCase()}')),
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(tr("Cancel"))),
+        FilledButton(onPressed: () => Navigator.pop(context, value), child: Text(trf("Use for {0}", [widget.label.toLowerCase()]))),
       ],
     );
   }

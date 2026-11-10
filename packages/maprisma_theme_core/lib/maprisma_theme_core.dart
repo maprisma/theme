@@ -18,3 +18,5 @@ export 'src/cli.dart';
 export 'src/daemon.dart' show runDaemon;
 export 'src/custom.dart'
     show derivedColors, mainKeys, paletteKeys, terminalKeys, moreKeys, baseColorKeys, colorLabel, isDarkBackground, createThemeFolder, maxNameLength;
+
+export 'src/i18n.dart' show tr, trf, languageNames, languageSetting, systemLanguage, currentLanguage;

@@ -20,6 +20,8 @@
 ///   not answer; a model an Ask loaded is unloaded again on request.
 library;
 
+import 'i18n.dart';
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi';
@@ -61,7 +63,7 @@ typedef Helper = ({
   ({List<String> overlay, List<String> keep})? jail,
 });
 
-const List<Helper> helpers = [
+List<Helper> get helpers => [
   (
     id: 'claude',
     name: 'Claude Code',
@@ -81,7 +83,7 @@ const List<Helper> helpers = [
     files: ['.claude/.credentials.json'],
     env: ['ANTHROPIC_API_KEY'],
     login: 'claude auth login',
-    note: 'No tools: it only reads what Maprisma Theme sends.',
+    note: tr("No tools: it only reads what Maprisma Theme sends."),
     jail: null,
   ),
   (
@@ -106,7 +108,7 @@ const List<Helper> helpers = [
     files: ['.codex/auth.json'],
     env: ['OPENAI_API_KEY'],
     login: 'codex login',
-    note: 'Read-only sandbox, inside a bubblewrap jail that shows it none of your files.',
+    note: tr("Read-only sandbox, inside a bubblewrap jail that shows it none of your files."),
     jail: (overlay: ['.codex'], keep: ['.codex/auth.json']),
   ),
   (
@@ -116,7 +118,7 @@ const List<Helper> helpers = [
     files: ['.pi/agent/auth.json'],
     env: ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'GEMINI_API_KEY'],
     login: 'pi',
-    note: 'No tools, MCP servers, extensions or project files.',
+    note: tr("No tools, MCP servers, extensions or project files."),
     jail: null,
   ),
   (
@@ -126,7 +128,7 @@ const List<Helper> helpers = [
     files: ['.hermes/auth.json'],
     env: ['OPENROUTER_API_KEY', 'ANTHROPIC_API_KEY', 'OPENAI_API_KEY'],
     login: 'hermes',
-    note: 'Only its in-memory task list: no files, terminal, web or MCP.',
+    note: tr("Only its in-memory task list: no files, terminal, web or MCP."),
     jail: null,
   ),
 ];
@@ -281,7 +283,7 @@ List<Map<String, dynamic>> helperStates(String home, Map<String, String> environ
       'signed_in': true,
       'local': true,
       'login': '',
-      'note': 'On this PC (${m.provider}): no tokens, nothing leaves the computer.',
+      'note': trf("On this PC ({0}): no tokens, nothing leaves the computer.", [m.provider]),
     });
   }
   return out;
@@ -432,7 +434,7 @@ Future<Object?> localJson(String method, String host, int port, String path, [Ob
       socket!.add([...utf8.encode(head), ...data]);
       await for (final chunk in socket!) {
         reply.add(chunk);
-        if (reply.length > 1024 * 1024) throw const FormatException('too large');
+        if (reply.length > 1024 * 1024) throw FormatException(tr("too large"));
       }
     }();
     await work.timeout(const Duration(seconds: 3));
@@ -578,9 +580,9 @@ Future<String?> realBinary(String command, Map<String, String> environment) asyn
 /// the private work folder, the network; no session bus.
 Future<List<String>> jailArgv(Helper h, List<String> argv, String work, String home, Map<String, String> environment) async {
   final binary = await realBinary(argv.first, environment);
-  if (binary == null) throw AskError('helper not found');
+  if (binary == null) throw AskError(tr("helper not found"));
   final bwrap = which('bwrap', environment);
-  if (bwrap == null) throw AskError('bubblewrap (bwrap) is needed for this helper');
+  if (bwrap == null) throw AskError(tr("bubblewrap (bwrap) is needed for this helper"));
   final jail = h.jail!;
   final args = [
     bwrap,
@@ -722,14 +724,14 @@ final class AskRunner {
 
   /// One answer from [helperId] for [prompt]; throws [AskError].
   Future<String> run(String helperId, String prompt, {Duration timeout = askTimeout}) async {
-    if (_busy) throw AskError('another Ask is running');
+    if (_busy) throw AskError(tr("another Ask is running"));
     _busy = true;
     _cancelled = false;
     try {
       final helper = helperFor(helperId);
-      if (helper == null) throw AskError('unknown helper');
+      if (helper == null) throw AskError(tr("unknown helper"));
       final local = localModelOf(helperId, home);
-      if (helper.id == 'pi' && helperId != 'pi' && local == null) throw AskError('unknown helper');
+      if (helper.id == 'pi' && helperId != 'pi' && local == null) throw AskError(tr("unknown helper"));
       final extra = <String>[];
       bool? before;
       if (local != null) {
@@ -794,35 +796,35 @@ final class AskRunner {
   /// or its user unit is started and waited for (up to a minute).
   Future<void> ensureLocalServer(LocalModel m, {Duration wait = const Duration(seconds: 60)}) async {
     if (await _portOpen(m.host, m.port)) {
-      if (portIsTrusted(m.port) != true) throw AskError('port ${m.port} is not your model server: not used');
+      if (portIsTrusted(m.port) != true) throw AskError(trf("port {0} is not your model server: not used", [m.port]));
       return;
     }
     final unit = localUnits[m.port];
     final systemctl = which('systemctl', environment);
-    if (unit == null || systemctl == null) throw AskError('the local model server (${m.provider}) is not running');
+    if (unit == null || systemctl == null) throw AskError(trf("the local model server ({0}) is not running", [m.provider]));
     final (code, _) = await runBounded(
       [systemctl, '--user', 'start', '--no-block', unit],
       timeout: const Duration(seconds: 10),
       environment: environment,
     );
-    if (code == null) throw AskError('could not start $unit');
+    if (code == null) throw AskError(trf("could not start {0}", [unit]));
     final end = DateTime.now().add(wait);
     while (DateTime.now().isBefore(end)) {
       if (_cancelled) throw AskError('cancelled');
       if (await _portOpen(m.host, m.port)) {
-        if (portIsTrusted(m.port) != true) throw AskError('port ${m.port} is not your model server: not used');
+        if (portIsTrusted(m.port) != true) throw AskError(trf("port {0} is not your model server: not used", [m.port]));
         return;
       }
       await Future<void>.delayed(const Duration(milliseconds: 500));
     }
-    throw AskError('$unit did not answer');
+    throw AskError(trf("{0} did not answer", [unit]));
   }
 
   Future<String> _runHelper(Helper helper, List<String> extra, String prompt, Duration timeout) async {
     final setsid = which('setsid', environment), prlimit = which('prlimit', environment);
-    if (setsid == null || prlimit == null) throw AskError('setsid and prlimit (util-linux) are needed');
+    if (setsid == null || prlimit == null) throw AskError(tr("setsid and prlimit (util-linux) are needed"));
     final binary = which(helper.argv.first, environment);
-    if (binary == null) throw AskError('not installed');
+    if (binary == null) throw AskError(tr("not installed"));
     final work = Directory.systemTemp.createTempSync('maprisma-theme-ask-').path;
     chmodPath(work, 448);
     final answerFile = p.join(work, 'answer.txt');
@@ -895,12 +897,12 @@ final class AskRunner {
         if (DateTime.now().difference(started) > timeout) {
           _killGroup(proc);
           await proc.exitCode;
-          throw AskError('no answer in time');
+          throw AskError(tr("no answer in time"));
         }
         if (tooLong || _fileSize(answerFile) > maxAnswerBytes || await folderSize(work) > workMax) {
           _killGroup(proc);
           await proc.exitCode;
-          throw AskError('the answer is too long');
+          throw AskError(tr("the answer is too long"));
         }
       }
       // Leftovers of its group (anything it started) go too.
@@ -908,11 +910,11 @@ final class AskRunner {
       await outDone.timeout(const Duration(seconds: 2), onTimeout: () {});
       await errDone.timeout(const Duration(seconds: 2), onTimeout: () {});
       if (_cancelled) throw AskError('cancelled');
-      if (tooLong || _fileSize(answerFile) > maxAnswerBytes) throw AskError('the answer is too long');
+      if (tooLong || _fileSize(answerFile) > maxAnswerBytes) throw AskError(tr("the answer is too long"));
       String text;
       if (FileSystemEntity.typeSync(answerFile, followLinks: false) != FileSystemEntityType.notFound) {
         final bytes = Posix.instance.readRegular(answerFile, maxAnswerBytes, follow: false);
-        if (bytes == null) throw AskError('the answer file is not a regular file within the size limit');
+        if (bytes == null) throw AskError(tr("the answer file is not a regular file within the size limit"));
         text = utf8.decode(bytes, allowMalformed: true);
       } else {
         text = utf8.decode(out.takeBytes(), allowMalformed: true);
@@ -920,7 +922,7 @@ final class AskRunner {
       if (code != 0 && text.trim().isEmpty) {
         var tail = utf8.decode(errTail, allowMalformed: true).trim();
         if (tail.length > 400) tail = tail.substring(tail.length - 400);
-        throw AskError(tail.isEmpty ? 'exit $code' : tail);
+        throw AskError(tail.isEmpty ? trf('exit {0}', [code]) : tail);
       }
       return text;
     } on ProcessException catch (e) {

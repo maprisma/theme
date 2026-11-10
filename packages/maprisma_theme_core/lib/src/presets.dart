@@ -1,3 +1,4 @@
+import 'i18n.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'apply.dart';
@@ -15,14 +16,14 @@ String presetName(Object? value) {
   if (value is! String || value.contains(RegExp(r'[\x00-\x1f\x7f]'))) {
     throw RouteError(
       'bad_params',
-      'Preset name must be 1–60 printable characters',
+      tr("Preset name must be 1–60 printable characters"),
     );
   }
   final name = value.trim().replaceAll(RegExp(r'\s+'), ' ');
   if (name.isEmpty || name.length > 60) {
     throw RouteError(
       'bad_params',
-      'Preset name must be 1–60 printable characters',
+      tr("Preset name must be 1–60 printable characters"),
     );
   }
   return name;
@@ -71,7 +72,7 @@ void renamePresetTheme(Ctx ctx, String old, String renamed) {
 Map<String, dynamic> namedPreset(Ctx ctx, String name) =>
     loadPresets(ctx).firstWhere(
       (p) => p['name'] == name,
-      orElse: () => throw RouteError('not_found', 'Preset not found'),
+      orElse: () => throw RouteError('not_found', tr("Preset not found")),
     );
 String? presetWallpaper(Ctx ctx, Map p) {
   final name = p['wallpaper'];
@@ -80,7 +81,7 @@ String? presetWallpaper(Ctx ctx, Map p) {
   for (final b in listBackgrounds(ctx.paths, theme)) {
     if (b.name == name && !b.hidden) return b.path;
   }
-  throw RouteError('not_found', 'Preset wallpaper is unavailable');
+  throw RouteError('not_found', tr("Preset wallpaper is unavailable"));
 }
 
 // Reserve the entire snapshot before any window is moved or app launched.
@@ -151,7 +152,7 @@ Future<Map<String, dynamic>> restoreApps(
   }
   final state = loadWorkspaces(ctx);
   layout ??= (state['workspaceLayouts'] as Map)['$ws'] as Map?;
-  if (layout == null) throw RouteError('not_found', 'No saved apps');
+  if (layout == null) throw RouteError('not_found', tr("No saved apps"));
   final apps = (layout['apps'] as List).cast<String>();
   if (apps.isEmpty) {
     return {
@@ -220,7 +221,7 @@ Future<Map<String, dynamic>> restoreApps(
       }
     }
     if (target == null) {
-      throw RouteError('no_room', 'No empty workspace for other windows');
+      throw RouteError('no_room', tr("No empty workspace for other windows"));
     }
   }
   final moves = <Map<String, dynamic>>[];
@@ -297,13 +298,13 @@ Future<Map<String, dynamic>> applySavedPreset(
   if (snapshot != null && !confirmed) {
     throw RouteError(
       'confirmation_required',
-      'This preset restores apps and moves windows',
+      tr("This preset restores apps and moves windows"),
     );
   }
   final wallpaper = presetWallpaper(ctx, p);
   final font = p['font'];
   if (font != null && !(await ctx.desktop.monospaceFonts()).contains(font)) {
-    throw RouteError('not_found', 'Preset font is unavailable');
+    throw RouteError('not_found', tr("Preset font is unavailable"));
   }
   await applyTheme(ctx, p['theme'] as String, wallpaper: wallpaper);
   if (font is String) await applyFontOverride(ctx, FontRole.mono, font);
@@ -378,7 +379,7 @@ class PresetUndo {
 
   Future<void> restore(Ctx ctx, String id, {bool appearance = false}) async {
     final s = _receipts.remove(id);
-    if (s == null) throw RouteError('not_found', 'Undo expired');
+    if (s == null) throw RouteError('not_found', tr("Undo expired"));
     saveWorkspaces(
       ctx,
       Map<String, dynamic>.from(s['workspaces'] as Map),
@@ -425,7 +426,7 @@ class PresetUndo {
 
 void savePresetList(Ctx ctx, List<Map<String, dynamic>> list) {
   if (list.length > 50 || utf8.encode(jsonEncode(list)).length > 1024 * 1024) {
-    throw RouteError('limit', 'Too many presets');
+    throw RouteError('limit', tr("Too many presets"));
   }
   writeJson(ctx.paths.file('presets.json'), list);
 }

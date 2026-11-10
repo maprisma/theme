@@ -1,6 +1,20 @@
 [Desktop Entry]
 Name=Maprisma Theme
+Name[de]=Maprisma Theme
+Name[fr]=Maprisma Theme
+Name[es]=Maprisma Theme
+Name[it]=Maprisma Theme
+Name[pt]=Maprisma Theme
+Name[nl]=Maprisma Theme
+Name[pl]=Maprisma Theme
 Comment=Themes, wallpapers and workspace automation
+Comment[de]=Themes, Hintergründe und Arbeitsbereich-Automation
+Comment[fr]=Thèmes, fonds d’écran et automatisation des espaces de travail
+Comment[es]=Temas, fondos y automatización de espacios de trabajo
+Comment[it]=Temi, sfondi e automazione degli spazi di lavoro
+Comment[pt]=Temas, papéis de parede e automação das áreas de trabalho de trabalho
+Comment[nl]=Thema’s, achtergronden en werkbladautomatisering
+Comment[pl]=Motywy, tapety i automatyzacja obszarów roboczych
 Type=Application
 Exec=maprisma-theme-applet
 Terminal=false

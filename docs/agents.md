@@ -3,7 +3,13 @@
 Read first: `docs/plan.md`, `docs/cosmic-interface.md`, and the plugin's README
 (`/mnt/Data/Projects/omarchy-theme-manager/README.md`) — that README is the feature spec. Port the
 plugin's Python faithfully (its files are listed at the end of its README), adapted to COSMIC as
-docs/plan.md says. English only: no i18n, no `_()`; use the plugin's English texts. No manual.
+docs/plan.md says. Interface languages are en, de, fr, es, it, pt, nl and pl (the former
+English-only rule is lifted). Use `tr('English')` and `trf('English {0}', [value])`;
+keep theme names and other data unchanged. Reuse the original's exact English keys and catalogs
+(read-only upstream); port additions go in every `translations/extra/<code>.json`.
+Run `tools/gen-translations` after catalog edits and `python3 -m unittest discover -s tests`
+for catalog coverage. Language is stored in the app's settings, with `auto` following the first
+nonempty LC_ALL, LC_MESSAGES or LANG (unknown locales use English). No manual.
 
 ## Layout and conventions
 

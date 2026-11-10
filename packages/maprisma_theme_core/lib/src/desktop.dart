@@ -1,3 +1,4 @@
+import 'i18n.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -168,7 +169,7 @@ Map<String, dynamic> desktopInfo(Desktop d) => {
 };
 
 /// `{"error": "not_available"}` for a wm call the backend cannot do.
-Map<String, dynamic> wmNotAvailable(String name) => {'error': 'not_available', 'message': 'not available on $name'};
+Map<String, dynamic> wmNotAvailable(String name) => {'error': 'not_available', 'message': trf("not available on {0}", [name])};
 
 /// What every real backend shares: maprisma-theme-helper (for parsing RON
 /// files on any desktop), fc-list fonts, the icon theme folders.

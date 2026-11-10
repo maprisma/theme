@@ -1,3 +1,4 @@
+import 'i18n.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -29,20 +30,20 @@ final pluginIdRe = RegExp(r'^[a-z0-9][a-z0-9._-]{0,99}$');
 final _etag = RegExp(r'^(?:W/)?"[\x21\x23-\x7e]{1,200}"$');
 
 /// id, name, one-line explanation (more_plugins.PLUGINS, in that order).
-const builtinPlugins = [
-  ('ubruckhaus.wlan-monitor', 'WLAN Monitor', 'Who is on your Wi-Fi, with a network map'),
-  ('ubruckhaus.theme-manager', 'Theme Manager', 'Every Omarchy theme in one place, with wallpapers'),
-  ('ubruckhaus.bluetooth-monitor', 'Bluetooth Monitor', 'Battery levels of mice, keyboards and headsets'),
-  ('ubruckhaus.llm-usage', 'LLM Monitor', 'Which local AI model holds your GPU memory'),
-  ('ubruckhaus.ai-agents-map', 'AI Agents Map', 'Your AI agents, models and MCP servers on one map'),
-  ('ubruckhaus.simple-launcher-for-fools', 'App Manager', 'Your apps in groups, with shortcuts and a dock'),
-  ('ubruckhaus.maprisma-launcher', 'Maprisma Launcher', 'Apps, shortcuts and updates, with AI package advice'),
-  ('ubruckhaus.simple-tile', 'Workspace Presets', 'Window limits and layouts per workspace'),
-  ('ubruckhaus.hue-lights', 'Hue Lights', 'Philips Hue rooms and lights from the bar'),
-  ('ubruckhaus.video-trans', 'Video Trans', 'Live translated captions for any video or call'),
-  ('ubruckhaus.simple-reader', 'Screen Narrator', 'Reads any window, PDF or Kindle page aloud'),
-  ('ubruckhaus.simple-recipes', 'Simple Recipes', 'Your recipes: import, translate and cook'),
-  ('ubruckhaus.my-plugins', 'My Plugins', 'For plugin authors: views, downloads, status'),
+List<(String, String, String)> get builtinPlugins => [
+  ('ubruckhaus.wlan-monitor', 'WLAN Monitor', tr('Who is on your Wi-Fi, with a network map')),
+  ('ubruckhaus.theme-manager', 'Theme Manager', tr('Every Omarchy theme in one place, with wallpapers')),
+  ('ubruckhaus.bluetooth-monitor', 'Bluetooth Monitor', tr('Battery levels of mice, keyboards and headsets')),
+  ('ubruckhaus.llm-usage', 'LLM Monitor', tr('Which local AI model holds your GPU memory')),
+  ('ubruckhaus.ai-agents-map', 'AI Agents Map', tr('Your AI agents, models and MCP servers on one map')),
+  ('ubruckhaus.simple-launcher-for-fools', 'App Manager', tr('Your apps in groups, with shortcuts and a dock')),
+  ('ubruckhaus.maprisma-launcher', 'Maprisma Launcher', tr('Apps, shortcuts and updates, with AI package advice')),
+  ('ubruckhaus.simple-tile', 'Workspace Presets', tr('Window limits and layouts per workspace')),
+  ('ubruckhaus.hue-lights', 'Hue Lights', tr('Philips Hue rooms and lights from the bar')),
+  ('ubruckhaus.video-trans', 'Video Trans', tr('Live translated captions for any video or call')),
+  ('ubruckhaus.simple-reader', 'Screen Narrator', tr('Reads any window, PDF or Kindle page aloud')),
+  ('ubruckhaus.simple-recipes', 'Simple Recipes', tr('Your recipes: import, translate and cook')),
+  ('ubruckhaus.my-plugins', 'My Plugins', tr('For plugin authors: views, downloads, status')),
 ];
 
 String marketplacePage(String id) => '$marketplaceUrl${Uri.encodeQueryComponent(id)}';

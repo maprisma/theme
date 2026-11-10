@@ -1,3 +1,4 @@
+import '../i18n.dart';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -123,10 +124,10 @@ class _ThemesPageState extends State<ThemesPage> {
   Future<void> apply(Map t) async {
     // Applying a hidden theme means it is wanted again: unhide it first.
     if (t['hidden'] == true) await app.run('themes.hide', {'slug': t['slug'], 'hidden': false});
-    app.notify('Applying ${t['name']}…', duration: const Duration(seconds: 20));
+    app.notify(trf("Applying {0}…", [t['name']]), duration: const Duration(seconds: 20));
     final r = await app.run('themes.apply', {'slug': t['slug']});
     if (r == null) return;
-    app.notify('Theme applied: ${t['name']}');
+    app.notify(trf("Theme applied: {0}", [t['name']]));
     app.changed();
   }
 
@@ -134,14 +135,14 @@ class _ThemesPageState extends State<ThemesPage> {
   Future<void> reapply(Map t) async {
     final r = await app.run('looks.apply', {'slug': t['slug']});
     if (r == null) return;
-    app.notify('Reapplied: ${t['name']}');
+    app.notify(trf("Reapplied: {0}", [t['name']]));
     app.changed();
   }
 
   static String _lookField(Object? key) => switch (key) {
-    'mono_font' => 'monospace font',
-    'ui_font' => 'interface font',
-    'blur' => 'blur',
+    'mono_font' => tr("monospace font"),
+    'ui_font' => tr("interface font"),
+    'blur' => tr('Blur'),
     _ => '$key',
   };
 
@@ -168,9 +169,9 @@ class _ThemesPageState extends State<ThemesPage> {
   Future<void> delete(Map t) async {
     final ok = await confirm(
       context,
-      'Delete theme “${t['name']}”?',
-      'Wallpapers you added to it are kept.\nThe theme goes to the trash: Undo brings it back.',
-      action: 'Delete theme',
+      trf("Delete theme “{0}”?", [t['name']]),
+      tr("Wallpapers you added to it are kept.\nThe theme goes to the trash: Undo brings it back."),
+      action: tr("Delete theme"),
     );
     if (!ok) return;
     final next = neighbor(t['slug'] as String);
@@ -178,7 +179,7 @@ class _ThemesPageState extends State<ThemesPage> {
     if (r == null) return;
     selected = next;
     app.changed();
-    app.notify('“${t['name']}” moved to the trash', undo: r['receipt'] == null ? null : () async {
+    app.notify(trf("“{0}” moved to the trash", [t['name']]), undo: r['receipt'] == null ? null : () async {
       await app.run('themes.undo_delete', {'receipt': r['receipt']});
       app.changed();
     });
@@ -194,8 +195,11 @@ class _ThemesPageState extends State<ThemesPage> {
     final r = await app.run('auto.schedule_set', {which: t['slug']});
     if (r == null) return;
     final p = (r['schedule'] as Map?) ?? plan;
-    app.notify('${t['name']} is the $which theme. '
-        '${p['enabled'] == true ? 'From ${p['${which}_at']}.' : 'Switch on “Switch themes by time of day” in Settings (⚙).'}');
+    final message = which == 'day'
+        ? trf('{0} is the day theme', [t['name']])
+        : trf('{0} is the night theme', [t['name']]);
+    final timing = p['enabled'] == true ? trf('From {0}.', [p['${which}_at']]) : tr('Switch on “Switch themes by time of day” in Settings (⚙).');
+    app.notify('$message. $timing');
     app.changed();
   }
 
@@ -205,24 +209,24 @@ class _ThemesPageState extends State<ThemesPage> {
     if (anchor == null) return;
     final mine = {for (final e in workspaceThemes.entries) if (e.value == slug) e.key};
     final others = {for (final e in workspaceThemes.entries) if (e.value != slug) e.key: nameOf(e.value)};
-    final ws = await showWorkspaceMenu(context, anchor: anchor, title: 'Use theme on workspace', mine: mine, others: others);
+    final ws = await showWorkspaceMenu(context, anchor: anchor, title: tr("Use theme on workspace"), mine: mine, others: others);
     if (ws == null || ws == 0 || !mounted) return;
     final on = !mine.contains(ws);
     final wanted = on ? {...mine, ws} : ({...mine}..remove(ws));
     final r = await app.run('auto.set_workspace_themes', {'slug': slug, 'workspaces': wanted.toList()..sort()},
-        'Could not assign workspace');
+        tr("Could not assign workspace"));
     if (r == null) return;
-    app.notify(on ? 'Workspace $ws assigned: ${t['name']}' : 'Workspace $ws cleared');
+    app.notify(on ? trf("Workspace {0} assigned: {1}", [ws, t['name']]) : trf("Workspace {0} cleared", [ws]));
     app.changed();
   }
 
   Future<void> useEverywhere(Map t) async {
-    final r = await app.run('auto.use_everywhere', const {}, 'Could not change the workspaces');
+    final r = await app.run('auto.use_everywhere', const {}, tr("Could not change the workspaces"));
     if (r == null) return;
     app.changed();
-    app.notify('Every workspace uses ${t['name']}', undo: r['saved'] == null ? null : () async {
-      final u = await app.run('auto.undo_use_everywhere', {'saved': r['saved']}, 'Could not undo');
-      if (u != null && u['restored'] == false) app.notify("Could not undo: the workspaces' themes changed meanwhile.");
+    app.notify(trf("Every workspace uses {0}", [t['name']]), undo: r['saved'] == null ? null : () async {
+      final u = await app.run('auto.undo_use_everywhere', {'saved': r['saved']}, tr("Could not undo"));
+      if (u != null && u['restored'] == false) app.notify(tr("Could not undo: the workspaces' themes changed meanwhile."));
       app.changed();
     });
   }
@@ -238,66 +242,65 @@ class _ThemesPageState extends State<ThemesPage> {
     final slug = t['slug'] as String;
     final fav = t['favorite'] == true, hidden = t['hidden'] == true, current = t['current'] == true;
     final key = (shortcutLabels['apply:$slug'] ?? const []).firstOrNull;
-    var shortcut = key == null ? 'Shortcut…' : 'Shortcut: $key…';
-    if (key != null && hidden) shortcut = 'Shortcut: $key (works while hidden)…';
+    var shortcut = key == null ? tr("Shortcut…") : trf("Shortcut: {0}…", [key]);
+    if (key != null && hidden) shortcut = trf("Shortcut: {0} (works while hidden)…", [key]);
     final isDay = plan['day'] == slug, isNight = plan['night'] == slug;
     return [
       if (current) ...[
-        item(Icons.check, 'Current theme', () {}, enabled: false),
+        item(Icons.check, tr("Current theme"), () {}, enabled: false),
         // only while its fonts or blur aren't on the desktop (saved in Font & effects, or changed elsewhere)
         if ((t['pending'] as List?)?.isNotEmpty == true)
-          item(Icons.refresh, 'Reapply', () => reapply(t),
-              tooltip: 'Not on the desktop yet: ${(t['pending'] as List).map(_lookField).join(', ')}'),
+          item(Icons.refresh, tr("Reapply"), () => reapply(t),
+              tooltip: trf("Not on the desktop yet: {0}", [(t['pending'] as List).map(_lookField).join(', ')])),
       ] else
-        item(Icons.play_arrow, 'Apply theme', () => apply(t)),
-      item(Icons.image_outlined, 'Wallpapers', () => open(WallpapersPage(slug: slug)), end: Icons.chevron_right),
-      if (app.can('workspaces')) item(Icons.grid_view, 'Use on workspace…', () => onWorkspaces(t),
-          tooltip: 'Switches the theme when that workspace gains focus'),
+        item(Icons.play_arrow, tr("Apply theme"), () => apply(t)),
+      item(Icons.image_outlined, tr("Wallpapers"), () => open(WallpapersPage(slug: slug)), end: Icons.chevron_right),
+      if (app.can('workspaces')) item(Icons.grid_view, tr("Use on workspace…"), () => onWorkspaces(t),
+          tooltip: tr("Switches the theme when that workspace gains focus")),
       if (app.can('workspaces') && current && workspaceThemes.isNotEmpty)
-        item(Icons.apps, 'Use on all workspaces', () => useEverywhere(t),
-            tooltip: "Removes the other workspaces' own themes: this one everywhere (until the next day/night switch)"),
-      item(Icons.add, 'New theme from this…', () => open(EditorPage(base: slug)),
-          tooltip: 'Your own copy with other colors, a font and these wallpapers'),
+        item(Icons.apps, tr("Use on all workspaces"), () => useEverywhere(t),
+            tooltip: tr("Removes the other workspaces' own themes: this one everywhere (until the next day/night switch)")),
+      item(Icons.add, tr("New theme from this…"), () => open(EditorPage(base: slug)),
+          tooltip: tr("Your own copy with other colors, a font and these wallpapers")),
       if (t['custom'] == true)
-        item(Icons.edit_outlined, 'Edit theme…', () => open(EditorPage(edit: slug)), tooltip: 'Name, colors and font'),
+        item(Icons.edit_outlined, tr("Edit theme…"), () => open(EditorPage(edit: slug)), tooltip: tr("Name, colors and font")),
       if (app.can('fonts') || app.can('uiFont') || app.can('blur'))
-        item(Icons.text_format, 'Font & effects…', () async {
+        item(Icons.text_format, tr("Font & effects…"), () async {
           await lookDialog(context, app, slug);
           if (mounted) focus.requestFocus();
-        }, tooltip: 'Fonts and blur for this theme; the theme files stay as they are'),
+        }, tooltip: tr("Fonts and blur for this theme; the theme files stay as they are")),
       if (app.can('shortcuts')) item(Icons.keyboard_outlined, shortcut, () => open(ShortcutPage(target: 'apply:$slug', title: '${t['name']}')),
-          tooltip: 'A key that applies this theme from anywhere'
-              '${hidden ? '. It also works while the theme is hidden, and applying it unhides it.' : ''}'),
+          tooltip: trf("A key that applies this theme from anywhere{0}", [hidden ? tr(". It also works while the theme is hidden, and applying it unhides it.") : ''])),
       if (fav)
-        item(Icons.star, 'Remove from favorites', () => setFavorite(t, false))
+        item(Icons.star, tr("Remove from favorites"), () => setFavorite(t, false))
       else
-        item(Icons.star_border, 'Add to favorites', () => setFavorite(t, true),
-            tooltip: "Listed first, and in the panel icon's right-click menu"),
+        item(Icons.star_border, tr("Add to favorites"), () => setFavorite(t, true),
+            tooltip: tr("Listed first, and in the panel icon's right-click menu")),
       if (isDay)
-        item(Icons.check, 'This is the day theme', () {}, enabled: false)
+        item(Icons.check, tr("This is the day theme"), () {}, enabled: false)
       else if (isNight)
-        item(Icons.check, 'This is the night theme', () {}, enabled: false)
+        item(Icons.check, tr("This is the night theme"), () {}, enabled: false)
       else ...[
-        item(Icons.wb_sunny_outlined, 'Use as day theme', () => dayNight(t, 'day'),
-            tooltip: 'Applied at the day time set in Settings (⚙)'),
-        item(Icons.nightlight_outlined, 'Use as night theme', () => dayNight(t, 'night'),
-            tooltip: 'Applied at the night time set in Settings (⚙)'),
+        item(Icons.wb_sunny_outlined, tr("Use as day theme"), () => dayNight(t, 'day'),
+            tooltip: tr("Applied at the day time set in Settings (⚙)")),
+        item(Icons.nightlight_outlined, tr("Use as night theme"), () => dayNight(t, 'night'),
+            tooltip: tr("Applied at the night time set in Settings (⚙)")),
       ],
       menuLine(),
       if (hidden)
-        item(Icons.visibility_outlined, 'Unhide from list', () => setHidden(t, false))
+        item(Icons.visibility_outlined, tr("Unhide from list"), () => setHidden(t, false))
       else
-        item(Icons.visibility_off_outlined, 'Hide from list', () => setHidden(t, true),
-            enabled: !current, tooltip: current ? 'This is the active theme: apply another theme first' : null),
+        item(Icons.visibility_off_outlined, tr("Hide from list"), () => setHidden(t, true),
+            enabled: !current, tooltip: current ? tr("This is the active theme: apply another theme first") : null),
       menuLine(),
       if (t['deletable'] == true && current)
-        item(Icons.delete_outline, 'Delete theme…', () {},
-            enabled: false, tooltip: 'This is the active theme: apply another theme first')
+        item(Icons.delete_outline, tr("Delete theme…"), () {},
+            enabled: false, tooltip: tr("This is the active theme: apply another theme first"))
       else if (t['deletable'] == true)
-        item(Icons.delete_outline, 'Delete theme…', () => delete(t), destructive: true)
+        item(Icons.delete_outline, tr("Delete theme…"), () => delete(t), destructive: true)
       else
-        item(Icons.lock_outline, 'System theme (read-only)', () {},
-            enabled: false, tooltip: 'System themes cannot be deleted; hide them instead'),
+        item(Icons.lock_outline, tr("System theme (read-only)"), () {},
+            enabled: false, tooltip: tr("System themes cannot be deleted; hide them instead")),
     ];
   }
 
@@ -418,8 +421,10 @@ class _ThemesPageState extends State<ThemesPage> {
       padding: const EdgeInsets.fromLTRB(8, 10, 8, 8),
       child: Text(
         list.isEmpty
-            ? (filter.isEmpty ? 'No themes.' : 'No theme matches “$filter”. Backspace or Esc clears the filter.')
-            : '$hiddenCount hidden theme${hiddenCount == 1 ? '' : 's'} not shown. The eye button in the header shows them.',
+            ? (filter.isEmpty ? tr("No themes.") : trf("No theme matches “{0}”. Backspace or Esc clears the filter.", [filter]))
+            : hiddenCount == 1
+                ? trf('{0} hidden theme not shown. The eye button in the header shows them.', [hiddenCount])
+                : trf('{0} hidden themes not shown. The eye button in the header shows them.', [hiddenCount]),
         style: hintStyle(context),
       ),
     );
@@ -537,18 +542,18 @@ class _ThemeTileState extends State<ThemeTile> {
                 right: 40,
                 bottom: 6,
                 child: Wrap(spacing: 4, runSpacing: 4, children: [
-                  if (t['current'] == true) const TileBadge('current', kind: BadgeKind.current),
-                  if (t['scope'] == 'system') const TileBadge('system'),
-                  if (hidden) const TileBadge('hidden'),
+                  if (t['current'] == true) TileBadge(tr("current"), kind: BadgeKind.current),
+                  if (t['scope'] == 'system') TileBadge(tr("system")),
+                  if (hidden) TileBadge(tr("hidden")),
                   if (widget.workspaces.isNotEmpty)
-                    TileBadge('ws ${widget.workspaces.join(' · ')}',
-                        tooltip: 'Used on workspace ${widget.workspaces.join(', ')}'),
+                    TileBadge(trf("ws {0}", [widget.workspaces.join(' · ')]),
+                        tooltip: trf("Used on workspace {0}", [widget.workspaces.join(', ')])),
                 ]),
               ),
               Positioned(
                 top: 0,
                 right: 0,
-                child: TileMenuButton(menuKey: widget.menuKey, tooltip: 'Theme actions (Menu key)', menu: widget.menu),
+                child: TileMenuButton(menuKey: widget.menuKey, tooltip: tr("Theme actions (Menu key)"), menu: widget.menu),
               ),
             ]),
           ),
@@ -563,7 +568,7 @@ class _ThemeTileState extends State<ThemeTile> {
             ],
             Expanded(
               child: Tooltip(
-                message: key == null ? '' : '$key applies this theme',
+                message: key == null ? '' : trf("{0} applies this theme", [key]),
                 child: Text('${t['name']}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,

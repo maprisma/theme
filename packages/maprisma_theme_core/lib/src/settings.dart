@@ -4,8 +4,9 @@ import 'paths.dart';
 import 'store.dart';
 
 /// settings.json: the plugin's keys (Theme Manager 2.0.0), minus Omarchy's
-/// picker sync and the language, plus `apps` (which app templates are used).
+/// picker sync, plus `apps` (which app templates are used).
 const defaultSettings = <String, dynamic>{
+  'language': 'auto',
   'size': null,
   'workspace_wallpapers': true,
   'workspace_themes': false,
@@ -71,7 +72,7 @@ final class Settings {
   Map<String, dynamic> reset() {
     final raw = readJsonMap(paths.settingsFile);
     final keep = <String, dynamic>{
-      for (final k in ['size', 'ask_ai', 'ask_ai_helper', 'ask_prompts', 'own_font', 'own_font_kde', 'own_ui_font', 'own_ui_font_kde', 'own_blur', 'own_blur_kde', 'apps'])
+      for (final k in ['language', 'size', 'ask_ai', 'ask_ai_helper', 'ask_prompts', 'own_font', 'own_font_kde', 'own_ui_font', 'own_ui_font_kde', 'own_blur', 'own_blur_kde', 'apps'])
         if (raw.containsKey(k)) k: raw[k],
     };
     final old = raw['schedule'] is Map ? Map<String, dynamic>.from(raw['schedule']) : <String, dynamic>{};
@@ -86,6 +87,7 @@ final class Settings {
   }
 
   static bool check(String key, dynamic v) => switch (key) {
+    'language' => v is String && const {'auto', 'en', 'de', 'fr', 'es', 'it', 'pt', 'nl', 'pl'}.contains(v),
     'size' => v == null || (v is List && v.length == 2 && v.every((e) => e is int && e >= 320 && e <= 10000)),
     'workspace_wallpapers' || 'workspace_themes' || 'screenshot_key' || 'ask_ai' || 'maprisma_hints' || 'show_hidden' =>
       v is bool,

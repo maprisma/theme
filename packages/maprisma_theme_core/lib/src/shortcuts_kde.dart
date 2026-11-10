@@ -8,6 +8,8 @@
 /// ours exists and given back after (kde-shadowed.json).
 library;
 
+import 'i18n.dart';
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -256,7 +258,7 @@ final class KdeShortcutBinder implements ShortcutBinder {
   Map<String, dynamic> check(int expected) {
     final written = _ours().length;
     final ok = written == expected;
-    return {'ok': ok, 'written': written, 'note': ok ? '' : '$expected key(s) set, $written in KDE\'s shortcuts: Repair writes them again'};
+    return {'ok': ok, 'written': written, 'note': ok ? '' : trf("{0} key(s) set, {1} in KDE's shortcuts: Repair writes them again", [expected, written])};
   }
 }
 

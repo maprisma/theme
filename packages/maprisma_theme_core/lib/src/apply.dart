@@ -1,3 +1,4 @@
+import 'i18n.dart';
 import 'dart:io';
 
 import 'apps.dart';
@@ -49,7 +50,7 @@ Future<Map<String, dynamic>> applyTheme(Ctx ctx, String slug, {String? wallpaper
   final theme = ctx.theme(slug);
   final resolved = await themeColors(ctx, theme);
   if (!isHex(resolved['background']) || !isHex(resolved['foreground'])) {
-    throw RouteError('bad_theme', 'the theme has no usable colors');
+    throw RouteError('bad_theme', tr("the theme has no usable colors"));
   }
   final object = colorsObject(resolved);
   final desktop = ctx.desktop;
@@ -65,7 +66,7 @@ Future<Map<String, dynamic>> applyTheme(Ctx ctx, String slug, {String? wallpaper
         'apply_failed',
         desktop.id == 'cosmic'
             ? 'COSMIC did not take the theme (is maprisma-theme-helper installed?)'
-            : '${desktop.name} did not take the theme',
+            : trf("{0} did not take the theme", [desktop.name]),
       );
     }
     done.add(desktop.id);

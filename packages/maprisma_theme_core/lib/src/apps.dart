@@ -6,6 +6,8 @@
 /// switched on (settings `apps`: null = every installed app).
 library;
 
+import 'i18n.dart';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -373,7 +375,7 @@ List<String> removeAppIncludes(Ctx ctx, [Iterable<String>? ids]) => [
 ];
 
 String _vscodeNote(Ctx ctx, AppSpec a) =>
-    'colors are written to ${currentAppsDir(ctx)}/${a.output}; VS Code needs them installed as an extension, which Maprisma Theme does not do';
+    trf("colors are written to {0}/{1}; VS Code needs them installed as an extension, which Maprisma Theme does not do", [currentAppsDir(ctx), a.output]);
 
 /// The Themes section of Settings: every app, installed or not.
 List<Map<String, dynamic>> appsList(Ctx ctx) => [
@@ -388,12 +390,12 @@ List<Map<String, dynamic>> appsList(Ctx ctx) => [
         'enabled': appEnabled(ctx, a),
         'included': includeActive(ctx, a),
         'note': switch (a.id) {
-          'vscode' => 'Not supported: ${_vscodeNote(ctx, a)}',
-          'neovim' => 'Needs a lazy.nvim config (~/.config/nvim/lua/plugins/)',
-          'alacritty' => 'Adds general.import to alacritty.toml',
-          'btop' => 'Sets color_theme in btop.conf (restart btop)',
-          'helix' => 'Sets theme in config.toml (restart Helix)',
-          _ => 'One include line in its config (new windows)',
+          'vscode' => trf("Not supported: {0}", [_vscodeNote(ctx, a)]),
+          'neovim' => tr("Needs a lazy.nvim config (~/.config/nvim/lua/plugins/)"),
+          'alacritty' => tr("Adds general.import to alacritty.toml"),
+          'btop' => tr("Sets color_theme in btop.conf (restart btop)"),
+          'helix' => tr("Sets theme in config.toml (restart Helix)"),
+          _ => tr("One include line in its config (new windows)"),
         },
       };
     }(),
@@ -404,7 +406,7 @@ List<Map<String, dynamic>> appsList(Ctx ctx) => [
 Map<String, dynamic> setAppEnabled(Ctx ctx, String id, bool on, Map<String, String>? resolved) {
   final a = appSpec(id);
   if (a == null) throw RouteError('bad_params', 'id');
-  if (on && !appSupported(a)) throw RouteError('unsupported', '${a.label} cannot be switched on: ${_vscodeNote(ctx, a)}');
+  if (on && !appSupported(a)) throw RouteError('unsupported', trf("{0} cannot be switched on: {1}", [a.label, _vscodeNote(ctx, a)]));
   final raw = ctx.settings.get('apps');
   final list = raw is List
       ? [for (final x in raw) if (x is String) x]

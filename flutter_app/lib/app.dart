@@ -1,3 +1,4 @@
+import 'i18n.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -13,6 +14,7 @@ import 'pages/settings_page.dart';
 import 'pages/themes_page.dart';
 import 'screenshots.dart';
 import 'theme.dart';
+import 'material_translations.dart';
 import 'window.dart';
 
 /// What every page reaches through `AppScope.of(context)`.
@@ -168,6 +170,7 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
         colors = (look['colors'] as Map?) ?? const {};
         windowRadius = (look['corner_radius'] as num?)?.round();
         settings = Map<String, dynamic>.from(s['settings'] as Map);
+        languageSetting = settings['language'] as String? ?? 'auto';
       });
       AppWindow.instance.titlebar(look['is_dark'] != false);
     } catch (_) {
@@ -185,6 +188,14 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
     } catch (_) {
       // not known
     }
+  }
+
+  /// Apply the saved language before desktop refreshes can delay the UI.
+  void useLanguage(String setting) {
+    setState(() {
+      languageSetting = setting;
+      settings = {...settings, 'language': setting};
+    });
   }
 
   void changed() {
@@ -254,7 +265,7 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
         duration: duration ?? (undo != null ? const Duration(seconds: 8) : const Duration(seconds: 4)),
         action: undo == null
             ? null
-            : SnackBarAction(label: 'Undo', onPressed: () {
+            : SnackBarAction(label: tr("Undo"), onPressed: () {
                 _undo = null;
                 undo();
               }),
@@ -292,7 +303,10 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
     return AppScope(
       state: this,
       child: MaterialApp(
-        title: 'Maprisma Theme',
+        title: tr('Maprisma Theme'),
+        locale: Locale(currentLanguage),
+        supportedLocales: [for (final code in languageNames.keys) Locale(code)],
+        localizationsDelegates: const [MaprismaMaterialDelegate()],
         debugShowCheckedModeBanner: false,
         navigatorKey: navigator,
         navigatorObservers: [_observer],
@@ -374,13 +388,13 @@ class _MainHeaderState extends State<MainHeader> {
   DateTime? _lastRight;
   String? _dropBefore;
 
-  static const _tips = {
-    'import': 'Import themes from omarchy.org and cosmic-themes.org (Ctrl+I)',
-    'presets': 'Presets: saved theme, wallpaper and font',
-    'info': 'Information',
-    'ask': 'Ask AI: find or make a theme',
+  static Map<String, String> get _tips => {
+    'import': tr("Import themes from omarchy.org and cosmic-themes.org (Ctrl+I)"),
+    'presets': tr("Presets: saved theme, wallpaper and font"),
+    'info': tr("Information"),
+    'ask': tr("Ask AI: find or make a theme"),
   };
-  static const _moveHint = 'Drag to rearrange · Alt+←/→';
+  static String get _moveHint => tr("Drag to rearrange · Alt+←/→");
 
   @override
   Widget build(BuildContext context) {
@@ -390,9 +404,9 @@ class _MainHeaderState extends State<MainHeader> {
     final size = MediaQuery.sizeOf(context);
     final state = app.sizeState(size);
     final hint = switch (state) {
-      'default' => 'Double-click: maximize',
-      'max' => 'Double-click: default size',
-      _ => 'Double-click: default size · right double-click: maximize',
+      'default' => tr("Double-click: maximize"),
+      'max' => tr("Double-click: default size"),
+      _ => tr("Double-click: default size · right double-click: maximize"),
     };
     return ListenableBuilder(
       listenable: Listenable.merge([app.listFilter, app.topPage]),
@@ -404,8 +418,8 @@ class _MainHeaderState extends State<MainHeader> {
           for (final id in order)
             if (!onPage || !const {'info', 'presets', 'ask'}.contains(id)) id,
         ];
-        var title = 'Maprisma Theme';
-        if (app.showHidden) title += ' (Showing hidden)';
+        var title = tr('Maprisma Theme');
+        if (app.showHidden) title += tr(" (Showing hidden)");
         if (app.listFilter.value.isNotEmpty) title += ' — ${app.listFilter.value}';
         return GestureDetector(
           behavior: HitTestBehavior.opaque,
@@ -456,7 +470,7 @@ class _MainHeaderState extends State<MainHeader> {
               if (page != 'settings') ...[
                 const SizedBox(width: 8),
                 Tooltip(
-                  message: 'Settings',
+                  message: tr("Settings"),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(r),
                     onTap: () => app.openPage('settings'),
@@ -481,7 +495,7 @@ class _MainHeaderState extends State<MainHeader> {
   Widget _button(MaprismaThemeAppState app, String id) {
     final look = Look.of(context);
     final tip = id == 'hidden'
-        ? (app.showHidden ? 'Hide hidden themes and wallpapers' : 'Show hidden themes and wallpapers')
+        ? (app.showHidden ? tr("Hide hidden themes and wallpapers") : tr("Show hidden themes and wallpapers"))
         : _tips[id]!;
     Widget icon;
     VoidCallback onTap;
@@ -591,11 +605,11 @@ String errorText(Object e) {
   final m = RegExp(r'Service operation failed: (\w+)').firstMatch(s);
   if (m != null) {
     return switch (m[1]) {
-      'apply_failed' => 'The desktop did not take the theme.',
-      'not_found' => 'Not found any more.',
-      'timeout' => 'That took too long.',
-      final code => 'Failed: ${code!.replaceAll('_', ' ')}',
+      'apply_failed' => tr("The desktop did not take the theme."),
+      'not_found' => tr("Not found any more."),
+      'timeout' => tr("That took too long."),
+      final code => trf("Failed: {0}", [code!.replaceAll('_', ' ')]),
     };
   }
-  return 'Failed: $s';
+  return trf("Failed: {0}", [s]);
 }

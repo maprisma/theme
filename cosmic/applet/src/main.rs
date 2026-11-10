@@ -1,3 +1,4 @@
+use maprisma_theme_helper::i18n::{current_language, tr, trf};
 mod process;
 use cosmic::iced::platform_specific::shell::wayland::commands::popup::destroy_popup;
 use cosmic::iced::{
@@ -58,6 +59,7 @@ struct Applet {
     busy: bool,
     automation: Automation,
     automation_text: Option<String>,
+    language: String,
     last_tick: Instant,
     last_tiling: Instant,
     last_scroll: Instant,
@@ -94,7 +96,7 @@ impl Applet {
         if self.queue.len() < 64 {
             self.queue.push_back(j);
         } else {
-            self.error = Some("Too many pending actions".into());
+            self.error = Some(tr("Too many pending actions").into());
         }
     }
     fn next(&mut self) -> Task<Message> {
@@ -111,6 +113,13 @@ impl Applet {
         })
     }
     fn reload(&mut self) {
+        let language = current_language();
+        if self.language != language {
+            self.language = language;
+            if self.popup.is_some() {
+                self.enqueue(Job::Menu);
+            }
+        }
         match read_bounded(&config_path()) {
             Ok(s) if self.automation_text.as_ref() != Some(&s) => {
                 match serde_json::from_str::<Automation>(&s) {
@@ -121,14 +130,14 @@ impl Applet {
                             self.enqueue(Job::Tiling(a));
                         }
                     }
-                    Err(e) => self.error = Some(format!("Automation settings: {e}")),
+                    Err(e) => self.error = Some(trf("Automation settings: {0}", &[e.to_string()])),
                 }
             }
             Err(_) if !config_path().exists() => {
                 self.automation = Automation::default();
                 self.automation_text = None;
             }
-            Err(e) => self.error = Some(format!("Automation settings: {e}")),
+            Err(e) => self.error = Some(trf("Automation settings: {0}", &[e.to_string()])),
             _ => {}
         }
     }
@@ -155,6 +164,7 @@ impl cosmic::Application for Applet {
             busy: false,
             automation: Automation::default(),
             automation_text: None,
+            language: current_language(),
             last_tick: now,
             last_tiling: now,
             last_scroll: now - Duration::from_secs(1),
@@ -302,7 +312,7 @@ impl cosmic::Application for Applet {
             });
         let tooltip = widget::tooltip(
             content,
-            text::body("Maprisma Theme · scroll: wallpaper · right-click: favorites"),
+            text::body(tr("Maprisma Theme · scroll: wallpaper · right-click: favorites")),
             widget::tooltip::Position::Bottom,
         );
         autosize::autosize(tooltip, AUTO.clone()).into()
@@ -317,14 +327,14 @@ impl cosmic::Application for Applet {
         }
         if let Some(menu) = &self.menu {
             rows = rows.push(text::heading(
-                menu["title"].as_str().unwrap_or("Favorite themes"),
+                menu["title"].as_str().map(str::to_owned).unwrap_or_else(|| tr("Favorite themes")),
             ));
             if let Some(themes) = menu["themes"].as_array() {
                 if themes.is_empty() {
                     rows = rows.push(text::body(
                         menu["empty_note"]
                             .as_str()
-                            .unwrap_or("No favorite themes yet"),
+                            .map(str::to_owned).unwrap_or_else(|| tr("No favorite themes yet")),
                     ));
                 }
                 for t in themes {
@@ -360,11 +370,11 @@ impl cosmic::Application for Applet {
             }
         } else {
             rows = rows.push(text::body(if self.busy {
-                "Loading themes…"
+                tr("Loading themes…")
             } else {
-                "Themes unavailable"
+                tr("Themes unavailable")
             }));
-            rows = rows.push(button::text("Open Maprisma Theme").on_press(Message::Toggle));
+            rows = rows.push(button::text(tr("Open Maprisma Theme")).on_press(Message::Toggle));
         }
         self.core
             .applet
@@ -454,7 +464,7 @@ async fn execute(job: Job) -> Result<Value, String> {
             let mut counts = BTreeMap::new();
             for w in ws["workspaces"]
                 .as_array()
-                .ok_or("invalid workspaces response")?
+                .ok_or(tr("invalid workspaces response"))?
             {
                 if let Some(i) = w["index"].as_u64() {
                     counts.insert(i as usize, 0);
@@ -462,7 +472,7 @@ async fn execute(job: Job) -> Result<Value, String> {
             }
             let windows = windows["windows"]
                 .as_array()
-                .ok_or("invalid windows response")?;
+                .ok_or(tr("invalid windows response"))?;
             if !windows
                 .iter()
                 .any(|w| w["id"] == id && w["workspace"].as_u64() == Some(source as u64))
@@ -506,9 +516,9 @@ async fn watch(out: &mut mpsc::Sender<Message>) {
                             Ok(n) if n > 0 && n <= 1024 * 1024 => {
                                 if let Ok(v) = serde_json::from_str::<Value>(&line) {
                                     let message = if v.get("error").is_some() {
-                                        Message::WatchError(format!(
-                                            "Compositor connection: {}",
-                                            v["message"].as_str().unwrap_or("helper error")
+                                        Message::WatchError(trf(
+                                            "Compositor connection: {0}",
+                                            &[v["message"].as_str().map(str::to_owned).unwrap_or_else(|| tr("helper error"))]
                                         ))
                                     } else {
                                         Message::Event(v)
@@ -525,7 +535,7 @@ async fn watch(out: &mut mpsc::Sender<Message>) {
                 let _ = child.kill().await;
                 if out
                     .send(Message::WatchError(
-                        "Compositor connection closed; retrying…".into(),
+                        tr("Compositor connection closed; retrying…").into(),
                     ))
                     .await
                     .is_err()
@@ -535,7 +545,7 @@ async fn watch(out: &mut mpsc::Sender<Message>) {
             }
             Err(e) => {
                 if out
-                    .send(Message::WatchError(format!("Compositor connection: {e}")))
+                    .send(Message::WatchError(trf("Compositor connection: {0}", &[e.to_string()])))
                     .await
                     .is_err()
                 {

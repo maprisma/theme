@@ -1,3 +1,4 @@
+import '../i18n.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -129,17 +130,17 @@ class _ShortcutPageState extends State<ShortcutPage> {
 
   /// (text, kind, button, enabled) for the picked combination.
   (String, String, String, bool) status() {
-    if (key == null) return ('Press a key, or pick a free key below.', 'info', 'Assign', false);
-    if (mods.isEmpty) return ('Choose at least one modifier — Super is recommended.', 'info', 'Assign', false);
+    if (key == null) return (tr("Press a key, or pick a free key below."), 'info', tr("Assign"), false);
+    if (mods.isEmpty) return (tr("Choose at least one modifier — Super is recommended."), 'info', tr("Assign"), false);
     final info = _keyInfo(key!);
-    if (info == null) return ('That key cannot be used for a shortcut.', 'info', 'Assign', false);
+    if (info == null) return (tr("That key cannot be used for a shortcut."), 'info', tr("Assign"), false);
     final owner = '${info['owner'] ?? ''}';
     return switch ('${info['level']}') {
-      'free' => ('✓ Free.${mods.contains('SUPER') ? '' : ' Without Super, apps can no longer receive it.'}', 'free', 'Assign', true),
-      'same' => ('That is the current key.', 'info', 'Assign', false),
-      'ours' => ('$owner has it now. Assigning moves it here.', 'warn', 'Move here', true),
-      'custom' => ('Your shortcut “$owner”. Assigning turns it off while this one exists; removing it brings it back.', 'warn', 'Rebind', true),
-      _ => ("${app.desktopName}'s “$owner”. Assigning overrides it while this one exists; removing it brings it back.", 'desktop', 'Rebind', true),
+      'free' => (trf("✓ Free.{0}", [mods.contains('SUPER') ? '' : tr(" Without Super, apps can no longer receive it.")]), 'free', tr("Assign"), true),
+      'same' => (tr("That is the current key."), 'info', tr("Assign"), false),
+      'ours' => (trf("{0} has it now. Assigning moves it here.", [owner]), 'warn', tr("Move here"), true),
+      'custom' => (trf("Your shortcut “{0}”. Assigning turns it off while this one exists; removing it brings it back.", [owner]), 'warn', tr("Rebind"), true),
+      _ => (trf("{0}'s “{1}”. Assigning overrides it while this one exists; removing it brings it back.", [app.desktopName, owner]), 'desktop', tr("Rebind"), true),
     };
   }
 
@@ -152,7 +153,7 @@ class _ShortcutPageState extends State<ShortcutPage> {
       await AppScope.read(context).call('shortcuts.set', {'target': widget.target, 'mods': mods, 'combo_key': key});
       if (!mounted) return;
       setState(() {
-        message = '✓ Saved — $label: $title.';
+        message = trf("✓ Saved — {0}: {1}.", [label, title]);
         messageOk = true;
         key = null;
       });
@@ -161,7 +162,7 @@ class _ShortcutPageState extends State<ShortcutPage> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          message = 'Not applied: ${errorText(e)}';
+          message = trf("Not applied: {0}", [errorText(e)]);
           messageOk = false;
         });
       }
@@ -178,13 +179,13 @@ class _ShortcutPageState extends State<ShortcutPage> {
       if (!mounted) return;
       final replaces = '${r['replaces'] ?? ''}';
       setState(() {
-        message = '✓ Removed.${replaces.isNotEmpty ? ' “$replaces” works again.' : ''}';
+        message = trf("✓ Removed.{0}", [replaces.isNotEmpty ? trf(" “{0}” works again.", [replaces]) : '']);
         messageOk = true;
       });
       AppScope.read(context).changed();
       await _state();
     } catch (e) {
-      if (mounted) setState(() => message = 'Not removed: ${errorText(e)}');
+      if (mounted) setState(() => message = trf("Not removed: {0}", [errorText(e)]));
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -244,16 +245,16 @@ class _ShortcutPageState extends State<ShortcutPage> {
   String keyTip(String label, Map info) {
     final owner = '${info['owner'] ?? ''}';
     return switch ('${info['level']}') {
-      'free' => '$label — free',
-      'same' => '$label — the current key',
-      'ours' => '$label — $owner; click to move it here',
-      'custom' => '$label — your shortcut “$owner”; click to rebind',
-      _ => "$label — ${app.desktopName}'s “$owner”; click to rebind",
+      'free' => trf("{0} — free", [label]),
+      'same' => trf("{0} — the current key", [label]),
+      'ours' => trf("{0} — {1}; click to move it here", [label, owner]),
+      'custom' => trf("{0} — your shortcut “{1}”; click to rebind", [label, owner]),
+      _ => trf("{0} — {1}'s “{2}”; click to rebind", [label, app.desktopName, owner]),
     };
   }
 
   Widget _keyMap(ColorScheme scheme, MarkColors marks) {
-    if (view['keys'] == null) return const Text('Choose modifiers above to see every key.');
+    if (view['keys'] == null) return Text(tr("Choose modifiers above to see every key."));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -310,9 +311,9 @@ class _ShortcutPageState extends State<ShortcutPage> {
     );
     final replaces = '${current?['replaces'] ?? ''}';
     return [
-      section('Current key'),
+      section(tr("Current key")),
       if (current == null)
-        Text('None yet — pick one below.', style: TextStyle(color: scheme.onSurfaceVariant))
+        Text(tr("None yet — pick one below."), style: TextStyle(color: scheme.onSurfaceVariant))
       else
         Row(children: [
           Expanded(
@@ -321,21 +322,21 @@ class _ShortcutPageState extends State<ShortcutPage> {
               if (replaces.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
-                  child: Text('Overrides “$replaces”', style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+                  child: Text(trf("Overrides “{0}”", [replaces]), style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
                 ),
             ]),
           ),
           Tooltip(
-            message: replaces.isNotEmpty ? 'Remove this key — “$replaces” works again' : 'Remove this key',
+            message: replaces.isNotEmpty ? trf("Remove this key — “{0}” works again", [replaces]) : tr("Remove this key"),
             child: TextButton.icon(
               key: const ValueKey('shortcut-remove'),
               onPressed: busy ? null : remove,
               icon: const Icon(Icons.close, size: 18),
-              label: const Text('Remove'),
+              label: Text(tr("Remove")),
             ),
           ),
         ]),
-      section('Choose a key'),
+      section(tr("Choose a key")),
       Wrap(
         spacing: 6,
         children: [
@@ -352,13 +353,13 @@ class _ShortcutPageState extends State<ShortcutPage> {
       Row(children: [
         Expanded(
           child: Tooltip(
-            message: 'Press a key now. Hold modifiers while pressing, or toggle them above.',
+            message: tr("Press a key now. Hold modifiers while pressing, or toggle them above."),
             child: key != null
                 ? Align(alignment: Alignment.centerLeft, child: caps(comboLabel(mods, key!), large: true))
                 : Row(children: [
                     if (mods.isNotEmpty) caps(mods.map((m) => modNames[m]).join(' + '), large: true),
                     const SizedBox(width: 6),
-                    Text('select a key', style: TextStyle(color: scheme.onSurfaceVariant)),
+                    Text(tr("select a key"), style: TextStyle(color: scheme.onSurfaceVariant)),
                   ]),
           ),
         ),
@@ -370,11 +371,11 @@ class _ShortcutPageState extends State<ShortcutPage> {
       ]),
       Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Text(text, style: TextStyle(color: statusColor))),
       if (message.isNotEmpty) Text(message, style: TextStyle(color: messageOk ? marks.running : scheme.error)),
-      section(mods.isEmpty ? 'Keys' : 'Keys with ${mods.map((m) => modNames[m]).join(' + ')}'),
+      section(mods.isEmpty ? tr("Keys") : trf("Keys with {0}", [mods.map((m) => modNames[m]).join(' + ')])),
       Tooltip(
-        message: 'Taken keys can be rebound; the original works again when you remove the shortcut.',
+        message: tr("Taken keys can be rebound; the original works again when you remove the shortcut."),
         child: Wrap(children: [
-          for (final (t, c) in [('free', marks.running), ('yours', marks.fresh), ('${app.desktopName} default', marks.update)])
+          for (final (t, c) in [(tr('free'), marks.running), (tr('yours'), marks.fresh), (trf("{0} default", [app.desktopName]), marks.update)])
             Padding(
               padding: const EdgeInsets.only(right: 12),
               child: Text('● $t', style: TextStyle(fontSize: 12, color: c)),
@@ -391,7 +392,7 @@ class _ShortcutPageState extends State<ShortcutPage> {
     final scheme = Theme.of(context).colorScheme;
     final marks = markColors(context);
     return SubPage(
-      title: 'Shortcut: $title',
+      title: trf("Shortcut: {0}", [title]),
       body: Focus(
         focusNode: _focus,
         autofocus: true,
@@ -403,7 +404,7 @@ class _ShortcutPageState extends State<ShortcutPage> {
                 child: Padding(
                   padding: const EdgeInsets.all(24),
                   child: Text(
-                    message.isNotEmpty ? message : "${app.desktopName}'s keyboard settings were not found, so shortcuts cannot be set here.",
+                    message.isNotEmpty ? message : trf("{0}'s keyboard settings were not found, so shortcuts cannot be set here.", [app.desktopName]),
                     textAlign: TextAlign.center,
                   ),
                 ),

@@ -1,3 +1,4 @@
+import 'i18n.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -140,7 +141,7 @@ class KWinBridge {
     final mode = await Process.run('chmod', ['600', file.path]);
     if (mode.exitCode != 0) {
       await file.delete();
-      throw FileSystemException('Cannot secure KWin script', file.path);
+      throw FileSystemException(tr('Cannot secure KWin script'), file.path);
     }
     try {
       await file.writeAsString(source);
@@ -169,7 +170,7 @@ class KWinBridge {
     // gave up).
     final started = DateTime.now();
     return _serial(() async {
-    if (_disposed) throw StateError('Bridge disposed');
+    if (_disposed) throw StateError(tr('Bridge disposed'));
     final left = timeout - DateTime.now().difference(started);
     if (left <= Duration.zero) throw TimeoutException('KWin $op (queued)', timeout);
     timeout = left;
@@ -194,7 +195,7 @@ class KWinBridge {
         final script = await _scripting
             .loadScript(file!.path, plugin)
             .timeout(timeout);
-        if (script < 0) throw StateError('KWin refused script');
+        if (script < 0) throw StateError(tr('KWin refused script'));
         await _scripting.run(script).timeout(timeout);
       }();
       // Consume setup errors even if the callback deadline wins.
@@ -219,7 +220,7 @@ class KWinBridge {
 
   /// Repeated calls share one broadcast stream and one compositor script.
   Stream<Map<String, dynamic>> watch() {
-    if (_disposed) throw StateError('Bridge disposed');
+    if (_disposed) throw StateError(tr('Bridge disposed'));
     return (_events ??= StreamController<Map<String, dynamic>>.broadcast(
       onListen: () {
         _owners = _scripting.ownerChanges.listen((available) {
@@ -257,7 +258,7 @@ class KWinBridge {
         kwinWatchScript(_scripting.uniqueName, callbackPath),
       );
       final id = await _scripting.loadScript(_watchFile!.path, plugin);
-      if (id < 0) throw StateError('KWin refused watch script');
+      if (id < 0) throw StateError(tr('KWin refused watch script'));
       await _scripting.run(id);
     } catch (_) {
       await _stopWatch();
@@ -414,7 +415,7 @@ Future<Map<String, dynamic>> kdeWm(KWinBridge b, List<String> args) async {
     'error': code,
     'message': message,
   };
-  if (args.isEmpty) return error('bad_args', 'Missing command');
+  if (args.isEmpty) return error('bad_args', tr('Missing command'));
   final op = args.first;
   if (op == 'set-tiling') return {'error': 'not_available'};
   final length = switch (op) {
@@ -424,17 +425,17 @@ Future<Map<String, dynamic>> kdeWm(KWinBridge b, List<String> args) async {
     _ => 0,
   };
   if (length == 0 || args.length != length) {
-    return error('bad_args', 'Invalid command arguments');
+    return error('bad_args', tr('Invalid command arguments'));
   }
   if (length > 1 &&
       !RegExp(
         r'^\{[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\}$',
       ).hasMatch(args[1])) {
-    return error('bad_args', 'Invalid window id');
+    return error('bad_args', tr('Invalid window id'));
   }
   final index = op == 'move' ? int.tryParse(args[2]) : null;
   if (op == 'move' && (index == null || index < 1)) {
-    return error('bad_args', 'Invalid workspace index');
+    return error('bad_args', tr('Invalid workspace index'));
   }
   try {
     final state = await b.request('state', {});
@@ -445,10 +446,10 @@ Future<Map<String, dynamic>> kdeWm(KWinBridge b, List<String> args) async {
     if (op == 'windows') return wmWindows(state);
     if (op == 'move' &&
         !(state['desktops'] as List).any((d) => d['index'] == index)) {
-      return error('bad_args', 'Workspace index out of range');
+      return error('bad_args', tr('Workspace index out of range'));
     }
     if (!(state['windows'] as List).any((w) => w['id'] == args[1])) {
-      return error('not_found', 'Window not found');
+      return error('not_found', tr('Window not found'));
     }
     final result = await b.request(op, {'id': args[1], 'index': ?index});
     if (result.containsKey('error')) {

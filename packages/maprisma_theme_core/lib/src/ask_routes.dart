@@ -1,3 +1,4 @@
+import 'i18n.dart';
 import 'dart:io';
 
 import 'ask_ai.dart';
@@ -60,14 +61,14 @@ Map<String, Handler> askRoutes(Ctx ctx) {
     // sends only that candidate back; it gets one changed candidate, more
     // only when the words ask for options.
     'ask.run': (p) async {
-      if (ctx.settings.get('ask_ai') != true) throw RouteError('off', 'Ask AI is off');
+      if (ctx.settings.get('ask_ai') != true) throw RouteError('off', tr("Ask AI is off"));
       final helper = str(p, 'helper');
       final request = (p['request'] is String ? p['request'] as String : '').split(RegExp(r'\s+')).join(' ').trim();
       if (request.isEmpty || request.length > maxRequest) throw RouteError('bad_params', 'request');
       if (!states().any((h) => h['id'] == helper && h['signed_in'] == true)) {
-        throw RouteError('not_ready', 'that helper is not installed or not signed in');
+        throw RouteError('not_ready', tr("that helper is not installed or not signed in"));
       }
-      if (runner.busy) throw RouteError('busy', 'another Ask is running');
+      if (runner.busy) throw RouteError('busy', tr("another Ask is running"));
       final themes = themeFacts(ctx);
       final catalog = catalogParam(p['catalog']);
       final fonts = await fontFacts(ctx);
@@ -86,10 +87,10 @@ Map<String, Handler> askRoutes(Ctx ctx) {
       try {
         text = await runner.run(helper, prompt);
       } on AskError catch (e) {
-        throw RouteError(e.message == 'cancelled' ? 'cancelled' : 'helper_failed', e.message);
+        throw RouteError(e.message == 'cancelled' ? 'cancelled' : 'helper_failed', e.message == 'cancelled' ? tr('Cancelled') : e.message);
       }
       final json = firstJson(text);
-      if (json == null) throw RouteError('bad_answer', 'no JSON object in the answer');
+      if (json == null) throw RouteError('bad_answer', tr("no JSON object in the answer"));
       final limit = parent == null || wantsOptions(request) ? maxCandidates : 1;
       final (summary, candidates) = verify(json, themes, catalog, fonts,
           parent: parent, limit: limit, current: ctx.current.slug);
@@ -116,23 +117,23 @@ Map<String, Handler> askRoutes(Ctx ctx) {
       final h = helpers.where((h) => h.id == id).firstOrNull;
       if (h == null) throw RouteError('bad_params', 'command');
       final term = _terminal(ctx.environment);
-      if (term == null) throw RouteError('no_terminal', 'no terminal found');
+      if (term == null) throw RouteError('no_terminal', tr("no terminal found"));
       final argv = [...term, ...h.login.split(' ')];
       try {
         await Process.start(argv.first, argv.sublist(1), mode: ProcessStartMode.detached, workingDirectory: ctx.paths.home);
       } on ProcessException {
-        throw RouteError('no_terminal', 'the terminal did not start');
+        throw RouteError('no_terminal', tr("the terminal did not start"));
       }
       return {'started': true};
     },
     // The Maprisma note's button: a fixed address, the desktop's opener.
     'ask.open_maprisma': (p) async {
       final open = which('xdg-open', ctx.environment);
-      if (open == null) throw RouteError('no_browser', 'xdg-open is missing');
+      if (open == null) throw RouteError('no_browser', tr("xdg-open is missing"));
       try {
         await Process.start(open, [maprismaUrl], mode: ProcessStartMode.detached);
       } on ProcessException {
-        throw RouteError('no_browser', 'the browser did not start');
+        throw RouteError('no_browser', tr("the browser did not start"));
       }
       return {'opened': true};
     },

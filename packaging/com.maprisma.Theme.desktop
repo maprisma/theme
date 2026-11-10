@@ -1,7 +1,21 @@
 [Desktop Entry]
 Type=Application
 Name=Maprisma Theme
+Name[de]=Maprisma Theme
+Name[fr]=Maprisma Theme
+Name[es]=Maprisma Theme
+Name[it]=Maprisma Theme
+Name[pt]=Maprisma Theme
+Name[nl]=Maprisma Theme
+Name[pl]=Maprisma Theme
 Comment=Every theme in one place: apply, make and share themes, wallpapers per workspace
+Comment[de]=Alle Themes an einem Ort: anwenden, erstellen und teilen, Hintergründe pro Arbeitsbereich
+Comment[fr]=Tous les thèmes au même endroit : appliquer, créer et partager, fonds par espace de travail
+Comment[es]=Todos los temas en un lugar: aplicar, crear y compartir, fondos por espacio de trabajo
+Comment[it]=Tutti i temi in un posto: applica, crea e condividi, sfondi per spazio di lavoro
+Comment[pt]=Todos os temas num só lugar: aplicar, criar e partilhar, papéis de parede por espaço de trabalho
+Comment[nl]=Alle thema’s op één plek: toepassen, maken en delen, achtergronden per werkblad
+Comment[pl]=Wszystkie motywy w jednym miejscu: stosuj, twórz i udostępniaj, tapety dla obszarów roboczych
 Exec=maprisma-theme
 Icon=com.maprisma.Theme
 Terminal=false

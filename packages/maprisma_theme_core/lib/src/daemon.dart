@@ -6,6 +6,8 @@
 /// COSMIC the applet stays the only owner: the daemon does nothing there.
 library;
 
+import 'i18n.dart';
+
 import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
@@ -168,7 +170,7 @@ final class _Tray extends DBusObject {
       const DBusString('com.maprisma.Theme'),
       DBusArray(DBusSignature('(iiay)'), const []),
       const DBusString('Maprisma Theme'),
-      DBusString(d.theme.isEmpty ? 'Scroll: wallpaper · right-click: favorites' : '${d.theme} · scroll: wallpaper'),
+      DBusString(d.theme.isEmpty ? tr('Scroll: wallpaper · right-click: favorites') : trf('{0} · scroll: wallpaper', [d.theme])),
     ]),
   };
 
@@ -228,7 +230,7 @@ final class _Menu extends DBusObject {
   Map<int, (String, Future<void> Function()?, bool?, bool)> get _items {
     final out = <int, (String, Future<void> Function()?, bool?, bool)>{};
     var id = 1;
-    out[id++] = ('${data['title'] ?? 'Favorite themes'}', null, null, false);
+    out[id++] = ('${data['title'] ?? tr('Favorite themes')}', null, null, false);
     final themes = data['themes'] is List ? data['themes'] as List : const [];
     if (themes.isEmpty) out[id++] = ('${data['empty_note'] ?? 'No favorites yet'}', null, null, false);
     for (final t in themes.take(30)) {
@@ -491,8 +493,15 @@ final class Daemon {
       }));
     }
     var minute = 0;
+    var lastLanguage = currentLanguage;
     _timers.add(Timer.periodic(const Duration(seconds: 5), (_) {
       _readAutomation();
+      languageSetting = ctx.settings.get('language') as String? ?? 'auto';
+      if (lastLanguage != currentLanguage) {
+        lastLanguage = currentLanguage;
+        unawaited(refreshMenu());
+        unawaited(_tray.emitSignal('org.kde.StatusNotifierItem', 'NewToolTip'));
+      }
       unawaited(_syncShortcuts());
       final now = ctx.current.slug;
       if (now != theme) {

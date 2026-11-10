@@ -1,3 +1,4 @@
+import 'i18n.dart';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -17,7 +18,7 @@ const pngKeepChunks = {'IHDR', 'PLTE', 'IDAT', 'IEND', 'tRNS', 'gAMA', 'cHRM', '
 const pngSignature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
 const heifMaxMetaBytes = 4 * 1024 * 1024;
 
-const unsupportedImage = 'not a supported image (JPG, PNG, WebP, GIF, BMP)';
+String get unsupportedImage => tr("not a supported image (JPG, PNG, WebP, GIF, BMP)");
 
 /// A seekable byte source: a file opened for reading or bytes in memory.
 abstract class _Source {
@@ -244,12 +245,12 @@ String? _pngMetadataProblem(_Source s) {
   var texts = 0, compressed = 0, chunks = 0;
   while (true) {
     chunks++;
-    if (chunks > pngMaxChunks) return 'PNG has too many chunks';
+    if (chunks > pngMaxChunks) return tr("PNG has too many chunks");
     final head = s.read(8);
-    if (head.length < 8) return 'damaged PNG';
+    if (head.length < 8) return tr("damaged PNG");
     final length = _be(head, 0, 4);
     final kind = String.fromCharCodes(head.sublist(4));
-    if (length > 0x7FFFFFFF) return 'damaged PNG';
+    if (length > 0x7FFFFFFF) return tr("damaged PNG");
     final start = s.pos;
     if (kind == 'tEXt' || kind == 'zTXt' || kind == 'iTXt') {
       texts++;
@@ -263,11 +264,11 @@ String? _pngMetadataProblem(_Source s) {
     } else if (kind == 'iCCP') {
       compressed += length;
     }
-    if (texts > pngMaxTextChunks) return 'PNG has too many text chunks';
-    if (compressed > pngMaxCompressedMetadata) return 'PNG has too much compressed metadata';
+    if (texts > pngMaxTextChunks) return tr("PNG has too many text chunks");
+    if (compressed > pngMaxCompressedMetadata) return tr("PNG has too much compressed metadata");
     if (kind == 'IEND') return null;
     s.pos = start + length + 4;
-    if (s.pos > s.length) return 'damaged PNG';
+    if (s.pos > s.length) return tr("damaged PNG");
   }
 }
 
@@ -276,16 +277,16 @@ String? _pngMetadataProblem(_Source s) {
 /// IEND are dropped. Pixels are copied byte for byte, never decoded.
 /// Throws [FormatException] for a damaged chunk list.
 Uint8List stripPngMetadata(Uint8List data) {
-  if (!isPng(data)) throw const FormatException('not a PNG');
+  if (!isPng(data)) throw FormatException(tr("not a PNG"));
   final out = BytesBuilder(copy: false)..add(pngSignature);
   var pos = 8, count = 0, haveIccp = false;
   while (true) {
     count++;
-    if (count > pngMaxChunks || pos + 8 > data.length) throw const FormatException('damaged PNG');
+    if (count > pngMaxChunks || pos + 8 > data.length) throw FormatException(tr("damaged PNG"));
     final length = _be(data, pos, 4);
     final kind = String.fromCharCodes(data.sublist(pos + 4, pos + 8));
     final end = pos + 12 + length;
-    if (length > 0x7FFFFFFF || end > data.length) throw const FormatException('damaged PNG');
+    if (length > 0x7FFFFFFF || end > data.length) throw FormatException(tr("damaged PNG"));
     var keep = pngKeepChunks.contains(kind);
     if (keep && kind == 'iCCP') {
       if (haveIccp || length > pngMaxCompressedMetadata) {
@@ -307,9 +308,9 @@ String? _sizeVerdict((int, int, int)? size, String? meta) {
   if (meta != null) return meta;
   if (size == null) return unsupportedImage;
   final (w, h, frames) = size;
-  if (w == 0 || h == 0) return 'image has no size';
+  if (w == 0 || h == 0) return tr("image has no size");
   if (w > maxImageSide || h > maxImageSide || w * h * frames > maxImagePixels) {
-    return frames > 1 ? 'image too large to show ($w×$h × $frames frames)' : 'image too large to show ($w×$h)';
+    return frames > 1 ? 'image too large to show ($w×$h × $frames frames)' : trf("image too large to show ({0}×{1})", [w, h]);
   }
   return null;
 }
@@ -328,13 +329,13 @@ String? _check(_Source s) {
 String? imageSizeProblem(String path) {
   RandomAccessFile? raf;
   try {
-    if (FileStat.statSync(path).type != FileSystemEntityType.file) return 'unreadable image';
+    if (FileStat.statSync(path).type != FileSystemEntityType.file) return tr("unreadable image");
     raf = File(path).openSync();
     return _check(_FileSource(raf));
   } on FileSystemException {
-    return 'unreadable image';
+    return tr("unreadable image");
   } on RangeError {
-    return 'unreadable image';
+    return tr("unreadable image");
   } finally {
     raf?.closeSync();
   }
@@ -345,7 +346,7 @@ String? imageBytesProblem(Uint8List data) {
   try {
     return _check(_BytesSource(data));
   } on RangeError {
-    return 'unreadable image';
+    return tr("unreadable image");
   }
 }
 
@@ -425,7 +426,7 @@ Map<int, Uint8List?> _heifItemData(Uint8List file, Uint8List meta, Map<String, (
   final indexSize = (version == 1 || version == 2) ? meta[pos + 1] & 15 : 0;
   pos += 2;
   int take(int n) {
-    if (pos + n > b) throw const FormatException('truncated iloc');
+    if (pos + n > b) throw FormatException(tr("truncated iloc"));
     final v = n == 0 ? 0 : _be(meta, pos, n);
     pos += n;
     return v;
@@ -466,7 +467,7 @@ String? heifSizeProblem(Uint8List file) {
   final sizes = <(int, int)>[];
   try {
     final meta = _heifMeta(file);
-    if (meta == null || meta.length < 4) return 'not a readable HEIC/HEIF photo';
+    if (meta == null || meta.length < 4) return tr("not a readable HEIC/HEIF photo");
     final boxes = <String, (int, int)>{};
     for (final (kind, a, b) in _bmffBoxes(meta, 4)) {
       boxes.putIfAbsent(kind, () => (a, b));
@@ -480,15 +481,15 @@ String? heifSizeProblem(Uint8List file) {
         }
       }
     }
-    if (sizes.isEmpty) return 'HEIC/HEIF photo declares no image size';
+    if (sizes.isEmpty) return tr("HEIC/HEIF photo declares no image size");
     final types = _heifItemTypes(meta, boxes['iinf']);
-    if (types.values.contains('iovl')) return 'HEIC/HEIF overlay images are not supported';
+    if (types.values.contains('iovl')) return tr("HEIC/HEIF overlay images are not supported");
     final grids = [for (final e in types.entries) if (e.value == 'grid') e.key];
     if (grids.isNotEmpty) {
       for (final data in _heifItemData(file, meta, boxes, grids).values) {
-        if (data == null || data.length < 8) return 'unreadable HEIC/HEIF grid';
+        if (data == null || data.length < 8) return tr("unreadable HEIC/HEIF grid");
         if (data[1] & 1 != 0) {
-          if (data.length < 12) return 'unreadable HEIC/HEIF grid';
+          if (data.length < 12) return tr("unreadable HEIC/HEIF grid");
           sizes.add((_be(data, 4, 4), _be(data, 8, 4)));
         } else {
           sizes.add((_be(data, 4, 2), _be(data, 6, 2)));
@@ -496,13 +497,13 @@ String? heifSizeProblem(Uint8List file) {
       }
     }
   } on RangeError {
-    return 'not a readable HEIC/HEIF photo';
+    return tr("not a readable HEIC/HEIF photo");
   } on FormatException {
-    return 'not a readable HEIC/HEIF photo';
+    return tr("not a readable HEIC/HEIF photo");
   }
   for (final (w, h) in sizes) {
-    if (w == 0 || h == 0) return 'image has no size';
-    if (w > maxImageSide || h > maxImageSide || w * h > maxImagePixels) return 'image too large to convert ($w×$h)';
+    if (w == 0 || h == 0) return tr("image has no size");
+    if (w > maxImageSide || h > maxImageSide || w * h > maxImagePixels) return trf("image too large to convert ({0}×{1})", [w, h]);
   }
   return null;
 }

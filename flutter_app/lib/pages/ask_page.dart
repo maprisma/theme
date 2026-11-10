@@ -1,3 +1,4 @@
+import '../i18n.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -24,22 +25,18 @@ class AskPage extends StatefulWidget {
   State<AskPage> createState() => _AskPageState();
 }
 
-const _examples = [
-  'Blue borders, red text and a nice dog wallpaper',
-  'A calm light theme for daytime',
-  'Find a warm dark theme in the catalog',
-  'Another font for the current theme',
+List<String> get _examples => [
+  tr("Blue borders, red text and a nice dog wallpaper"),
+  tr("A calm light theme for daytime"),
+  tr("Find a warm dark theme in the catalog"),
+  tr("Another font for the current theme"),
 ];
 const _maxPrompts = 12, _maxRequest = 600;
-const _description =
-    'Find or make a theme from a few words with a coding agent on this computer (Claude Code, Codex, pi or '
-    'Hermes) or a local model, using your plan or tokens only when you click Ask; a local model uses none and '
-    'nothing leaves the computer. Each Ask sends your words with the names and main colors of your installed '
-    'themes, the omarchy.org theme names and your installed font names; nothing else.';
-const _noHelper = 'No helper ready: install Claude Code, Codex, pi or Hermes and sign in, or connect pi or Hermes to a local model.';
-const _maprismaText =
-    'Maprisma sets up AI for you: online agents and their providers, and local models with llama.cpp or Ollama, '
-    'connected on one map. Every agent it sets up can answer here too.';
+String get _description =>
+    tr("Find or make a theme from a few words with a coding agent on this computer (Claude Code, Codex, pi or Hermes) or a local model, using your plan or tokens only when you click Ask; a local model uses none and nothing leaves the computer. Each Ask sends your words with the names and main colors of your installed themes, the omarchy.org theme names and your installed font names; nothing else.");
+String get _noHelper => tr("No helper ready: install Claude Code, Codex, pi or Hermes and sign in, or connect pi or Hermes to a local model.");
+String get _maprismaText =>
+    tr("Maprisma sets up AI for you: online agents and their providers, and local models with llama.cpp or Ollama, connected on one map. Every agent it sets up can answer here too.");
 const _paletteKeys = ['red', 'yellow', 'orange', 'green', 'cyan', 'blue', 'magenta', 'brown'];
 
 /// One result card's own state (wallpaper search, refine field).
@@ -141,7 +138,7 @@ class _AskPageState extends State<AskPage> {
   }
 
   Future<bool> _set(String key, Object? value) async {
-    final r = await app.run('settings.set', {'key': key, 'value': value}, 'Could not save the setting');
+    final r = await app.run('settings.set', {'key': key, 'value': value}, tr("Could not save the setting"));
     if (r == null) return false;
     await app.refreshLook();
     if (mounted) setState(() {});
@@ -178,14 +175,14 @@ class _AskPageState extends State<AskPage> {
   Future<void> _savePrompt() async {
     final text = _tidy(request.text);
     if (text.isEmpty) {
-      _say('Write a request first, then save it as a suggestion.');
+      _say(tr("Write a request first, then save it as a suggestion."));
     } else if (prompts.contains(text)) {
-      _say('That is already a suggestion.');
+      _say(tr("That is already a suggestion."));
     } else if (prompts.length >= _maxPrompts) {
-      _say('At most $_maxPrompts suggestions: remove one first.');
+      _say(trf("At most {0} suggestions: remove one first.", [_maxPrompts]));
     } else {
       await _storePrompts([...prompts, text]);
-      _say('Saved as suggestion.');
+      _say(tr("Saved as suggestion."));
     }
   }
 
@@ -201,7 +198,7 @@ class _AskPageState extends State<AskPage> {
     if (text.isEmpty) {
       list.removeAt(index);
     } else if (list.contains(text)) {
-      _say('That is already a suggestion.');
+      _say(tr("That is already a suggestion."));
       return;
     } else {
       list[index] = text;
@@ -230,13 +227,13 @@ class _AskPageState extends State<AskPage> {
                 controller: promptEdit,
                 autofocus: true,
                 maxLength: _maxRequest,
-                decoration: const InputDecoration(isDense: true, counterText: '', hintText: 'Edit suggestion'),
+                decoration: InputDecoration(isDense: true, counterText: '', hintText: tr("Edit suggestion")),
                 onSubmitted: (_) => _finishEdit(true),
               ),
             ),
           ),
           IconButton(
-            tooltip: 'Save',
+            tooltip: tr("Save"),
             visualDensity: tight,
             iconSize: 18,
             onPressed: () => _finishEdit(true),
@@ -263,7 +260,7 @@ class _AskPageState extends State<AskPage> {
             child: MouseRegion(
               cursor: SystemMouseCursors.grab,
               child: Tooltip(
-                message: 'Drag to reorder (Alt+↑/↓)',
+                message: tr("Drag to reorder (Alt+↑/↓)"),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   child: Icon(Icons.drag_indicator, size: 16, color: scheme.onSurfaceVariant),
@@ -290,7 +287,7 @@ class _AskPageState extends State<AskPage> {
             ),
           ),
           IconButton(
-            tooltip: 'Edit suggestion',
+            tooltip: tr("Edit suggestion"),
             visualDensity: tight,
             iconSize: 16,
             onPressed: () => setState(() {
@@ -301,7 +298,7 @@ class _AskPageState extends State<AskPage> {
             icon: const Icon(Icons.edit_outlined),
           ),
           IconButton(
-            tooltip: 'Remove suggestion',
+            tooltip: tr("Remove suggestion"),
             visualDensity: tight,
             iconSize: 16,
             onPressed: () => _storePrompts([...prompts]..removeAt(index)),
@@ -340,7 +337,7 @@ class _AskPageState extends State<AskPage> {
             Align(
               alignment: Alignment.centerRight,
               child: IconButton(
-                tooltip: 'Back to the built-in suggestions',
+                tooltip: tr("Back to the built-in suggestions"),
                 visualDensity: VisualDensity.compact,
                 iconSize: 18,
                 onPressed: () => _storePrompts(null),
@@ -382,11 +379,11 @@ class _AskPageState extends State<AskPage> {
       parent?.refining = true;
       if (parent == null) rejected.clear();
       seconds = 0;
-      status = 'Asking ${h['name']}… 0 s';
+      status = trf("Asking {0}… 0 s", [h['name']]);
     });
     _ticker?.cancel();
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted && asking) setState(() => status = 'Asking ${h['name']}… ${++seconds} s');
+      if (mounted && asking) setState(() => status = trf("Asking {0}… {1} s", [h['name'], ++seconds]));
     });
     try {
       final cat = await _catalog();
@@ -403,9 +400,9 @@ class _AskPageState extends State<AskPage> {
       final found = [for (final c in r['candidates'] as List) _Card(Map<String, dynamic>.from(c as Map))];
       setState(() {
         if (parent != null && found.isEmpty) {
-          status = 'Nothing visible changed. Try clearer words, e.g. “much darker”.';
+          status = tr("Nothing visible changed. Try clearer words, e.g. “much darker”.");
         } else if (found.isEmpty) {
-          status = 'Nothing usable came back. Try other words.';
+          status = tr("Nothing usable came back. Try other words.");
         } else {
           status = '${r['summary'] ?? ''}';
           if (parent != null) {
@@ -429,7 +426,7 @@ class _AskPageState extends State<AskPage> {
         if (card.c['kind'] == 'catalog') _catalogLook(card);
       }
     } catch (e) {
-      if (mounted) setState(() => status = 'No answer: ${_why(e)}');
+      if (mounted) setState(() => status = trf("No answer: {0}", [_why(e)]));
     } finally {
       _ticker?.cancel();
       if (mounted) {
@@ -469,7 +466,7 @@ class _AskPageState extends State<AskPage> {
     final token = card.token = Object();
     setState(() {
       card.searching = true;
-      card.wallNote = 'Searching wallpapers for “$query”…';
+      card.wallNote = trf("Searching wallpapers for “{0}”…", [query]);
     });
     // Long phrases often find nothing on wallhaven: then fewer words.
     final words = query.split(' ');
@@ -491,8 +488,8 @@ class _AskPageState extends State<AskPage> {
         ];
       } catch (e) {
         note = '$e'.contains('unknown_route')
-            ? 'The wallpaper search is not available in this version.'
-            : 'The wallpaper search did not answer.';
+            ? tr("The wallpaper search is not available in this version.")
+            : tr("The wallpaper search did not answer.");
         break;
       }
       if (results.isNotEmpty) break;
@@ -504,7 +501,7 @@ class _AskPageState extends State<AskPage> {
       final chosenId = card.c['wallpaper_id'];
       final at = results.indexWhere((e) => chosenId != null && e['id'] == chosenId);
       card.wall = at < 0 ? 0 : at;
-      card.wallNote = note ?? (results.isEmpty ? 'No wallpapers found for “$query”.' : null);
+      card.wallNote = note ?? (results.isEmpty ? trf("No wallpapers found for “{0}”.", [query]) : null);
       if (results.isNotEmpty) card.c['wallpaper_id'] = '${results[card.wall]['id'] ?? ''}';
     });
     _loadThumb(card);
@@ -581,7 +578,7 @@ class _AskPageState extends State<AskPage> {
         final r = await app.run('themes.apply', {'slug': slug});
         if (r != null) {
           if (wall != null) await _addWall(slug, wall);
-          app.notify('Applied ${c['name']}');
+          app.notify(trf("Applied {0}", [c['name']]));
           app.changed();
         }
       case 'catalog':
@@ -593,8 +590,8 @@ class _AskPageState extends State<AskPage> {
           context: context,
           position: RelativeRect.fromLTRB(at.dx, at.dy, overlay.size.width - at.dx, 0),
           items: [
-            item(Icons.download_outlined, 'Install', () => _install(slug, false)),
-            item(Icons.check_circle_outline, 'Install and apply', () => _install(slug, true)),
+            item(Icons.download_outlined, tr("Install"), () => _install(slug, false)),
+            item(Icons.check_circle_outline, tr("Install and apply"), () => _install(slug, true)),
           ],
         );
         action?.call();
@@ -641,13 +638,13 @@ class _AskPageState extends State<AskPage> {
   /// Adds the card's wallpaper to [slug]; shown right away when [slug] is the
   /// theme in use (the core only sets it then).
   Future<void> _addWall(String slug, Map<String, dynamic> wall) async {
-    await app.run('wallhaven.add', {'slug': slug, 'item': wall, 'set': true}, 'Could not add the wallpaper');
+    await app.run('wallhaven.add', {'slug': slug, 'item': wall, 'set': true}, tr("Could not add the wallpaper"));
   }
 
   Future<void> _install(String slug, bool apply) async {
-    final r = await app.run('import.omarchy_install', {'name': slug, 'apply': apply}, 'Could not install $slug');
+    final r = await app.run('import.omarchy_install', {'name': slug, 'apply': apply}, trf("Could not install {0}", [slug]));
     if (r != null) {
-      app.notify(apply ? 'Installed and applied $slug' : 'Installed $slug');
+      app.notify(apply ? trf("Installed and applied {0}", [slug]) : trf("Installed {0}", [slug]));
       app.changed();
     }
   }
@@ -676,10 +673,10 @@ class _AskPageState extends State<AskPage> {
     final query = c['wallpaper_query'] is String ? c['wallpaper_query'] as String : '';
     final mine = c['query_by_user'] == true && query.isNotEmpty;
     var kind = switch (c['kind']) {
-      'catalog' => 'From omarchy.org',
-      'installed' => 'Installed theme, as it is',
+      'catalog' => tr("From omarchy.org"),
+      'installed' => tr("Installed theme, as it is"),
       // A new theme is new for you: the theme the agent started from is internal.
-      _ => c['mode'] == 'edit' ? 'Edit ${c['base_name']}' : 'New theme',
+      _ => c['mode'] == 'edit' ? trf("Edit {0}", [c['base_name']]) : tr("New theme"),
     };
     if (!mine) return ('${c['name']}', kind, '${c['summary'] ?? ''}');
     var title = query[0].toUpperCase() + query.substring(1);
@@ -692,13 +689,13 @@ class _AskPageState extends State<AskPage> {
     } else if (c['kind'] == 'catalog') {
       kind = '$kind · ${c['name']}'; // the theme's name stays
     }
-    return (title, kind, 'Wallpaper: your search “$query”');
+    return (title, kind, trf("Wallpaper: your search “{0}”", [query]));
   }
 
   String? _busyText(_Card card) {
-    if (card.refining) return 'Refining with ${chosen?['name'] ?? 'the helper'}…';
-    if (card.loadingPicture) return 'Loading the picture…';
-    if (card.searching) return 'Searching wallpapers…';
+    if (card.refining) return trf("Refining with {0}…", [chosen?['name'] ?? tr("the helper")]);
+    if (card.loadingPicture) return tr("Loading the picture…");
+    if (card.searching) return tr("Searching wallpapers…");
     return null;
   }
 
@@ -771,26 +768,26 @@ class _AskPageState extends State<AskPage> {
                   style: _small,
                   onPressed: () => _use(card, b),
                   icon: const Icon(Icons.check, size: 16),
-                  label: const Text('Use'),
+                  label: Text(tr("Use")),
                 ),
               ),
               OutlinedButton.icon(
                 style: _small,
                 onPressed: () => _reject(card),
                 icon: const Icon(Icons.close, size: 16),
-                label: const Text('Not this'),
+                label: Text(tr("Not this")),
               ),
               OutlinedButton.icon(
                 style: _small,
                 onPressed: () => setState(() => card.refine ??= TextEditingController()),
                 icon: const Icon(Icons.edit_outlined, size: 16),
-                label: const Text('Refine…'),
+                label: Text(tr("Refine…")),
               ),
               OutlinedButton.icon(
                 style: _small,
                 onPressed: () => _wallpaperButton(card),
                 icon: const Icon(Icons.image_outlined, size: 16),
-                label: const Text('Wallpaper…'),
+                label: Text(tr("Wallpaper…")),
               ),
             ],
           ),
@@ -832,13 +829,13 @@ class _AskPageState extends State<AskPage> {
           autofocus: true,
           maxLength: 100,
           style: const TextStyle(fontSize: 13),
-          decoration: const InputDecoration(isDense: true, counterText: '', hintText: 'Search wallpapers, e.g. “husky snow”'),
+          decoration: InputDecoration(isDense: true, counterText: '', hintText: tr("Search wallpapers, e.g. “husky snow”")),
           onSubmitted: (_) => _ownSearch(card),
         ),
       ),
       const SizedBox(width: 6),
       IconButton.filledTonal(
-        tooltip: 'Search wallpapers (no tokens)',
+        tooltip: tr("Search wallpapers (no tokens)"),
         visualDensity: VisualDensity.compact,
         onPressed: () => _ownSearch(card),
         icon: const Icon(Icons.search, size: 18),
@@ -860,8 +857,8 @@ class _AskPageState extends State<AskPage> {
               isDense: true,
               counterText: '',
               hintText: query is String
-                  ? 'How should it change? e.g. “warmer”, “another picture like $query”'
-                  : 'How should it change? e.g. “warmer”, “another wallpaper”',
+                  ? trf("How should it change? e.g. “warmer”, “another picture like {0}”", [query])
+                  : tr("How should it change? e.g. “warmer”, “another wallpaper”"),
             ),
             onSubmitted: (t) {
               if (t.trim().isNotEmpty) _ask(parent: card, words: t);
@@ -870,7 +867,7 @@ class _AskPageState extends State<AskPage> {
         ),
         const SizedBox(width: 6),
         IconButton.filledTonal(
-          tooltip: 'Refine…',
+          tooltip: tr("Refine…"),
           visualDensity: VisualDensity.compact,
           onPressed: asking || chosen == null
               ? null
@@ -890,7 +887,7 @@ class _AskPageState extends State<AskPage> {
     return Row(
       children: [
         IconButton(
-          tooltip: 'Previous wallpaper',
+          tooltip: tr("Previous wallpaper"),
           visualDensity: tight,
           onPressed: card.walls.length > 1 ? () => _stepWall(card, -1) : null,
           icon: const Icon(Icons.chevron_left, size: 20),
@@ -905,7 +902,7 @@ class _AskPageState extends State<AskPage> {
           ),
         ),
         IconButton(
-          tooltip: 'Next wallpaper',
+          tooltip: tr("Next wallpaper"),
           visualDensity: tight,
           onPressed: card.walls.length > 1 ? () => _stepWall(card, 1) : null,
           icon: const Icon(Icons.chevron_right, size: 20),
@@ -944,8 +941,8 @@ class _AskPageState extends State<AskPage> {
         Expanded(
           child: Text(
             [
-              c['font'] is String ? '${c['font']}' : (c['kind'] == 'catalog' ? 'Its own font' : 'Keep the current font'),
-              if (c['blur'] is Map) (c['blur'] as Map)['on'] == true ? 'Blur ${(c['blur'] as Map)['strength']}' : 'No blur',
+              c['font'] is String ? '${c['font']}' : (c['kind'] == 'catalog' ? tr("Its own font") : tr("Keep the current font")),
+              if (c['blur'] is Map) (c['blur'] as Map)['on'] == true ? trf("Blur {0}", [(c['blur'] as Map)['strength']]) : tr("No blur"),
             ].join(' · '),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -973,19 +970,19 @@ class _AskPageState extends State<AskPage> {
     Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Easy AI setup with Maprisma', style: TextStyle(fontWeight: FontWeight.w700)),
+        Text(tr("Easy AI setup with Maprisma"), style: TextStyle(fontWeight: FontWeight.w700)),
         const SizedBox(height: 6),
         Text(_maprismaText, style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant)),
         const SizedBox(height: 8),
         OutlinedButton(
-          onPressed: () => app.run('ask.open_maprisma', const {}, 'Could not open the browser'),
-          child: const Text('Get Maprisma in the Omarchy Plugin Marketplace'),
+          onPressed: () => app.run('ask.open_maprisma', const {}, tr("Could not open the browser")),
+          child: Text(tr("Get Maprisma in the Omarchy Plugin Marketplace")),
         ),
       ],
     ),
   );
 
-  static String _helperName(Map h) => '${h['name']}${h['local'] == true ? ' · on this PC' : ''}';
+  static String _helperName(Map h) => '${h['name']}${h['local'] == true ? tr(" · on this PC") : ''}';
 
   /// Helper: [name ▾] … [?]: the drop-down as wide as its name, the ? at the
   /// right edge (as the plugin's helper row).
@@ -995,13 +992,13 @@ class _AskPageState extends State<AskPage> {
     final radius = BorderRadius.circular(corners(context).clamp(0, 6));
     return Row(
       children: [
-        const Text('Helper:'),
+        Text(tr("Helper:")),
         const SizedBox(width: 8),
         Expanded(
           child: Align(
             alignment: Alignment.centerLeft,
             child: PopupMenuButton<String>(
-              tooltip: current == null ? 'No helper ready' : _helperName(current),
+              tooltip: current == null ? tr("No helper ready") : _helperName(current),
               enabled: list.isNotEmpty && !asking,
               onSelected: _chooseHelper,
               position: PopupMenuPosition.under,
@@ -1027,7 +1024,7 @@ class _AskPageState extends State<AskPage> {
         const SizedBox(width: 8),
         if (hints)
           IconButton.outlined(
-            tooltip: 'Easy AI setup with Maprisma',
+            tooltip: tr("Easy AI setup with Maprisma"),
             visualDensity: VisualDensity.compact,
             isSelected: showNote,
             style: ButtonStyle(shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: radius))),
@@ -1054,13 +1051,13 @@ class _AskPageState extends State<AskPage> {
           for (final h in waiting)
             OutlinedButton.icon(
               onPressed: () async {
-                final r = await app.run('ask.signin', {'command': h['id']}, 'No terminal found for the sign-in');
-                if (r != null) app.notify('Sign in in the terminal, then come back here.');
+                final r = await app.run('ask.signin', {'command': h['id']}, tr("No terminal found for the sign-in"));
+                if (r != null) app.notify(tr("Sign in in the terminal, then come back here."));
               },
               icon: const Icon(Icons.login, size: 16),
-              label: Text('Sign in to ${h['name']}'),
+              label: Text(trf("Sign in to {0}", [h['name']])),
             ),
-          TextButton.icon(onPressed: _load, icon: const Icon(Icons.refresh, size: 16), label: const Text('Check again')),
+          TextButton.icon(onPressed: _load, icon: const Icon(Icons.refresh, size: 16), label: Text(tr("Check again"))),
         ],
       ),
     );
@@ -1076,25 +1073,25 @@ class _AskPageState extends State<AskPage> {
             focusNode: _field,
             autofocus: true,
             maxLength: _maxRequest,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               counterText: '',
-              hintText: 'What do you want? e.g. “blue borders, red text and a dog wallpaper”',
+              hintText: tr("What do you want? e.g. “blue borders, red text and a dog wallpaper”"),
             ),
             onSubmitted: (_) => _ask(),
           ),
         ),
         const SizedBox(width: 6),
         Tooltip(
-          message: 'Asks once; uses your plan or tokens only now.',
+          message: tr("Asks once; uses your plan or tokens only now."),
           child: FilledButton.icon(
             onPressed: h != null && !asking ? () => _ask() : null,
             icon: const Icon(Icons.send, size: 16),
-            label: const Text('Ask'),
+            label: Text(tr("Ask")),
           ),
         ),
         const SizedBox(width: 6),
         IconButton.outlined(
-          tooltip: 'Save as suggestion',
+          tooltip: tr("Save as suggestion"),
           style: ButtonStyle(
             shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(corners(context).clamp(0, 6)))),
           ),
@@ -1112,13 +1109,13 @@ class _AskPageState extends State<AskPage> {
     final h = chosen;
     final hint = TextStyle(fontSize: 12, color: scheme.onSurfaceVariant);
     return SubPage(
-      title: 'Ask AI',
+      title: tr("Ask AI"),
       actions: [
         if (asking)
           TextButton.icon(
             onPressed: () => app.call('ask.cancel').then((_) {}, onError: (_) {}),
             icon: const Icon(Icons.stop_circle_outlined),
-            label: const Text('Stop'),
+            label: Text(tr("Stop")),
           ),
       ],
       body: !loaded
@@ -1137,9 +1134,9 @@ class _AskPageState extends State<AskPage> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(_description),
+                            Text(_description),
                             const SizedBox(height: 10),
-                            FilledButton(onPressed: _turnOn, child: const Text('Turn Ask AI on')),
+                            FilledButton(onPressed: _turnOn, child: Text(tr("Turn Ask AI on"))),
                           ],
                         ),
                       ),
@@ -1153,8 +1150,8 @@ class _AskPageState extends State<AskPage> {
                         h == null
                             ? _noHelper
                             : h['local'] == true
-                            ? 'On this PC: no tokens, nothing leaves it. Enter asks.'
-                            : 'Uses your ${h['name']} plan or tokens, only when you click Ask. Enter asks.',
+                            ? tr("On this PC: no tokens, nothing leaves it. Enter asks.")
+                            : trf("Uses your {0} plan or tokens, only when you click Ask. Enter asks.", [h['name']]),
                         style: hint,
                       ),
                       if (h == null) _signIns(scheme),
@@ -1173,7 +1170,7 @@ class _AskPageState extends State<AskPage> {
                           Expanded(child: SelectableText(status, style: hint)),
                           if (!asking && (cards.isNotEmpty || status.isNotEmpty))
                             IconButton(
-                              tooltip: 'Clear the results',
+                              tooltip: tr("Clear the results"),
                               visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
                               onPressed: () => setState(() {
                                 cards.clear();

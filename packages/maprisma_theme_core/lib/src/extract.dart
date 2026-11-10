@@ -1,3 +1,4 @@
+import 'i18n.dart';
 import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
@@ -96,11 +97,11 @@ int _le32s(Uint8List b, int i) => ByteData.sublistView(b, i, i + 4).getInt32(0, 
 String? _pngMetadataProblem(Uint8List b) {
   var i = 8, chunks = 0, texts = 0, compressed = 0;
   while (true) {
-    if (++chunks > _pngMaxChunks) return 'PNG has too many chunks';
-    if (i + 8 > b.length) return 'damaged PNG';
+    if (++chunks > _pngMaxChunks) return tr("PNG has too many chunks");
+    if (i + 8 > b.length) return tr("damaged PNG");
     final length = _be32(b, i);
     final kind = String.fromCharCodes(b.sublist(i + 4, i + 8));
-    if (length > 0x7FFFFFFF) return 'damaged PNG';
+    if (length > 0x7FFFFFFF) return tr("damaged PNG");
     final start = i + 8;
     if (kind == 'tEXt' || kind == 'zTXt' || kind == 'iTXt') {
       texts++;
@@ -115,8 +116,8 @@ String? _pngMetadataProblem(Uint8List b) {
     } else if (kind == 'iCCP') {
       compressed += length;
     }
-    if (texts > _pngMaxTextChunks) return 'PNG has too many text chunks';
-    if (compressed > _pngMaxCompressedMetadata) return 'PNG has too much compressed metadata';
+    if (texts > _pngMaxTextChunks) return tr("PNG has too many text chunks");
+    if (compressed > _pngMaxCompressedMetadata) return tr("PNG has too much compressed metadata");
     if (kind == 'IEND') return null;
     i = start + length + 4;
   }
@@ -126,12 +127,12 @@ String? _pngMetadataProblem(Uint8List b) {
 /// declares a sane size (16384 px per side, 64 MP).
 String? headerSizeProblem(Uint8List bytes) {
   final kind = imageKind(bytes);
-  if (kind == null) return 'not a supported image (JPG, PNG, WebP, GIF, BMP)';
+  if (kind == null) return tr("not a supported image (JPG, PNG, WebP, GIF, BMP)");
   final size = _headerSize(bytes, kind);
-  if (size == null) return 'unreadable image';
+  if (size == null) return tr("unreadable image");
   final (w, h) = size;
-  if (w <= 0 || h <= 0) return 'image has no size';
-  if (w > maxImageSide || h > maxImageSide || w * h > maxImagePixels) return 'image too large to show ($w×$h)';
+  if (w <= 0 || h <= 0) return tr("image has no size");
+  if (w > maxImageSide || h > maxImageSide || w * h > maxImagePixels) return trf("image too large to show ({0}×{1})", [w, h]);
   if (kind == 'png') return _pngMetadataProblem(bytes);
   return null;
 }
@@ -140,7 +141,7 @@ String? headerSizeProblem(Uint8List bytes) {
 /// with the reason (missing, not a regular file, too large, bad header).
 Uint8List readCheckedImage(String path) {
   final bytes = Posix.instance.readRegular(path, maxImageBytes);
-  if (bytes == null) throw const FormatException('cannot read the image (missing, not a file, or over 50 MiB)');
+  if (bytes == null) throw FormatException(tr("cannot read the image (missing, not a file, or over 50 MiB)"));
   final problem = headerSizeProblem(bytes);
   if (problem != null) throw FormatException(problem);
   return bytes;
@@ -155,7 +156,7 @@ img.Image? decodeChecked(Uint8List bytes) {
     'gif' => img.GifDecoder(),
     'bmp' => img.BmpDecoder(),
     'webp' => img.WebPDecoder(),
-    _ => throw const FormatException('not a supported image'),
+    _ => throw FormatException(tr("not a supported image")),
   };
   try {
     final image = decoder.decode(bytes, frame: 0);
@@ -271,7 +272,7 @@ String _readable(String color, String bg, double minimum) {
 /// they stay readable on the background. Returns background, foreground,
 /// accent, selection, muted and the eight palette colors (derive the rest).
 Map<String, String> colorsFromPixels(List<(double, double, double)> pixels) {
-  if (pixels.isEmpty) throw const FormatException('the image has no visible pixels');
+  if (pixels.isEmpty) throw FormatException(tr("the image has no visible pixels"));
   final hls = [for (final (r, g, b) in pixels) rgbToHls(r, g, b)];
   final brightness = hls.fold(0.0, (a, p) => a + p.$2) / hls.length;
   final dark = brightness < 0.6;
@@ -353,7 +354,7 @@ Map<String, String> colorsFromPixels(List<(double, double, double)> pixels) {
 
 Map<String, String> _colorsFromBytes(Uint8List bytes) {
   final image = decodeChecked(bytes);
-  if (image == null) throw const FormatException('cannot read the image');
+  if (image == null) throw FormatException(tr("cannot read the image"));
   return colorsFromPixels(imagePixels(image));
 }
 

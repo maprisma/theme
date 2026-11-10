@@ -1,3 +1,4 @@
+import 'i18n.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -28,10 +29,10 @@ const _hosts = {'cosmic-themes.org'};
 const maxCosmicPage = 4 * 1024 * 1024;
 const maxRonBytes = 1024 * 1024;
 const cosmicSource = 'cosmic-themes.org';
-const defaultSorts = [
-  {'value': 'popular', 'label': 'Popular'},
-  {'value': 'new', 'label': 'New'},
-  {'value': 'name', 'label': 'Name'},
+List<Map<String, String>> get defaultSorts => [
+  {'value': 'popular', 'label': tr('Popular')},
+  {'value': 'new', 'label': tr('New')},
+  {'value': 'name', 'label': tr("Name")},
 ];
 
 final class CosmicTheme {
@@ -201,7 +202,7 @@ Future<CosmicPage> fetchCosmicList({String? search, String? sort, int page = 1})
       hosts: _hosts, maxBytes: maxCosmicPage, timeout: const Duration(seconds: 20)));
   if (reply == null || reply.status != 200) {
     if (reply?.status == 404 && page > 1) return CosmicPage(const [], null, [...defaultSorts], null);
-    throw RouteError('offline', 'could not load the theme list from cosmic-themes.org');
+    throw RouteError('offline', tr("could not load the theme list from cosmic-themes.org"));
   }
   return parseCosmicPage(reply.text);
 }
@@ -256,13 +257,13 @@ Future<(CosmicTheme?, String, String)> _themePage(int id) async {
   final reply = await netFetch(NetRequest(Uri.https('cosmic-themes.org', '/$id/'), hosts: _hosts,
       maxBytes: maxCosmicPage, timeout: const Duration(seconds: 20)));
   if (reply == null || reply.status != 200) {
-    if (reply?.status == 404) throw RouteError('not_found', 'cosmic-themes.org has no theme $id');
-    throw RouteError('offline', 'could not reach cosmic-themes.org');
+    if (reply?.status == 404) throw RouteError('not_found', trf("cosmic-themes.org has no theme {0}", [id]));
+    throw RouteError('offline', tr("could not reach cosmic-themes.org"));
   }
   final page = parseCosmicPage(reply.text);
   final cookie = reply.cookies['csrftoken'];
   if (page.csrf == null || cookie == null || !RegExp(r'^[A-Za-z0-9]{16,128}$').hasMatch(cookie)) {
-    throw RouteError('download_failed', 'cosmic-themes.org sent no download token');
+    throw RouteError('download_failed', tr("cosmic-themes.org sent no download token"));
   }
   CosmicTheme? entry;
   for (final t in page.themes) {
@@ -288,9 +289,9 @@ Future<(String, CosmicTheme?)> downloadCosmicRon(int id) async {
     maxBytes: maxRonBytes,
     timeout: const Duration(seconds: 20),
   ));
-  if (reply == null || reply.status != 200) throw RouteError('download_failed', 'cosmic-themes.org did not send the theme');
+  if (reply == null || reply.status != 200) throw RouteError('download_failed', tr("cosmic-themes.org did not send the theme"));
   final ron = checkThemeRon(reply.body);
-  if (ron == null) throw RouteError('bad_theme', 'the download is not a COSMIC theme');
+  if (ron == null) throw RouteError('bad_theme', tr("the download is not a COSMIC theme"));
   return (ron, entry);
 }
 
@@ -299,7 +300,7 @@ Future<(String, CosmicTheme?)> downloadCosmicRon(int id) async {
 /// Returns the slug.
 Future<String> installCosmicRon(Ctx ctx, int id, String ron, {CosmicTheme? entry}) async {
   final installed = installedCosmicIds(ctx)[id];
-  if (installed != null) throw RouteError('exists', 'this theme is already installed as “$installed”');
+  if (installed != null) throw RouteError('exists', trf("this theme is already installed as “{0}”", [installed]));
   final name = entry?.name ?? ronName(ron) ?? 'COSMIC theme $id';
   var base = slugify(name);
   if (base.isEmpty || !slugRe.hasMatch(base)) base = 'cosmic-theme-$id';
@@ -321,7 +322,7 @@ Future<String> installCosmicRon(Ctx ctx, int id, String ron, {CosmicTheme? entry
     writeText('$tmp/cosmic.ron', ron, mode: 420);
     final derived = await ctx.desktop.ronColors('$tmp/cosmic.ron');
     if (derived == null || !isHex(derived['background']) || !isHex(derived['foreground'])) {
-      throw RouteError('bad_theme', 'the theme has no usable colors');
+      throw RouteError('bad_theme', tr("the theme has no usable colors"));
     }
     final colors = {...derived};
     colors['mode'] = colors['mode'] == 'light' || colors['mode'] == 'dark' ? colors['mode']! : (ronIsDark(ron) ? 'dark' : 'light');
@@ -348,7 +349,7 @@ Future<String> installCosmicRon(Ctx ctx, int id, String ron, {CosmicTheme? entry
       }
       return slug;
     }
-    throw RouteError('exists', 'no free folder name for “$name”');
+    throw RouteError('exists', trf("no free folder name for “{0}”", [name]));
   } finally {
     cleanup();
   }

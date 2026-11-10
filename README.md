@@ -24,6 +24,8 @@ and uses the same theme format (Omarchy's `colors.toml`), so themes move freely 
   Codex, pi or Hermes, or a local model. It runs only when you click Ask, without tools (Codex read-only in a jail), and gets only your
   words, the installed themes' names and colors, the names of up to 300 omarchy.org catalog themes and your
   font names.
+- **Interface languages**: English, Deutsch, Français, Español, Italiano, Português, Nederlands and Polski.
+  Follow the system or choose one in **Settings → General → Language**; changes take effect immediately.
 - **Backup and restore** of all settings.
 
 ## Build and install
@@ -50,9 +52,11 @@ settings over once.
 | `cosmic/` | Rust: the COSMIC helper (applies themes, talks to the compositor) and the panel applet |
 | `themes/`, `templates/` | Omarchy's system themes (colors and app configs) and app templates |
 | `packaging/`, `tools/` | Desktop entries, icon, install and import scripts |
+| `translations/` | Original Omarchy catalogs and port additions; compile with `tools/gen-translations` |
 | `docs/` | Design notes: `plan.md`, `multi-desktop.md`, `theme-looks.md`, `protocol.md`, … |
 
-Tests: `dart test` in `packages/maprisma_theme_core`, `flutter test` in `flutter_app`.
+Tests: `dart test` in `packages/maprisma_theme_core`, `flutter test` in `flutter_app`, and
+`python3 -m unittest discover -s tests` for translation coverage and generated catalogs.
 
 ## Bundled themes and artwork
 

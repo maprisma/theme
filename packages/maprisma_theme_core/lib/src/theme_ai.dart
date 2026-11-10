@@ -11,6 +11,8 @@
 ///   wallpaper is only a plain search phrase (never a URL).
 library;
 
+import 'i18n.dart';
+
 import 'dart:convert';
 
 import 'colors.dart';
@@ -56,11 +58,11 @@ final fontRe = RegExp(r'^[A-Za-z0-9][A-Za-z0-9 ._+-]{0,79}$');
 final _hexRe = RegExp(r'^#[0-9a-fA-F]{6}$');
 
 /// The built-in suggestions under the field.
-const examplePrompts = [
-  'Blue borders, red text and a nice dog wallpaper',
-  'A calm light theme for daytime',
-  'Find a warm dark theme in the catalog',
-  'Another font for the current theme',
+List<String> get examplePrompts => [
+  tr('Blue borders, red text and a nice dog wallpaper'),
+  tr('A calm light theme for daytime'),
+  tr('Find a warm dark theme in the catalog'),
+  tr('Another font for the current theme'),
 ];
 
 /// Settings → ask_prompts: up to 12 distinct, non-empty one-line requests.
@@ -378,7 +380,7 @@ Map<String, dynamic> forRefine(Map<String, dynamic> c) {
   int limit = maxCandidates,
   String? current,
 }) {
-  if (answer is! Map) throw const FormatException('not an object');
+  if (answer is! Map) throw FormatException(tr('not an object'));
   final bySlug = {for (final t in themes) t.slug: t};
   final catalogBySlug = {for (final c in catalog) c.slug: c};
   final fontSet = fonts.toSet();

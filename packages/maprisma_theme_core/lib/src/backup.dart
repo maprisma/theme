@@ -3,6 +3,8 @@
 /// the helper, the applet and the shortcut file instead of Omarchy's pickers).
 library;
 
+import 'i18n.dart';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -49,10 +51,10 @@ List<int>? _readPrivate(String path, {int limit = maxBackup}) {
   final type = FileSystemEntity.typeSync(path, followLinks: false);
   if (type == FileSystemEntityType.notFound) return null;
   if (type != FileSystemEntityType.file || Posix.instance.ownerOf(path, follow: false) != Posix.instance.uid) {
-    throw FormatException('unsafe backup input: ${baseName(path)}');
+    throw FormatException(trf("unsafe backup input: {0}", [baseName(path)]));
   }
   final bytes = Posix.instance.readRegular(path, limit, follow: false);
-  if (bytes == null) throw FormatException('backup input too large: ${baseName(path)}');
+  if (bytes == null) throw FormatException(trf("backup input too large: {0}", [baseName(path)]));
   return bytes;
 }
 
@@ -72,7 +74,7 @@ Map<String, dynamic> collectBackup(Ctx ctx, {Map<String, List<int>>? broken}) {
     if (data == null) continue;
     try {
       final value = jsonDecode(utf8.decode(data));
-      if (!_isType(value, type)) throw FormatException('invalid $name');
+      if (!_isType(value, type)) throw FormatException(trf('invalid {0}', [name]));
       files[name] = value;
     } on FormatException {
       if (broken == null) rethrow;
@@ -88,7 +90,7 @@ Map<String, dynamic> _validateSettings(Map value) {
   final out = <String, dynamic>{};
   for (final e in value.entries) {
     final key = '${e.key}';
-    // the plugin's Omarchy-only keys (language, sync_omarchy, position) are dropped
+    // the plugin's Omarchy-only keys (sync_omarchy, position) are dropped
     if (!defaultSettings.containsKey(key)) {
       if (key == 'screenshot_folder' && (e.value == null || Settings.check('screenshot_dir', e.value))) {
         out['screenshot_dir'] = e.value;
@@ -107,27 +109,27 @@ Map<String, dynamic> _validateSettings(Map value) {
       final plan = e.value as Map;
       for (final k in ['day', 'night']) {
         final d = plan[k];
-        if (d != null && (d is! String || (d.isNotEmpty && !_slug(d)))) throw const FormatException('invalid settings');
+        if (d != null && (d is! String || (d.isNotEmpty && !_slug(d)))) throw FormatException(tr("invalid settings"));
       }
     }
-    if (!Settings.check(key, e.value)) throw const FormatException('invalid settings');
+    if (!Settings.check(key, e.value)) throw FormatException(tr("invalid settings"));
     out[key] = e.value;
   }
   return out;
 }
 
 Object? _validateValue(Ctx ctx, String name, Object? value) {
-  if (!_isType(value, backupFiles[name]!)) throw FormatException('invalid $name');
+  if (!_isType(value, backupFiles[name]!)) throw FormatException(trf('invalid {0}', [name]));
   switch (name) {
     case 'settings.json':
       return _validateSettings(value as Map);
     case 'looks.json':
       final m = value as Map;
-      if (m.entries.any((e) => !_slug(e.key) || checkLook(e.value) == null)) throw const FormatException('invalid looks');
+      if (m.entries.any((e) => !_slug(e.key) || checkLook(e.value) == null)) throw FormatException(tr("invalid looks"));
       return {for (final e in m.entries) e.key: checkLook(e.value)};
     case 'hidden.json':
       final list = value as List;
-      if (list.any((s) => !_slug(s))) throw const FormatException('invalid hidden themes');
+      if (list.any((s) => !_slug(s))) throw FormatException(tr("invalid hidden themes"));
       return [
         for (final s in list)
           if (s != ctx.current.slug) s,
@@ -138,27 +140,27 @@ Object? _validateValue(Ctx ctx, String name, Object? value) {
         if (!_slug(e.key) ||
             e.value is! List ||
             (e.value as List).any((w) => !validWallpaperName(w) || !imageExts.contains(extOf(w as String)))) {
-          throw const FormatException('invalid hidden wallpapers');
+          throw FormatException(tr("invalid hidden wallpapers"));
         }
       }
       return value;
     case 'favorites.json':
       final list = value as List;
-      if (list.length > maxFavoritesAuto || list.any((s) => !_slug(s))) throw const FormatException('invalid favorites');
+      if (list.length > maxFavoritesAuto || list.any((s) => !_slug(s))) throw FormatException(tr("invalid favorites"));
       return value;
     case 'recent.json':
       final m = value as Map;
       if (m.length > maxRecent || m.entries.any((e) => !_slug(e.key) || e.value is! num || !(e.value as num).isFinite)) {
-        throw const FormatException('invalid recent themes');
+        throw FormatException(tr("invalid recent themes"));
       }
       return value;
     case 'workspace-wallpapers.json':
       for (final e in (value as Map).entries) {
-        if (!_slug(e.key) || e.value is! Map) throw const FormatException('invalid workspace wallpapers');
+        if (!_slug(e.key) || e.value is! Map) throw FormatException(tr("invalid workspace wallpapers"));
         for (final a in (e.value as Map).entries) {
           final ws = int.tryParse('${a.key}');
           if (ws == null || ws < 1 || ws > maxWorkspace || !validWallpaperName(a.value)) {
-            throw const FormatException('invalid workspace wallpapers');
+            throw FormatException(tr("invalid workspace wallpapers"));
           }
         }
       }
@@ -166,13 +168,13 @@ Object? _validateValue(Ctx ctx, String name, Object? value) {
     case 'workspace-themes.json':
       for (final e in (value as Map).entries) {
         final ws = int.tryParse('${e.key}');
-        if (ws == null || ws < 1 || ws > maxWorkspace || !_slug(e.value)) throw const FormatException('invalid workspace themes');
+        if (ws == null || ws < 1 || ws > maxWorkspace || !_slug(e.value)) throw FormatException(tr("invalid workspace themes"));
       }
       return value;
     case 'shortcuts.json':
       final raw = value as Map;
       final cleaned = ThemeShortcuts.cleanShortcuts(raw);
-      if (cleaned.length != raw.length) throw const FormatException('invalid shortcuts');
+      if (cleaned.length != raw.length) throw FormatException(tr("invalid shortcuts"));
       return {
         for (final e in cleaned.entries)
           e.key: {'mods': e.value['mods'], 'key': e.value['key'], if (e.value['replaces'] != null) 'replaces': e.value['replaces']},
@@ -184,7 +186,7 @@ Object? _validateValue(Ctx ctx, String name, Object? value) {
           if (p is Map && p['name'] is String) (p['name'] as String).toLowerCase(),
       ];
       if (list.length > 200 || names.length != list.length || names.toSet().length != names.length) {
-        throw const FormatException('invalid presets');
+        throw FormatException(tr("invalid presets"));
       }
       return _withoutCommands(list);
     case 'workspaces.json':
@@ -211,7 +213,7 @@ String _encode(Object? value) => '${const JsonEncoder.withIndent('  ').convert(v
 /// Writes a backup to [path] (0600).
 void exportBackup(Ctx ctx, String path) {
   final payload = _encode(collectBackup(ctx));
-  if (utf8.encode(payload).length > maxBackup) throw RouteError('too_large', 'backup is too large');
+  if (utf8.encode(payload).length > maxBackup) throw RouteError('too_large', tr("backup is too large"));
   writeText(path, payload);
 }
 
@@ -227,10 +229,10 @@ Map<String, dynamic> previewBackup(Ctx ctx, String path) {
   try {
     final payload = jsonDecode(utf8.decode(data));
     if (payload is! Map || (payload['format'] != backupFormat && payload['format'] != pluginBackupFormat) || payload['version'] != 1) {
-      throw const FormatException('unsupported backup format');
+      throw FormatException(tr("unsupported backup format"));
     }
     final files = payload['files'];
-    if (files is! Map || files.keys.any((k) => !backupFiles.containsKey(k))) throw const FormatException('invalid backup files');
+    if (files is! Map || files.keys.any((k) => !backupFiles.containsKey(k))) throw FormatException(tr("invalid backup files"));
     final checked = {for (final e in files.entries) e.key as String: _validateValue(ctx, e.key as String, e.value)};
     for (final e in checked.entries) {
       final limit = e.key == 'presets.json'
@@ -238,7 +240,7 @@ Map<String, dynamic> previewBackup(Ctx ctx, String path) {
           : e.key == 'workspaces.json'
           ? 512 * 1024
           : maxBackup;
-      if (utf8.encode(_encode(e.value)).length > limit) throw FormatException('backup file too large: ${e.key}');
+      if (utf8.encode(_encode(e.value)).length > limit) throw FormatException(trf("backup file too large: {0}", [e.key]));
     }
     return checked;
   } on FormatException catch (e) {
@@ -259,7 +261,7 @@ String safetyCopyPath(Ctx ctx, DateTime now) {
       stat.type != FileSystemEntityType.directory ||
       Posix.instance.ownerOf(folder) != Posix.instance.uid ||
       stat.mode & 0x12 != 0) {
-    throw RouteError('unsafe', 'unsafe backup folder');
+    throw RouteError('unsafe', tr("unsafe backup folder"));
   }
   final stem =
       'maprisma-theme.before-restore-${now.year}-${_two(now.month)}-${_two(now.day)}-'
@@ -279,7 +281,7 @@ String restoreBackup(Ctx ctx, String path) {
   final prior = collectBackup(ctx, broken: broken)['files'] as Map<String, dynamic>;
   final safety = safetyCopyPath(ctx, ctx.clock());
   final payload = utf8.encode(_encode({'format': backupFormat, 'version': 1, 'files': prior}));
-  if (!Posix.instance.writeNewPrivate(safety, payload)) throw RouteError('failed', 'could not write $safety');
+  if (!Posix.instance.writeNewPrivate(safety, payload)) throw RouteError('failed', trf("could not write {0}", [safety]));
   final shortcuts = ThemeShortcuts(ctx);
   final shortcutChanged = files.containsKey('shortcuts.json') || prior.containsKey('shortcuts.json');
   void put(Map<String, dynamic> source, Map<String, List<int>> raw) {
@@ -305,10 +307,10 @@ String restoreBackup(Ctx ctx, String path) {
     try {
       put(prior, broken);
     } on Object catch (rollback) {
-      throw RouteError('failed', 'restore failed: $original; rollback failed: $rollback');
+      throw RouteError('failed', trf("restore failed: {0}; rollback failed: {1}", [original, rollback]));
     }
     if (original is RouteError) rethrow;
-    throw RouteError('failed', 'restore failed: $original');
+    throw RouteError('failed', trf("restore failed: {0}", [original]));
   }
   ctx.automationChanged();
   return safety;

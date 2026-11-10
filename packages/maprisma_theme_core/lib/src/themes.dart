@@ -1,3 +1,4 @@
+import 'i18n.dart';
 import 'dart:io';
 
 import 'colors.dart';
@@ -10,8 +11,8 @@ const previewNames = ['preview.png', 'preview.jpg', 'preview.jpeg', 'preview.web
 const hiddenDir = '.hidden';
 final slugRe = RegExp(r'^[A-Za-z0-9_][A-Za-z0-9._+-]*$');
 
-const lockSystem = 'Ships with a built-in theme: hide it instead';
-const lockGit = 'Part of a theme installed from git; deleting would break its updates: hide it instead';
+String get lockSystem => tr("Ships with a built-in theme: hide it instead");
+String get lockGit => tr("Part of a theme installed from git; deleting would break its updates: hide it instead");
 
 /// Omarchy's rule: capitalise the first letter and after every dash, dashes to spaces.
 String displayName(String slug) =>

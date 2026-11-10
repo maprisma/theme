@@ -1,3 +1,4 @@
+import 'i18n.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -43,7 +44,7 @@ Map<String, Handler> wallpaperRoutes(Ctx ctx, {Fetch? fetch}) {
 
   Future<Map<String, dynamic>> undo(Map<String, dynamic> p) async {
     final list = receipts.take(str(p, 'receipt'));
-    if (list == null) throw RouteError('expired', 'Undo is no longer possible');
+    if (list == null) throw RouteError('expired', tr("Undo is no longer possible"));
     final restored = <String>[];
     for (final r in list) {
       try {
@@ -97,7 +98,7 @@ Map<String, Handler> wallpaperRoutes(Ctx ctx, {Fetch? fetch}) {
         } on FileSystemException {
           // gone
         }
-        if (read == null) throw RouteError('too_large', 'The image could not be read (or is over 50 MiB).');
+        if (read == null) throw RouteError('too_large', tr("The image could not be read (or is over 50 MiB)."));
         data = read;
       } else {
         try {
@@ -122,7 +123,7 @@ Map<String, Handler> wallpaperRoutes(Ctx ctx, {Fetch? fetch}) {
     'wallpapers.delete': (p) async {
       final theme = themeOf(p);
       final w = findWallpaper(ctx, theme, str(p, 'name'));
-      if (!w.deletable) throw RouteError('locked', w.lockedReason.isEmpty ? "Can't delete: hide instead" : w.lockedReason);
+      if (!w.deletable) throw RouteError('locked', w.lockedReason.isEmpty ? tr("Can't delete: hide instead") : w.lockedReason);
       final r = removeWallpaper(ctx, w.path);
       await leaveWallpaper(ctx, theme, w.path);
       return {'receipt': r == null ? null : receipts.keep([r]), 'name': w.name};
@@ -132,7 +133,7 @@ Map<String, Handler> wallpaperRoutes(Ctx ctx, {Fetch? fetch}) {
       final path = str(p, 'path');
       final theme = ctx.theme(validSlug(optStr(p, 'slug') ?? ctx.current.slug));
       final w = listBackgrounds(ctx.paths, theme).where((x) => x.path == path && !x.hidden).firstOrNull;
-      if (w == null) throw RouteError('not_found', 'not a visible wallpaper of ${theme.name}');
+      if (w == null) throw RouteError('not_found', trf("not a visible wallpaper of {0}", [theme.name]));
       final problem = imageSizeProblem(path);
       if (problem != null) throw RouteError('bad_image', problem);
       if (theme.slug != ctx.current.slug) {
@@ -141,7 +142,7 @@ Map<String, Handler> wallpaperRoutes(Ctx ctx, {Fetch? fetch}) {
         return {'set': false, 'remembered': true};
       }
       // As the applet's scroll: a workspace with its own wallpaper gets it, else it is the new base.
-      if (!await showChosenBackground(ctx, theme, path)) throw RouteError('set_failed', 'Could not set the background');
+      if (!await showChosenBackground(ctx, theme, path)) throw RouteError('set_failed', tr("Could not set the background"));
       previewing = false;
       beforePreview = null;
       return {'set': true, 'remembered': true};

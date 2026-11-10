@@ -22,6 +22,7 @@ export PATH="${FLUTTER:-/mnt/Data/flutter/bin}:$PATH"
 bundle="$root/flutter_app/build/linux/x64/release/bundle"
 
 if (( build )); then
+  "$root/tools/gen-translations"
   (cd "$root/flutter_app" && flutter build linux --release --no-tree-shake-icons >/dev/null)
   (cd "$root/cosmic" && cargo build --release -q)   # fetches the crates on a fresh checkout
   mkdir -p "$bundle/bin"

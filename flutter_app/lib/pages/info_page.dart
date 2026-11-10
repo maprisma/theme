@@ -1,3 +1,4 @@
+import '../i18n.dart';
 import 'package:flutter/material.dart';
 
 import '../app.dart';
@@ -65,7 +66,7 @@ class _InfoPageState extends State<InfoPage> {
     if (r?['opened'] == true) {
       AppWindow.instance.hide();
     } else if (r != null) {
-      app.notify('Could not open the browser.');
+      app.notify(tr("Could not open the browser."));
     }
   }
 
@@ -73,7 +74,7 @@ class _InfoPageState extends State<InfoPage> {
   Widget build(BuildContext context) {
     final look = Look.of(context);
     return SubPage(
-      title: 'Information',
+      title: tr("Information"),
       body: Focus(
         autofocus: true,
         child: loading
@@ -82,7 +83,7 @@ class _InfoPageState extends State<InfoPage> {
                 children: [
                   Padding(
                     padding: const EdgeInsets.only(bottom: 10),
-                    child: Text('MORE PLUGINS BY THE SAME AUTHOR',
+                    child: Text(tr("MORE PLUGINS BY THE SAME AUTHOR"),
                         style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1, color: look.dim)),
                   ),
                   LayoutBuilder(
@@ -121,7 +122,7 @@ class _CardState extends State<_Card> {
     final p = widget.plugin;
     final name = '${p['name']}';
     return Tooltip(
-      message: 'Open $name in the Omarchy Plugin Marketplace',
+      message: trf("Open {0} in the Omarchy Plugin Marketplace", [name]),
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         onEnter: (_) => setState(() => hover = true),

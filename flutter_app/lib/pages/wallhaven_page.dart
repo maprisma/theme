@@ -1,3 +1,4 @@
+import '../i18n.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -70,8 +71,7 @@ class _WallhavenPageState extends State<WallhavenPage> {
 
   String get hint {
     if (status.isNotEmpty) return status;
-    return 'Type what you are looking for and press Enter. Results come from $_source: safe for work, '
-        'landscape, at least 1920×1080.';
+    return trf("Type what you are looking for and press Enter. Results come from {0}: safe for work, landscape, at least 1920×1080.", [_source]);
   }
 
   Future<void> search() async {
@@ -95,7 +95,7 @@ class _WallhavenPageState extends State<WallhavenPage> {
     final gen = generation, next = page + 1;
     setState(() {
       loading = true;
-      status = 'Searching $_source for “$query”…';
+      status = trf("Searching {0} for “{1}”…", [_source, query]);
     });
     Map<String, dynamic>? r;
     String? error;
@@ -108,7 +108,7 @@ class _WallhavenPageState extends State<WallhavenPage> {
     setState(() {
       loading = false;
       if (r == null) {
-        status = 'Search failed: $error';
+        status = trf("Search failed: {0}", [error]);
         return;
       }
       page = next;
@@ -118,10 +118,9 @@ class _WallhavenPageState extends State<WallhavenPage> {
       results.addAll(fresh.where((x) => !known.contains(x['id'])));
       _thumbQueue.addAll(fresh.where((x) => !thumbs.containsKey(x['id'])));
       if (results.isEmpty) {
-        status = 'Nothing found for “$query”. Try other words.';
+        status = trf("Nothing found for “{0}”. Try other words.", [query]);
       } else {
-        status = '${results.length} wallpapers for “$query”.${page < lastPage ? ' Scroll down for more.' : ''} '
-            'Enter on a tile opens its menu.';
+        status = trf("{0} wallpapers for “{1}”.{2} Enter on a tile opens its menu.", [results.length, query, page < lastPage ? tr(" Scroll down for more.") : '']);
       }
     });
     _pumpThumbs(gen);
@@ -153,20 +152,20 @@ class _WallhavenPageState extends State<WallhavenPage> {
   // --- actions -------------------------------------------------------------------
 
   Future<void> add(Map<String, dynamic> item, {bool set = false}) async {
-    setState(() => status = 'Downloading ${item['file_name']}…');
+    setState(() => status = trf("Downloading {0}…", [item['file_name']]));
     try {
       final r = await app.call('wallhaven.add', {'slug': widget.slug, 'item': _plain(item), 'set': set});
       if (!mounted) return;
       setState(() {
         item['added'] = true;
-        status = 'Added ${r['name']} to ${widget.themeName}.';
+        status = trf("Added {0} to {1}.", [r['name'], widget.themeName]);
       });
-      app.notify('Wallpaper added: ${r['name']} → ${widget.themeName}');
+      app.notify(trf("Wallpaper added: {0} → {1}", [r['name'], widget.themeName]));
       app.changed();
     } catch (e) {
       final why = failText(e);
-      if (mounted) setState(() => status = 'Could not add ${item['file_name']}: $why');
-      app.notify('Could not add wallpaper: ${item['file_name']}: $why');
+      if (mounted) setState(() => status = trf("Could not add {0}: {1}", [item['file_name'], why]));
+      app.notify(trf("Could not add wallpaper: {0}: {1}", [item['file_name'], why]));
     }
   }
 
@@ -180,7 +179,7 @@ class _WallhavenPageState extends State<WallhavenPage> {
     previewTimer?.cancel();
     previewTimer = null;
     previewing = tag;
-    setState(() => status = 'Loading a preview of ${item['file_name']}…');
+    setState(() => status = trf("Loading a preview of {0}…", [item['file_name']]));
     String? path;
     try {
       path = (await app.call('wallhaven.preview', {'item': _plain(item)}))['path'] as String?;
@@ -191,7 +190,7 @@ class _WallhavenPageState extends State<WallhavenPage> {
     setState(() => status = '');
     if (path == null) {
       if (previewing == tag) previewing = null;
-      app.notify('No preview: ${item['file_name']} could not be loaded');
+      app.notify(trf("No preview: {0} could not be loaded", [item['file_name']]));
       return;
     }
     if (previewing != tag) return; // Space was let go meanwhile
@@ -216,21 +215,21 @@ class _WallhavenPageState extends State<WallhavenPage> {
 
   Future<void> openPage(Map item) async {
     final r = await app.run('wallhaven.open', {'page': item['page']});
-    if (r != null && r['opened'] != true) app.notify('No web browser could be started (xdg-open).');
+    if (r != null && r['opened'] != true) app.notify(tr("No web browser could be started (xdg-open)."));
   }
 
   List<PopupMenuEntry<VoidCallback>> menuFor(Map<String, dynamic> w) => [
     if (w['added'] == true)
-      item_(Icons.check, 'Already added', null)
+      item_(Icons.check, tr("Already added"), null)
     else ...[
-      item(Icons.add, 'Add to ${widget.themeName}', () => add(w), tooltip: 'Saved in ~/.config/maprisma-theme/backgrounds/${widget.slug}/'),
-      if (widget.current && app.can('wallpaper')) item_(Icons.wallpaper_outlined, 'Add and set as background', () => add(w, set: true)),
+      item(Icons.add, trf("Add to {0}", [widget.themeName]), () => add(w), tooltip: trf("Saved in ~/.config/maprisma-theme/backgrounds/{0}/", [widget.slug])),
+      if (widget.current && app.can('wallpaper')) item_(Icons.wallpaper_outlined, tr("Add and set as background"), () => add(w, set: true)),
     ],
     if (app.can('wallpaper'))
-      item(Icons.visibility_outlined, 'Preview on desktop', () => preview(w, seconds: previewSeconds),
-          tooltip: 'Loads the full image and shows it for $previewSeconds seconds; or hold Space on the tile'),
+      item(Icons.visibility_outlined, tr("Preview on desktop"), () => preview(w, seconds: previewSeconds),
+          tooltip: trf("Loads the full image and shows it for {0} seconds; or hold Space on the tile", [previewSeconds])),
     menuLine(),
-    item(Icons.open_in_browser, 'Open on $_source', () => openPage(w), tooltip: '${w['page']}'),
+    item(Icons.open_in_browser, trf("Open on {0}", [_source]), () => openPage(w), tooltip: '${w['page']}'),
   ];
 
   PopupMenuItem<VoidCallback> item_(IconData icon, String label, VoidCallback? action) =>
@@ -332,8 +331,8 @@ class _WallhavenPageState extends State<WallhavenPage> {
               color: look.fg.withValues(alpha: .06),
               child: thumbs.containsKey(id) ? Icon(Icons.image_not_supported_outlined, color: look.muted) : null,
             ),
-      menu: TileMenuButton(menuKey: menuKey, tooltip: 'Wallpaper actions (Enter)', menu: () => menuFor(item)),
-      bottomLeft: [if (item['added'] == true) const TileBadge('added')],
+      menu: TileMenuButton(menuKey: menuKey, tooltip: tr("Wallpaper actions (Enter)"), menu: () => menuFor(item)),
+      bottomLeft: [if (item['added'] == true) TileBadge(tr("added"))],
       captionText: '${item['resolution']}'.replaceAll('x', ' × '),
     );
   }
@@ -341,9 +340,9 @@ class _WallhavenPageState extends State<WallhavenPage> {
   @override
   Widget build(BuildContext context) {
     return SubPage(
-      title: '${widget.themeName} — search wallpapers',
+      title: trf("{0} — search wallpapers", [widget.themeName]),
       section: false,
-      backTooltip: 'Back to the wallpapers (Backspace or Esc)',
+      backTooltip: tr("Back to the wallpapers (Backspace or Esc)"),
       body: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Focus(
           onKeyEvent: onFieldKey,
@@ -352,9 +351,9 @@ class _WallhavenPageState extends State<WallhavenPage> {
             focusNode: fieldFocus,
             maxLength: 100,
             textInputAction: TextInputAction.search,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               prefixIcon: Icon(Icons.search, size: 18),
-              hintText: 'Search, e.g. misty forest, neon city',
+              hintText: tr("Search, e.g. misty forest, neon city"),
               counterText: '',
             ),
             onSubmitted: (_) => search(),

@@ -1,3 +1,4 @@
+import 'i18n.dart';
 import 'apply.dart';
 import 'auto.dart';
 import 'catalog_cosmic.dart';
@@ -73,7 +74,7 @@ Map<String, Handler> importRoutes(Ctx ctx) => {
   'import.cosmic_install': (p) async {
     final id = intParam(p, 'id', min: 1, max: 999999999);
     if (installedCosmicIds(ctx)[id] case final slug?) {
-      throw RouteError('exists', 'this theme is already installed as “$slug”');
+      throw RouteError('exists', trf("this theme is already installed as “{0}”", [slug]));
     }
     final (ron, entry) = await downloadCosmicRon(id);
     final slug = await installCosmicRon(ctx, id, ron, entry: entry);
@@ -102,7 +103,7 @@ Map<String, Handler> importRoutes(Ctx ctx) => {
   'import.kde_install': (p) async {
     final id = intParam(p, 'id', min: 1, max: 999999999);
     if (installedKdeIds(ctx)[id] case final slug?) {
-      throw RouteError('exists', 'this theme is already installed as “$slug”');
+      throw RouteError('exists', trf("this theme is already installed as “{0}”", [slug]));
     }
     final (text, entry) = await downloadKdeColors(id);
     final slug = installKdeColors(ctx, entry, text);
@@ -139,5 +140,5 @@ Future<OmarchyTheme> _omarchyTheme(Ctx ctx, String name) async {
   for (final t in themes) {
     if (t.name.toLowerCase() == lower) return t;
   }
-  throw RouteError('not_found', 'omarchy.org has no theme $name');
+  throw RouteError('not_found', trf("omarchy.org has no theme {0}", [name]));
 }

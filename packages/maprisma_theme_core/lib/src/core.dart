@@ -1,3 +1,4 @@
+import 'i18n.dart';
 import 'dart:convert';
 
 import 'context.dart';
@@ -28,6 +29,8 @@ final class CoreService {
   late final Map<String, Handler> routes;
 
   Future<Map<String, dynamic>> call(String method, [Map<String, dynamic> params = const {}]) async {
+    languageSetting = ctx.settings.get('language') as String? ?? 'auto';
+    languageEnvironment = ctx.environment;
     final handler = routes[method];
     if (handler == null) throw RouteError('unknown_route', method);
     try {

@@ -2,6 +2,8 @@
 /// theme, kept in looks.json beside the settings; theme files never change.
 library;
 
+import 'i18n.dart';
+
 import 'dart:convert';
 
 import 'auto.dart' show autoLocked, validSlug;
@@ -295,19 +297,19 @@ Future<List<String>> lookPending(Ctx ctx, ThemeInfo theme) async {
 /// `looks.apply {slug}`: the theme in use gets its look (fonts, blur) now.
 Future<Map<String, dynamic>> reapplyLook(Ctx ctx, String slug) async {
   final theme = ctx.theme(slug);
-  if (ctx.current.slug != slug) throw RouteError('not_current', '$slug is not the theme in use');
+  if (ctx.current.slug != slug) throw RouteError('not_current', trf("{0} is not the theme in use", [slug]));
   return autoLocked(ctx, () async => {'applied': await applyLook(ctx, theme)});
 }
 
 Future<Map<String, dynamic>> setLook(Ctx ctx, String slug, Object? raw, {bool restore = false, bool apply = true}) async {
   final theme = ctx.theme(slug);
   final look = checkLook(raw);
-  if (look == null) throw RouteError('bad_args', 'not a look');
+  if (look == null) throw RouteError('bad_args', tr("not a look"));
   final stored = Looks(ctx).of(slug);
   for (final r in FontRole.values) {
     final f = look[r.lookKey];
     if (f is String && !restore && f != stored[r.lookKey] && !(await r.choices(ctx.desktop)).contains(f)) {
-      throw RouteError('bad_args', '$f is not installed');
+      throw RouteError('bad_args', trf("{0} is not installed", [f]));
     }
   }
   // one change at a time with theme applies (the daemon's workspace themes too)

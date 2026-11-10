@@ -1,3 +1,4 @@
+import 'i18n.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -16,11 +17,11 @@ import 'trash.dart';
 
 const maxDrops = 10; // one drop or paste adds at most this many wallpapers
 const heifDecoderMaxMemory = 2 * 1024 * 1024 * 1024;
-const tooLarge = 'image too large (max 50 MiB)';
+String get tooLarge => tr("image too large (max 50 MiB)");
 
 String validSlug(String slug) {
   final s = slug.trim();
-  if (s.isEmpty || !slugRe.hasMatch(s)) throw RouteError('bad_params', 'invalid theme slug');
+  if (s.isEmpty || !slugRe.hasMatch(s)) throw RouteError('bad_params', tr("invalid theme slug"));
   return s;
 }
 
@@ -52,10 +53,10 @@ String _uniqueDest(Ctx ctx, String slug, String name) {
 /// created exclusively, never through a link.
 String addBackgroundBytes(Ctx ctx, String slug, Uint8List data, String name) {
   slug = validSlug(slug);
-  if (data.isEmpty) throw RouteError('bad_image', 'empty image data');
+  if (data.isEmpty) throw RouteError('bad_image', tr("empty image data"));
   if (data.length > maxBackgroundBytes) throw RouteError('too_large', tooLarge);
   name = sanitizeName(name);
-  if (!_isImageName(name)) throw RouteError('bad_image', 'not an image: $name');
+  if (!_isImageName(name)) throw RouteError('bad_image', trf("not an image: {0}", [name]));
   var bytes = data;
   if (isPng(bytes)) {
     try {
@@ -71,7 +72,7 @@ String addBackgroundBytes(Ctx ctx, String slug, Uint8List data, String name) {
   final dest = _uniqueDest(ctx, slug, name);
   // Never delete after a failure: when the exclusive create lost a race, the
   // file there is someone else's (writeNewPrivate cannot tell us apart).
-  if (!Posix.instance.writeNewPrivate(dest, bytes)) throw RouteError('write_failed', 'could not store ${baseName(dest)}');
+  if (!Posix.instance.writeNewPrivate(dest, bytes)) throw RouteError('write_failed', trf("could not store {0}", [baseName(dest)]));
   chmodPath(dest, 420 /* 0644 */);
   return dest;
 }
@@ -88,10 +89,10 @@ String addBackgroundData(Ctx ctx, String slug, Uint8List data, {String name = 'i
 
 Uint8List _readSource(String source) {
   final stat = FileStat.statSync(source);
-  if (stat.type != FileSystemEntityType.file) throw RouteError('not_found', 'not a file: ${baseName(source)}');
+  if (stat.type != FileSystemEntityType.file) throw RouteError('not_found', trf("not a file: {0}", [baseName(source)]));
   if (stat.size > maxBackgroundBytes) throw RouteError('too_large', tooLarge);
   final data = Posix.instance.readRegular(source, maxBackgroundBytes);
-  if (data == null) throw RouteError('too_large', '${baseName(source)}: unreadable or $tooLarge');
+  if (data == null) throw RouteError('too_large', trf("{0}: unreadable or {1}", [baseName(source), tooLarge]));
   return data;
 }
 
@@ -100,10 +101,10 @@ Uint8List _readSource(String source) {
 /// change after the check.
 Future<String> addBackgroundFile(Ctx ctx, String slug, String source) async {
   slug = validSlug(slug);
-  if (!source.startsWith('/')) throw RouteError('bad_params', 'not an absolute path');
+  if (!source.startsWith('/')) throw RouteError('bad_params', tr("not an absolute path"));
   final name = baseName(source);
   if (heifExts.contains(extOf(name))) return _addHeif(ctx, slug, source);
-  if (!_isImageName(name)) throw RouteError('bad_image', 'not an image: $name');
+  if (!_isImageName(name)) throw RouteError('bad_image', trf("not an image: {0}", [name]));
   final data = _readSource(source);
   return addBackgroundBytes(ctx, slug, data, name);
 }
@@ -112,14 +113,14 @@ Future<String> _addHeif(Ctx ctx, String slug, String source) async {
   final data = _readSource(source);
   final decoder = which('heif-dec', ctx.environment);
   final limiter = which('prlimit', ctx.environment);
-  if (decoder == null || limiter == null) throw RouteError('no_heif', 'HEIC photos need libheif (heif-dec) installed');
+  if (decoder == null || limiter == null) throw RouteError('no_heif', tr("HEIC photos need libheif (heif-dec) installed"));
   final problem = heifSizeProblem(data);
   if (problem != null) throw RouteError('bad_image', problem);
   final tmp = Directory.systemTemp.createTempSync('maprisma-theme-heif-');
   try {
     chmodPath(tmp.path, 448);
     final private = '${tmp.path}/source.heic';
-    if (!Posix.instance.writeNewPrivate(private, data)) throw RouteError('write_failed', 'could not copy the photo');
+    if (!Posix.instance.writeNewPrivate(private, data)) throw RouteError('write_failed', tr("could not copy the photo"));
     final converted = '${tmp.path}/image.jpg';
     // Declared sizes are checked above; prlimit is the backstop for the
     // decoder's memory (--as) and every file it writes (--fsize).
@@ -127,7 +128,7 @@ Future<String> _addHeif(Ctx ctx, String slug, String source) async {
       limiter, '--as=$heifDecoderMaxMemory', '--fsize=$maxBackgroundBytes', '--',
       decoder, '--quiet', '--quality', '92', private, converted,
     ], maxBytes: 65536, timeout: const Duration(seconds: 60));
-    if (code != 0 || !File(converted).existsSync()) throw RouteError('convert_failed', 'could not convert ${baseName(source)}');
+    if (code != 0 || !File(converted).existsSync()) throw RouteError('convert_failed', trf("could not convert {0}", [baseName(source)]));
     final jpeg = Posix.instance.readRegular(converted, maxBackgroundBytes, follow: false);
     if (jpeg == null) throw RouteError('too_large', tooLarge);
     var stem = _stemOf(sanitizeName(baseName(source)));
@@ -197,7 +198,7 @@ Future<List<String>> _clipboardTypes(String wlPaste) async {
 Future<Map<String, dynamic>> addClipboard(Ctx ctx, String slug) async {
   slug = ctx.theme(validSlug(slug)).slug;
   final wlPaste = which('wl-paste', ctx.environment);
-  if (wlPaste == null) throw RouteError('no_clipboard', 'wl-paste (wl-clipboard) is not installed');
+  if (wlPaste == null) throw RouteError('no_clipboard', tr("wl-paste (wl-clipboard) is not installed"));
   final types = await _clipboardTypes(wlPaste);
   for (final mime in types) {
     if (extensionForMime(mime) == null) continue;
@@ -216,7 +217,7 @@ Future<Map<String, dynamic>> addClipboard(Ctx ctx, String slug) async {
     final (added, errors) = await addFiles(ctx, slug, paths);
     return {'added': added, 'errors': errors};
   }
-  throw RouteError('no_image', 'No image in the clipboard. Copy an image first (in the browser or the file manager).');
+  throw RouteError('no_image', tr("No image in the clipboard. Copy an image first (in the browser or the file manager)."));
 }
 
 // --- hide, delete ------------------------------------------------------------------
@@ -225,7 +226,7 @@ WallpaperInfo findWallpaper(Ctx ctx, ThemeInfo theme, String name) {
   for (final w in listBackgrounds(ctx.paths, theme)) {
     if (w.name == name) return w;
   }
-  throw RouteError('not_found', 'no wallpaper $name');
+  throw RouteError('not_found', trf("no wallpaper {0}", [name]));
 }
 
 String _real(String path) {
@@ -246,7 +247,7 @@ String setWallpaperHidden(Ctx ctx, ThemeInfo theme, WallpaperInfo w, bool hide) 
   if (w.hidden == hide) return w.path;
   if (hide) {
     final visible = listBackgrounds(ctx.paths, theme).where((x) => !x.hidden).length;
-    if (visible <= 1) throw RouteError('last_visible', "This is the theme's last visible wallpaper");
+    if (visible <= 1) throw RouteError('last_visible', tr("This is the theme's last visible wallpaper"));
   }
   if (w.source == 'user') {
     final dir = '${ctx.paths.backgrounds}/$slug';
@@ -254,7 +255,7 @@ String setWallpaperHidden(Ctx ctx, ThemeInfo theme, WallpaperInfo w, bool hide) 
     final base = _real(dir);
     final parent = _real(File(w.path).parent.path);
     if (FileSystemEntity.isLinkSync(w.path) || !(parent == base || parent == '$base/$hiddenDir')) {
-      throw RouteError('locked', 'not one of your added wallpapers');
+      throw RouteError('locked', tr("not one of your added wallpapers"));
     }
     final destDir = hide ? '$base/$hiddenDir' : base;
     if (!Directory(destDir).existsSync()) {
@@ -262,7 +263,7 @@ String setWallpaperHidden(Ctx ctx, ThemeInfo theme, WallpaperInfo w, bool hide) 
       chmodPath(destDir, 448);
     }
     final dest = '$destDir/${sanitizeName(w.name)}';
-    if (_exists(dest)) throw RouteError('exists', '${baseName(dest)} already exists there');
+    if (_exists(dest)) throw RouteError('exists', trf("{0} already exists there", [baseName(dest)]));
     File(w.path).renameSync(dest);
     return dest;
   }
@@ -281,7 +282,7 @@ String setWallpaperHidden(Ctx ctx, ThemeInfo theme, WallpaperInfo w, bool hide) 
 /// `backgrounds/<slug>/` or a user theme's `backgrounds/` (not from git).
 TrashReceipt? removeWallpaper(Ctx ctx, String path) {
   final type = FileSystemEntity.typeSync(path, followLinks: false);
-  if (type == FileSystemEntityType.directory) throw RouteError('locked', 'refusing to remove a directory');
+  if (type == FileSystemEntityType.directory) throw RouteError('locked', tr("refusing to remove a directory"));
   if (type == FileSystemEntityType.notFound) throw RouteError('not_found', baseName(path));
   final parent = _real(File(path).parent.path);
   final userBg = _real(ctx.paths.backgrounds);
@@ -304,22 +305,22 @@ TrashReceipt? removeWallpaper(Ctx ctx, String path) {
 /// are refused. A symlinked theme is unlinked as a link.
 TrashReceipt? removeTheme(Ctx ctx, String slug) {
   slug = validSlug(slug);
-  if (slug == ctx.current.slug) throw RouteError('current', 'This is the active theme: apply another theme first');
+  if (slug == ctx.current.slug) throw RouteError('current', tr("This is the active theme: apply another theme first"));
   final base = ctx.paths.userThemes;
   final target = '$base/$slug';
   final type = FileSystemEntity.typeSync(target, followLinks: false);
   if (type == FileSystemEntityType.notFound) {
     if (Directory('${ctx.paths.systemThemes}/$slug').existsSync()) {
-      throw RouteError('locked', 'Built-in themes cannot be deleted: hide it instead');
+      throw RouteError('locked', tr("Built-in themes cannot be deleted: hide it instead"));
     }
-    throw RouteError('not_found', 'theme $slug not found');
+    throw RouteError('not_found', trf("theme {0} not found", [slug]));
   }
   if (type == FileSystemEntityType.link) {
     Link(target).deleteSync();
     return null;
   }
-  if (type != FileSystemEntityType.directory) throw RouteError('not_found', 'theme $slug not found');
-  if (!_inside(_real(target), _real(base))) throw RouteError('locked', 'the theme folder escapes the user themes');
+  if (type != FileSystemEntityType.directory) throw RouteError('not_found', trf("theme {0} not found", [slug]));
+  if (!_inside(_real(target), _real(base))) throw RouteError('locked', tr("the theme folder escapes the user themes"));
   return discard(ctx.paths.trash, target);
 }
 

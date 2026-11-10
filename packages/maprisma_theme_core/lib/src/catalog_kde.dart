@@ -1,3 +1,4 @@
+import 'i18n.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -33,11 +34,11 @@ final _cdnHost = RegExp(r'^ocs-dl\.[a-z0-9-]{2,20}\.cdn\.digitaloceanspaces\.com
 const maxKdeList = 4 * 1024 * 1024;
 const maxKdeColors = 256 * 1024;
 const kdePageSize = 20;
-const kdeSorts = [
-  {'value': 'high', 'label': 'Rating'},
-  {'value': 'new', 'label': 'Newest'},
-  {'value': 'down', 'label': 'Downloads'},
-  {'value': 'alpha', 'label': 'Name'},
+List<Map<String, String>> get kdeSorts => [
+  {'value': 'high', 'label': tr('Rating')},
+  {'value': 'new', 'label': tr('Newest')},
+  {'value': 'down', 'label': tr('Downloads')},
+  {'value': 'alpha', 'label': tr("Name")},
 ];
 
 final class KdeStoreTheme {
@@ -127,14 +128,14 @@ Future<(List<KdeStoreTheme>, int?)> fetchKdeList({String? search, String? sort, 
 Future<(List<KdeStoreTheme>, int?)> _fetchKdePage({String? search, String? sort, required int page}) async {
   final reply = await netFetch(NetRequest(kdeListUri(search: search, sort: sort, page: page),
       hosts: {_apiHost}, maxBytes: maxKdeList, timeout: const Duration(seconds: 20)));
-  if (reply == null || reply.status != 200) throw RouteError('offline', 'could not load the theme list from the KDE Store');
+  if (reply == null || reply.status != 200) throw RouteError('offline', tr("could not load the theme list from the KDE Store"));
   final Map data;
   try {
     final v = jsonDecode(reply.text);
     if (v is! Map || v['status'] != 'ok') throw const FormatException('not ok');
     data = v;
   } on FormatException {
-    throw RouteError('offline', 'the KDE Store sent no theme list');
+    throw RouteError('offline', tr("the KDE Store sent no theme list"));
   }
   final themes = [for (final e in (data['data'] is List ? data['data'] as List : const [])) ?parseKdeEntry(e)];
   for (final t in themes) {
@@ -152,7 +153,7 @@ Future<KdeStoreTheme> kdeEntry(int id, {bool fresh = false}) async {
   }
   final reply = await netFetch(NetRequest(Uri.https(_apiHost, '/ocs/v1/content/data/$id', {'format': 'json'}),
       hosts: {_apiHost}, maxBytes: maxKdeList, timeout: const Duration(seconds: 20)));
-  if (reply == null || reply.status != 200) throw RouteError('offline', 'could not reach the KDE Store');
+  if (reply == null || reply.status != 200) throw RouteError('offline', tr("could not reach the KDE Store"));
   try {
     final v = jsonDecode(reply.text);
     final list = v is Map ? v['data'] : null;
@@ -161,7 +162,7 @@ Future<KdeStoreTheme> kdeEntry(int id, {bool fresh = false}) async {
   } on FormatException {
     // below
   }
-  throw RouteError('not_found', 'the KDE Store has no color scheme $id');
+  throw RouteError('not_found', trf("the KDE Store has no color scheme {0}", [id]));
 }
 
 // --- previews -------------------------------------------------------------------------------
@@ -222,12 +223,12 @@ Future<(String, KdeStoreTheme)> downloadKdeColors(int id) async {
       timeout: const Duration(seconds: 20)));
   if (reply != null && (reply.status == 301 || reply.status == 302 || reply.status == 303 || reply.status == 307)) {
     final next = _uri(reply.headers['location'], _cdnHost.hasMatch);
-    if (next == null) throw RouteError('download_failed', 'the KDE Store sent the file from an unexpected place');
+    if (next == null) throw RouteError('download_failed', tr("the KDE Store sent the file from an unexpected place"));
     reply = await netFetch(NetRequest(next, hosts: {next.host}, maxBytes: maxKdeColors, timeout: const Duration(seconds: 20)));
   }
-  if (reply == null || reply.status != 200) throw RouteError('download_failed', 'the KDE Store did not send the color scheme');
+  if (reply == null || reply.status != 200) throw RouteError('download_failed', tr("the KDE Store did not send the color scheme"));
   final text = checkKdeColors(reply.body);
-  if (text == null) throw RouteError('bad_theme', 'the download is not a Plasma color scheme');
+  if (text == null) throw RouteError('bad_theme', tr("the download is not a Plasma color scheme"));
   return (text, entry);
 }
 
@@ -277,7 +278,7 @@ Map<int, String> installedKdeIds(Ctx ctx) => {
 /// Returns the slug.
 String installKdeColors(Ctx ctx, KdeStoreTheme entry, String text) {
   final installed = installedKdeIds(ctx)[entry.id];
-  if (installed != null) throw RouteError('exists', 'this theme is already installed as “$installed”');
+  if (installed != null) throw RouteError('exists', trf("this theme is already installed as “{0}”", [installed]));
   var base = slugify(entry.name);
   if (base.isEmpty || !slugRe.hasMatch(base)) base = 'kde-scheme-${entry.id}';
   final root = ctx.paths.userThemes;
@@ -308,7 +309,7 @@ String installKdeColors(Ctx ctx, KdeStoreTheme entry, String text) {
       }
       return slug;
     }
-    throw RouteError('exists', 'no free folder name for “${entry.name}”');
+    throw RouteError('exists', trf("no free folder name for “{0}”", [entry.name]));
   } finally {
     try {
       if (FileSystemEntity.typeSync(tmp, followLinks: false) == FileSystemEntityType.directory) {

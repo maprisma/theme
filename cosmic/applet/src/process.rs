@@ -1,3 +1,4 @@
+use maprisma_theme_helper::i18n::{tr, trf};
 use serde_json::Value;
 use std::{path::PathBuf, process::Stdio, time::Duration};
 use tokio::{io::AsyncReadExt, process::Command};
@@ -28,7 +29,7 @@ pub async fn call(name: &str, args: &[String]) -> Result<Value, String> {
         .kill_on_drop(true)
         .spawn()
         .map_err(|e| format!("{name}: {e}"))?;
-    let stdout = child.stdout.take().ok_or("missing stdout")?;
+    let stdout = child.stdout.take().ok_or(tr("missing stdout"))?;
     let result = tokio::time::timeout(Duration::from_secs(60), async {
         let mut bytes = Vec::new();
         stdout
@@ -37,13 +38,13 @@ pub async fn call(name: &str, args: &[String]) -> Result<Value, String> {
             .await
             .map_err(|e| e.to_string())?;
         if bytes.len() > 1024 * 1024 {
-            return Err("response exceeds 1 MiB".into());
+            return Err(tr("response exceeds 1 MiB").into());
         }
         let status = child.wait().await.map_err(|e| e.to_string())?;
         let v: Value =
-            serde_json::from_slice(&bytes).map_err(|e| format!("{name}: invalid JSON: {e}"))?;
+            serde_json::from_slice(&bytes).map_err(|e| trf("{0}: invalid JSON: {1}", &[name.to_string(), e.to_string()]))?;
         if !status.success() || v.get("error").is_some() {
-            return Err(v["message"].as_str().unwrap_or("command failed").to_owned());
+            return Err(v["message"].as_str().map(str::to_owned).unwrap_or_else(|| tr("command failed")).to_owned());
         }
         Ok(v)
     })
@@ -52,7 +53,7 @@ pub async fn call(name: &str, args: &[String]) -> Result<Value, String> {
         Ok(v) => v,
         Err(_) => {
             let _ = child.kill().await;
-            Err(format!("{name}: timed out after 60 seconds"))
+            Err(trf("{0}: timed out after 60 seconds", &[name.to_string()]))
         }
     }
 }
@@ -91,6 +92,6 @@ mod tests {
             &["-c".into(), "print('x' * (1024 * 1024 + 1))".into()],
         )
         .await;
-        assert_eq!(result.unwrap_err(), "response exceeds 1 MiB");
+        assert_eq!(result.unwrap_err(), tr("response exceeds 1 MiB"));
     }
 }

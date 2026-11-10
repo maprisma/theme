@@ -1,3 +1,4 @@
+import 'i18n.dart';
 import 'dart:ffi';
 import 'dart:io';
 import 'dart:math';
@@ -156,10 +157,10 @@ final class Posix {
           (name) => _open(name, 0x1 | 0x40 | _noFollow | _cloexec, 0x180),
         ) ??
         -1;
-    if (fd < 0) throw FileSystemException('Could not open the lock', lockPath);
+    if (fd < 0) throw FileSystemException(tr("Could not open the lock"), lockPath);
     try {
       if (_flock(fd, 2) != 0) {
-        throw FileSystemException('Could not lock', lockPath);
+        throw FileSystemException(tr("Could not lock"), lockPath);
       }
       return body();
     } finally {

@@ -1,3 +1,4 @@
+import 'i18n.dart';
 import 'apply.dart';
 import 'apps.dart';
 import 'auto.dart';
@@ -115,7 +116,7 @@ Map<String, Handler> autoRoutes(Ctx ctx) {
         if (ok) await refreshFocused(); // its own theme again, if it has one
         return ok;
       });
-      if (!restored) throw RouteError('changed', "The workspaces' themes changed meanwhile.");
+      if (!restored) throw RouteError('changed', tr("The workspaces' themes changed meanwhile."));
       return {'restored': true};
     },
 

@@ -1,0 +1,159 @@
+Maprisma Theme interface languages
+
+Language setting: Settings -> General -> Language.
+Choices: System (<detected language name>), English, Deutsch, Français, Español,
+Italiano, Português, Nederlands, Polski. Saved as language=auto or a language
+code in $XDG_CONFIG_HOME/maprisma-theme/settings.json (normally
+~/.config/maprisma-theme/settings.json). The Flutter interface changes immediately;
+the running tray/applet also refreshes automatically, without restarting.
+
+System fallback: first nonempty LC_ALL, LC_MESSAGES, LANG; locale variants are
+reduced to their language code; unknown locales, C and POSIX use English.
+
+Wrapped source texts: 1221 literal tr()/trf() call sites, 1012 distinct
+English keys. Also localized Name and Comment in all three desktop entries
+(6 desktop fields). Counts exclude test-only call sites.
+  flutter_app/lib: 826 call sites
+  packages/maprisma_theme_core/lib: 333 call sites
+  cosmic/helper/src: 42 call sites
+  cosmic/applet/src: 20 call sites
+
+Port-added keys per catalog:
+  en: 602
+  de: 602
+  fr: 602
+  es: 602
+  it: 602
+  pt: 602
+  nl: 602
+  pl: 602
+
+Original catalogs: translations/<code>.json, copied from the read-only
+Omarchy Theme Manager i18n.py, extra_i18n.py and workspace_i18n.py.
+Original non-English catalogs retain all 696 entries (including two plural
+tables). Port additions are translations/extra/<code>.json. English catalogs
+contain identity translations. tools/gen-translations produces the committed
+Dart source; Rust embeds the JSON with include_str!. Nothing is downloaded.
+
+Validation:
+- Dart analysis: no issues.
+- Dart core: 244 tests passed, including locale fallback, persisted selection,
+  reset/backup behavior, untranslated data and immediate menu translation.
+- Catalog scanner, placeholder coverage, desktop entries, reproducibility:
+  3 Python tests passed.
+- Offline Rust build and tests: passed (17 tests).
+- Flutter Linux debug build: passed.
+- Dart AOT executable build: passed.
+- Compiled Dart/Rust smoke checks: all eight languages, unknown/C fallback,
+  saved language overriding locale (12 scenarios) passed.
+- Flutter widget tests were attempted but cannot start in this sandbox:
+  binding their localhost test socket fails with Operation not permitted.
+  The read-only SDK cache was bypassed with a temporary writable cache using
+  the existing SDK; no packages or tools were installed.
+
+Intentionally left unchanged:
+- Theme names (including suggested default theme names), app/model names,
+  file names, paths, keysyms, numbers, colors and protocol/config identifiers.
+- Terminal/editor preview code and commands: example data, not interface copy.
+- Internal model prompts and machine protocol text that is not displayed.
+- Third-party/tool/OS diagnostics, AI answers and externally supplied catalog
+  descriptions: retained as received data; their surrounding app messages
+  are translated. Unknown future message keys fall back to English.
+
+Files changed:
+  README.md
+  cosmic/applet/data/io.github.ubruckhaus.CosmicMaprismaTheme.desktop
+  cosmic/applet/src/main.rs
+  cosmic/applet/src/process.rs
+  cosmic/helper/src/compositor.rs
+  cosmic/helper/src/i18n.rs
+  cosmic/helper/src/lib.rs
+  cosmic/helper/src/main.rs
+  cosmic/helper/src/terminal.rs
+  cosmic/helper/src/theme.rs
+  docs/agents.md
+  docs/plan.md
+  flutter_app/lib/app.dart
+  flutter_app/lib/backend.dart
+  flutter_app/lib/i18n.dart
+  flutter_app/lib/material_translations.dart
+  flutter_app/lib/pages/ask_page.dart
+  flutter_app/lib/pages/editor_page.dart
+  flutter_app/lib/pages/import_page.dart
+  flutter_app/lib/pages/info_page.dart
+  flutter_app/lib/pages/look_dialog.dart
+  flutter_app/lib/pages/presets_page.dart
+  flutter_app/lib/pages/settings_page.dart
+  flutter_app/lib/pages/shortcut_page.dart
+  flutter_app/lib/pages/themes_page.dart
+  flutter_app/lib/pages/wallhaven_page.dart
+  flutter_app/lib/pages/wallpapers_page.dart
+  flutter_app/lib/screenshots.dart
+  flutter_app/lib/widgets.dart
+  packages/maprisma_theme_core/lib/maprisma_theme_core.dart
+  packages/maprisma_theme_core/lib/src/apply.dart
+  packages/maprisma_theme_core/lib/src/apps.dart
+  packages/maprisma_theme_core/lib/src/ask_ai.dart
+  packages/maprisma_theme_core/lib/src/ask_routes.dart
+  packages/maprisma_theme_core/lib/src/auto.dart
+  packages/maprisma_theme_core/lib/src/auto_routes.dart
+  packages/maprisma_theme_core/lib/src/backup.dart
+  packages/maprisma_theme_core/lib/src/catalog_cosmic.dart
+  packages/maprisma_theme_core/lib/src/catalog_kde.dart
+  packages/maprisma_theme_core/lib/src/catalog_omarchy.dart
+  packages/maprisma_theme_core/lib/src/cli.dart
+  packages/maprisma_theme_core/lib/src/context.dart
+  packages/maprisma_theme_core/lib/src/core.dart
+  packages/maprisma_theme_core/lib/src/custom.dart
+  packages/maprisma_theme_core/lib/src/daemon.dart
+  packages/maprisma_theme_core/lib/src/desktop.dart
+  packages/maprisma_theme_core/lib/src/desktop_kde.dart
+  packages/maprisma_theme_core/lib/src/desktops.dart
+  packages/maprisma_theme_core/lib/src/extract.dart
+  packages/maprisma_theme_core/lib/src/i18n.dart
+  packages/maprisma_theme_core/lib/src/images.dart
+  packages/maprisma_theme_core/lib/src/import_routes.dart
+  packages/maprisma_theme_core/lib/src/kde_formats.dart
+  packages/maprisma_theme_core/lib/src/kwin_bridge.dart
+  packages/maprisma_theme_core/lib/src/looks.dart
+  packages/maprisma_theme_core/lib/src/plugin_catalog.dart
+  packages/maprisma_theme_core/lib/src/posix.dart
+  packages/maprisma_theme_core/lib/src/preset_routes.dart
+  packages/maprisma_theme_core/lib/src/presets.dart
+  packages/maprisma_theme_core/lib/src/settings.dart
+  packages/maprisma_theme_core/lib/src/shlex.dart
+  packages/maprisma_theme_core/lib/src/shortcuts.dart
+  packages/maprisma_theme_core/lib/src/shortcuts_cosmic.dart
+  packages/maprisma_theme_core/lib/src/shortcuts_kde.dart
+  packages/maprisma_theme_core/lib/src/theme_ai.dart
+  packages/maprisma_theme_core/lib/src/themes.dart
+  packages/maprisma_theme_core/lib/src/translations.g.dart
+  packages/maprisma_theme_core/lib/src/trash.dart
+  packages/maprisma_theme_core/lib/src/wallhaven.dart
+  packages/maprisma_theme_core/lib/src/wallpaper_routes.dart
+  packages/maprisma_theme_core/lib/src/wallpapers.dart
+  packages/maprisma_theme_core/lib/src/workspace_state.dart
+  packages/maprisma_theme_core/test/backup_test.dart
+  packages/maprisma_theme_core/test/i18n_test.dart
+  packaging/com.maprisma.Theme.Daemon.desktop
+  packaging/com.maprisma.Theme.desktop
+  tests/test_translations.py
+  tools/gen-translations
+  tools/install-local
+  translations/REPORT.txt
+  translations/de.json
+  translations/en.json
+  translations/es.json
+  translations/extra/de.json
+  translations/extra/en.json
+  translations/extra/es.json
+  translations/extra/fr.json
+  translations/extra/it.json
+  translations/extra/nl.json
+  translations/extra/pl.json
+  translations/extra/pt.json
+  translations/fr.json
+  translations/it.json
+  translations/nl.json
+  translations/pl.json
+  translations/pt.json

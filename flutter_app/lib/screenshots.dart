@@ -1,3 +1,4 @@
+import 'i18n.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
@@ -89,7 +90,7 @@ Future<void> takeScreenshot(MaprismaThemeAppState app) async {
   try {
     final png = await paintWindow(app.shotKey);
     if (png == null) {
-      app.notify('Could not take a screenshot');
+      app.notify(tr("Could not take a screenshot"));
       return;
     }
     final chosen = app.settings['screenshot_dir'] as String?;
@@ -97,12 +98,12 @@ Future<void> takeScreenshot(MaprismaThemeAppState app) async {
     var path = WindowShots(chosen ?? fallback).save(png, DateTime.now());
     if (path == null && chosen != null) path = WindowShots(fallback).save(png, DateTime.now());
     if (path == null) {
-      app.notify('Screenshot not saved: the folder is not yours or open to others');
+      app.notify(tr("Screenshot not saved: the folder is not yours or open to others"));
       return;
     }
     final context = app.navigator.currentContext;
     if (context == null || !context.mounted) {
-      app.notify('Screenshot saved: $path');
+      app.notify(trf("Screenshot saved: {0}", [path]));
       return;
     }
     final saved = path;
@@ -140,7 +141,7 @@ class _ShotNoteState extends State<ShotNote> {
   Widget build(BuildContext context) => CallbackShortcuts(
     bindings: {const SingleActivator(LogicalKeyboardKey.escape): () => Navigator.pop(context)},
     child: AlertDialog(
-      title: const Text('Screenshot saved'),
+      title: Text(tr("Screenshot saved")),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -152,14 +153,14 @@ class _ShotNoteState extends State<ShotNote> {
             controller: _note,
             autofocus: true,
             maxLength: 2000,
-            decoration: const InputDecoration(labelText: 'What is wrong? (optional)'),
+            decoration: InputDecoration(labelText: tr("What is wrong? (optional)")),
             onSubmitted: (text) => Navigator.pop(context, text),
           ),
         ],
       ),
       actions: [
-        TextButton(onPressed: _openFolder, child: const Text('Open folder')),
-        FilledButton(onPressed: () => Navigator.pop(context, _note.text), child: const Text('Done')),
+        TextButton(onPressed: _openFolder, child: Text(tr("Open folder"))),
+        FilledButton(onPressed: () => Navigator.pop(context, _note.text), child: Text(tr("Done"))),
       ],
     ),
   );

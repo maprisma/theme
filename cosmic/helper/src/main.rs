@@ -1,3 +1,4 @@
+use maprisma_theme_helper::i18n::{tr, trf};
 use maprisma_theme_helper::{Result, compositor, terminal, theme};
 use serde_json::{Value, json};
 use std::path::Path;
@@ -5,7 +6,7 @@ fn run(a: &[String]) -> Result<Value> {
     let arg = |i: usize| {
         a.get(i)
             .map(String::as_str)
-            .ok_or_else(|| "missing argument".to_string())
+            .ok_or_else(|| tr("missing argument").to_string())
     };
     match arg(0)? {
         "apply" => match (arg(1)?, a.len()) {
@@ -21,7 +22,7 @@ fn run(a: &[String]) -> Result<Value> {
             ("--ron", 3 | 5) => {
                 let mode = if a.len() == 5 {
                     if arg(3)? != "--mode" {
-                        return Err("invalid arguments".into());
+                        return Err(tr("invalid arguments").into());
                     }
                     Some(arg(4)?)
                 } else {
@@ -31,7 +32,7 @@ fn run(a: &[String]) -> Result<Value> {
                 theme::keep_desktop_settings(&mut builder);
                 theme::apply(builder)
             }
-            _ => Err("usage: apply --colors FILE | --ron FILE [--mode dark|light]".into()),
+            _ => Err(trf("Usage: {0}", &["apply --colors FILE | --ron FILE [--mode dark|light]".into()])),
         },
         "ron-colors" if a.len() == 2 => Ok(theme::colors(
             &theme::ron_builder(Path::new(arg(1)?), None)?.build(),
@@ -58,7 +59,7 @@ fn run(a: &[String]) -> Result<Value> {
         "workspaces" | "windows" | "set-tiling" | "move" | "close" | "activate" | "watch" => {
             compositor::run(a)
         }
-        _ => Err("invalid command or arguments".into()),
+        _ => Err(tr("invalid command or arguments").into()),
     }
 }
 fn main() {
@@ -68,7 +69,7 @@ fn main() {
             std::thread::sleep(std::time::Duration::from_secs(60));
             println!(
                 "{}",
-                json!({"error":"timeout","message":"helper exceeded 60 seconds"})
+                json!({"error":"timeout","message":tr("helper exceeded 60 seconds")})
             );
             std::process::exit(1);
         });

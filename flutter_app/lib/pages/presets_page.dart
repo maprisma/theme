@@ -1,3 +1,4 @@
+import '../i18n.dart';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -26,9 +27,9 @@ const _groups = [(1, 5), (6, 10)];
 const _modes = ['tiled', 'floating', 'default'];
 
 String modeLabel(String mode) => switch (mode) {
-  'tiled' => 'Tiled',
-  'floating' => 'Floating',
-  _ => 'Native',
+  'tiled' => tr("Tiled"),
+  'floating' => tr("Floating"),
+  _ => tr("Native"),
 };
 
 /// Who tiles on [desktop]: COSMIC itself, on KDE Plasma the Maprisma Tiling script.
@@ -36,10 +37,10 @@ String tilerOf(String desktop) => desktop == 'KDE Plasma' ? 'Maprisma Tiling' : 
 
 String modeHint(String mode, [String desktop = 'COSMIC']) => switch (mode) {
   'tiled' => desktop == 'KDE Plasma'
-      ? 'Maprisma Tiling tiles the windows of this workspace (its layout)'
-      : '${tilerOf(desktop)} tiles the windows: each new one splits the last along its longer side',
-  'floating' => 'Tiling off: windows float where they open',
-  _ => "Leaves ${tilerOf(desktop)}'s own tiling setting of the workspace as it is",
+      ? tr("Maprisma Tiling tiles the windows of this workspace (its layout)")
+      : trf("{0} tiles the windows: each new one splits the last along its longer side", [tilerOf(desktop)]),
+  'floating' => tr("Tiling off: windows float where they open"),
+  _ => trf("Leaves {0}'s own tiling setting of the workspace as it is", [tilerOf(desktop)]),
 };
 
 /// The windows of a layout as rectangles in 0…1 of the area below the bar.
@@ -98,8 +99,8 @@ class _PresetsPageState extends State<PresetsPage> {
   String message = '';
   bool include = true;
   final name = TextEditingController();
-  final previewFocus = FocusNode(debugLabel: 'workspace preview');
-  final zoomFocus = FocusNode(debugLabel: 'large preview');
+  final previewFocus = FocusNode(debugLabel: tr("workspace preview"));
+  final zoomFocus = FocusNode(debugLabel: tr("large preview"));
 
   @override
   void didChangeDependencies() {
@@ -192,19 +193,19 @@ class _PresetsPageState extends State<PresetsPage> {
   /// The workspace the controls and preview are for (App Presets: never All).
   int current() => tab == 1 && selected <= 0 ? _groups[group].$1 : selected;
 
-  String title(int ws) => ws == 0 ? 'All Workspaces' : 'Workspace $ws';
-  String windows(int n) => '$n ${n == 1 ? 'window' : 'windows'}';
+  String title(int ws) => ws == 0 ? tr("All Workspaces") : trf("Workspace {0}", [ws]);
+  String windows(int n) => n == 1 ? trf('{0} window', [n]) : trf('{0} windows', [n]);
 
   String summary(int ws) {
     if (tab == 1) {
       final apps = appsOf(ws);
-      if (!layouts.containsKey('$ws')) return 'No App Preset';
-      var text = apps.isEmpty ? 'App Preset' : '${apps.length} ${apps.length == 1 ? 'app' : 'apps'} saved';
-      if ((layouts['$ws'] as Map?)?['autostart'] == true) text += ' · Autostart on';
+      if (!layouts.containsKey('$ws')) return tr("No App Preset");
+      var text = apps.isEmpty ? tr("App Preset") : (apps.length == 1 ? trf('{0} app saved', [apps.length]) : trf('{0} apps saved', [apps.length]));
+      if ((layouts['$ws'] as Map?)?['autostart'] == true) text += tr(" · Autostart on");
       return text;
     }
-    if (ws == 0) return 'Default: ${windows(limitOf(0))}';
-    return 'Max ${limitOf(ws)} · ${modeLabel(modeOf(ws))}';
+    if (ws == 0) return trf("Default: {0}", [windows(limitOf(0))]);
+    return trf("Max {0} · {1}", [limitOf(ws), modeLabel(modeOf(ws))]);
   }
 
   ({List<Rect> rects, bool dashed}) pictureOf(int ws) {
@@ -220,7 +221,7 @@ class _PresetsPageState extends State<PresetsPage> {
     final l = look(ws);
     final wall = l['wallpaper'] as String?;
     return [
-      l['name'] as String? ?? 'Theme missing',
+      l['name'] as String? ?? tr("Theme missing"),
       if (ws > 0 && wall != null) wall.split('/').last,
       summary(ws),
     ].join(' · ');
@@ -270,21 +271,21 @@ class _PresetsPageState extends State<PresetsPage> {
   Future<void> tileStyleDialog() async {
     final now = await app!.run('tiling.style');
     if (now == null || !mounted) return;
-    const fields = [
-      ('top', 'Gap top', 200),
-      ('right', 'Gap right', 200),
-      ('bottom', 'Gap bottom', 200),
-      ('left', 'Gap left', 200),
-      ('between', 'Gap between windows', 200),
-      ('border', 'Active window frame', 16),
-      ('radius', 'Frame corner radius', 32),
+    final fields = [
+      ('top', tr("Gap top"), 200),
+      ('right', tr("Gap right"), 200),
+      ('bottom', tr("Gap bottom"), 200),
+      ('left', tr("Gap left"), 200),
+      ('between', tr("Gap between windows"), 200),
+      ('border', tr("Active window frame"), 16),
+      ('radius', tr("Frame corner radius"), 32),
     ];
     final values = {for (final f in fields) f.$1: (now[f.$1] as num?)?.toInt() ?? 0};
     final result = await showDialog<Map<String, int>>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: const Text('Tiling gaps & frame'),
+          title: Text(tr("Tiling gaps & frame")),
           content: SizedBox(
             width: 360,
             child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -292,25 +293,25 @@ class _PresetsPageState extends State<PresetsPage> {
                 Row(children: [
                   Expanded(child: Text(f.$2)),
                   IconButton(
-                    tooltip: 'Less',
+                    tooltip: tr("Less"),
                     icon: const Icon(Icons.remove),
                     onPressed: values[f.$1]! > 0 ? () => setState(() => values[f.$1] = values[f.$1]! - 1) : null,
                   ),
-                  SizedBox(width: 56, child: Text('${values[f.$1]} px', textAlign: TextAlign.center)),
+                  SizedBox(width: 56, child: Text(trf("{0} px", [values[f.$1]]), textAlign: TextAlign.center)),
                   IconButton(
-                    tooltip: 'More',
+                    tooltip: tr("More"),
                     icon: const Icon(Icons.add),
                     onPressed: values[f.$1]! < f.$3 ? () => setState(() => values[f.$1] = values[f.$1]! + 1) : null,
                   ),
                 ]),
               const SizedBox(height: 8),
-              Text('The frame is drawn in the theme accent on tiled workspaces; 0 px hides it.',
+              Text(tr("The frame is drawn in the theme accent on tiled workspaces; 0 px hides it."),
                   style: Theme.of(context).textTheme.bodySmall),
             ]),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.pop(context, Map.of(values)), child: const Text('Apply')),
+            TextButton(onPressed: () => Navigator.pop(context), child: Text(tr("Cancel"))),
+            FilledButton(onPressed: () => Navigator.pop(context, Map.of(values)), child: Text(tr("Apply"))),
           ],
         ),
       ),
@@ -321,7 +322,7 @@ class _PresetsPageState extends State<PresetsPage> {
       final r = await app!.run('tiling.style.set', result);
       final previous = r?['previous'];
       if (r != null) {
-        app!.notify('Gaps and frame applied',
+        app!.notify(tr("Gaps and frame applied"),
             undo: previous is Map
                 ? () => app!.run('tiling.style.set', {
                       for (final f in fields)
@@ -340,9 +341,9 @@ class _PresetsPageState extends State<PresetsPage> {
   Future<void> setLimit(int ws, int n) async {
     n = n.clamp(1, 4);
     if (ws == 0) {
-      await setWs(0, {'maxWindows': n}, 'Default: ${windows(n)}', tiling: true);
+      await setWs(0, {'maxWindows': n}, trf("Default: {0}", [windows(n)]), tiling: true);
     } else {
-      await setWs(ws, {'limit': n}, 'Workspace $ws: Max $n · ${modeLabel(modeOf(ws))}', tiling: true);
+      await setWs(ws, {'limit': n}, trf("Workspace {0}: Max {1} · {2}", [ws, n, modeLabel(modeOf(ws))]), tiling: true);
     }
   }
 
@@ -351,12 +352,12 @@ class _PresetsPageState extends State<PresetsPage> {
       final cap = globalCap;
       final same = defaults['$cap'] == mode; // click again: the default goes
       await setWs(0, {'defaultLimit': cap, 'defaultMode': same ? null : mode},
-          same ? 'Default layout removed' : 'Default for ${windows(cap)}: ${modeLabel(mode)}', tiling: true);
+          same ? tr("Default layout removed") : trf("Default for {0}: {1}", [windows(cap), modeLabel(mode)]), tiling: true);
       return;
     }
     final same = modes['$ws'] == mode; // click again: the preset goes
     await setWs(ws, {'mode': same ? null : mode},
-        same ? 'Workspace $ws: layout preset removed' : 'Workspace $ws: ${modeLabel(mode)}', tiling: true);
+        same ? trf("Workspace {0}: layout preset removed", [ws]) : trf("Workspace {0}: {1}", [ws, modeLabel(mode)]), tiling: true);
   }
 
   Future<void> addWindow(int ws, int by) async {
@@ -412,10 +413,8 @@ class _PresetsPageState extends State<PresetsPage> {
       ),
       child: Text(
         state['active'] == true
-            ? 'Maprisma Theme ${app!.can('panel') ? 'applet in the panel' : 'tray service'} arranges the windows: window limits and overflow take '
-                  "effect there at once. Tiled and Floating switch ${tilerOf(app!.desktopName)}'s tiling; Native leaves it as it is."
-            : "Tiling is off (All Workspaces): layouts switch ${tilerOf(app!.desktopName)}'s tiling of a workspace, window limits "
-                  "wait until Tiling active is on. Native leaves ${tilerOf(app!.desktopName)}'s tiling as it is.",
+            ? trf("Maprisma Theme {0} arranges the windows: window limits and overflow take effect there at once. Tiled and Floating switch {1}'s tiling; Native leaves it as it is.", [app!.can('panel') ? tr("applet in the panel") : tr("tray service"), tilerOf(app!.desktopName)])
+            : trf("Tiling is off (All Workspaces): layouts switch {0}'s tiling of a workspace, window limits wait until Tiling active is on. Native leaves {1}'s tiling as it is.", [tilerOf(app!.desktopName), tilerOf(app!.desktopName)]),
         style: const TextStyle(fontSize: 12),
       ),
     );
@@ -453,7 +452,7 @@ class _PresetsPageState extends State<PresetsPage> {
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   visualDensity: VisualDensity.compact,
                 ),
-                child: Text('Workspaces ${_groups[i].$1}–${_groups[i].$2}', style: const TextStyle(fontSize: 13)),
+                child: Text(trf("Workspaces {0}–{1}", [_groups[i].$1, _groups[i].$2]), style: const TextStyle(fontSize: 13)),
               ),
             ),
           ),
@@ -507,10 +506,10 @@ class _PresetsPageState extends State<PresetsPage> {
             right: 3,
             bottom: 3,
             child: Tooltip(
-              message: 'Preview',
+              message: tr("Preview"),
               child: Semantics(
                 button: true,
-                label: 'Preview: ${title(ws)}',
+                label: trf("Preview: {0}", [title(ws)]),
                 child: InkWell(
                   customBorder: const CircleBorder(),
                   onTap: () => zoom(ws, wide),
@@ -617,9 +616,9 @@ class _PresetsPageState extends State<PresetsPage> {
       final i = _modes.indexOf(modeOf(ws));
       final next = _modes[(i + (key == LogicalKeyboardKey.arrowDown ? 1 : -1)) % _modes.length];
       if (ws == 0) {
-        setWs(0, {'defaultLimit': globalCap, 'defaultMode': next}, 'Default: ${modeLabel(next)}', tiling: true);
+        setWs(0, {'defaultLimit': globalCap, 'defaultMode': next}, trf("Default: {0}", [modeLabel(next)]), tiling: true);
       } else {
-        setWs(ws, {'mode': next}, 'Workspace $ws: ${modeLabel(next)}', tiling: true);
+        setWs(ws, {'mode': next}, trf("Workspace {0}: {1}", [ws, modeLabel(next)]), tiling: true);
       }
       return KeyEventResult.handled;
     }
@@ -671,7 +670,7 @@ class _PresetsPageState extends State<PresetsPage> {
                           rects: pic.rects,
                           dashed: pic.dashed,
                           wallpaper: wall != null,
-                          allLabel: ws == 0 ? 'All workspaces · default' : '',
+                          allLabel: ws == 0 ? tr("All workspaces · default") : '',
                           highlight: focus.hasFocus ? highlight : null,
                           focused: focus.hasFocus,
                           activeIndex: modeOf(ws) == 'floating' ? pic.rects.length - 1 : 0,
@@ -685,7 +684,7 @@ class _PresetsPageState extends State<PresetsPage> {
                     left: 3,
                     top: cy - r,
                     child: _RoundHandle(
-                        r: r, minus: true, colors: colors, tooltip: 'One window less', onTap: () => addWindow(ws, -1)),
+                        r: r, minus: true, colors: colors, tooltip: tr("One window less"), onTap: () => addWindow(ws, -1)),
                   ),
                 if (plus)
                   Positioned(
@@ -695,7 +694,7 @@ class _PresetsPageState extends State<PresetsPage> {
                         r: r,
                         minus: false,
                         colors: colors,
-                        tooltip: tab == 1 ? 'Add app…' : 'One window more',
+                        tooltip: tab == 1 ? tr("Add app…") : tr("One window more"),
                         onTap: () => addWindow(ws, 1)),
                   ),
               ],
@@ -720,8 +719,8 @@ class _PresetsPageState extends State<PresetsPage> {
       const SizedBox(height: 2),
       Text(
         tab == 1
-            ? 'Tab to the preview: + adds an app.'
-            : 'Tab to the preview: + and − change the limit, ↑/↓ the layout, ←/→ choose a window.',
+            ? tr("Tab to the preview: + adds an app.")
+            : tr("Tab to the preview: + and − change the limit, ↑/↓ the layout, ←/→ choose a window."),
         style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant.withValues(alpha: .75)),
       ),
     ]);
@@ -760,7 +759,7 @@ class _PresetsPageState extends State<PresetsPage> {
                         const SizedBox(height: 6),
                         Text('${title(ws)} · ${caption(ws)}',
                             style: TextStyle(color: Colors.white.withValues(alpha: .9), fontSize: 13)),
-                        Text('A click beside it or Esc closes it.',
+                        Text(tr("A click beside it or Esc closes it."),
                             style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 11)),
                       ],
                     ),
@@ -925,35 +924,35 @@ class _PresetsPageState extends State<PresetsPage> {
       final cap = globalCap;
       return [
         if (app!.can('windows') && app!.can('tiling')) groupCard([
-          toggle('Tiling active', 'Window limits with overflow to the next workspace with room',
-              state['active'] == true, (v) => setWs(0, {'active': v}, v ? 'Tiling active' : 'Tiling off'),
-              tooltip: 'Move new windows when full · Manual moves override'),
+          toggle(tr("Tiling active"), tr("Window limits with overflow to the next workspace with room"),
+              state['active'] == true, (v) => setWs(0, {'active': v}, v ? tr("Tiling active") : tr("Tiling off")),
+              tooltip: tr("Move new windows when full · Manual moves override")),
         ]),
-        if (app!.can('windows')) groupCard(title: 'Default window limit (all workspaces)', [
+        if (app!.can('windows')) groupCard(title: tr("Default window limit (all workspaces)"), [
           choiceRow([
             for (var n = 1; n <= 4; n++)
-              (label: '$n', on: cap == n, tap: () => setLimit(0, n), tooltip: 'Default: ${windows(n)}'),
+              (label: '$n', on: cap == n, tap: () => setLimit(0, n), tooltip: trf("Default: {0}", [windows(n)])),
           ]),
         ]),
-        if (app!.can('tiling')) groupCard(title: 'Default layout preset', [
+        if (app!.can('tiling')) groupCard(title: tr("Default layout preset"), [
           layoutChoices(0, cap, defaults['$cap'] as String?, width),
-          hint('For ${windows(cap)} on workspaces without a layout of their own. Click again to remove it (Native).'),
+          hint(trf("For {0} on workspaces without a layout of their own. Click again to remove it (Native).", [windows(cap)])),
         ]),
-        if (app!.can('tiling') && app!.can('windows')) groupCard(title: 'Preset & App Preset management (all workspaces)', [
+        if (app!.can('tiling') && app!.can('windows')) groupCard(title: tr("Preset & App Preset management (all workspaces)"), [
           Wrap(spacing: 8, runSpacing: 8, children: [
-            action('Reset All to Default', Icons.undo,
-                () => perform('workspaces.bulk', {'action': 'reset_all'}, 'All workspaces reset to the default',
+            action(tr("Reset All to Default"), Icons.undo,
+                () => perform('workspaces.bulk', {'action': 'reset_all'}, tr("All workspaces reset to the default"),
                     tiling: true),
-                tooltip: 'Reset all workspaces to the default limit and layout preset'),
-            action('Remove All Presets', Icons.layers_clear_outlined,
-                () => perform('workspaces.bulk', {'action': 'remove_all'}, 'All workspaces Native', tiling: true),
-                tooltip: "Set all workspaces to Native: ${tilerOf(app!.desktopName)}'s own tiling, no layout preset or limit of their own"),
-            action('Clear All Presets & App Presets', Icons.delete_outline, () async {
-              if (await confirm(context, 'Clear All Presets & App Presets?',
-                  'Clear all workspace layouts, limits, saved apps and autostart settings', action: 'Delete')) {
-                await perform('workspaces.reset', {}, 'Everything cleared', tiling: true);
+                tooltip: tr("Reset all workspaces to the default limit and layout preset")),
+            action(tr("Remove All Presets"), Icons.layers_clear_outlined,
+                () => perform('workspaces.bulk', {'action': 'remove_all'}, tr("All workspaces Native"), tiling: true),
+                tooltip: trf("Set all workspaces to Native: {0}'s own tiling, no layout preset or limit of their own", [tilerOf(app!.desktopName)])),
+            action(tr("Clear All Presets & App Presets"), Icons.delete_outline, () async {
+              if (await confirm(context, tr("Clear All Presets & App Presets?"),
+                  tr("Clear all workspace layouts, limits, saved apps and autostart settings"), action: tr("Delete"))) {
+                await perform('workspaces.reset', {}, tr("Everything cleared"), tiling: true);
               }
-            }, tooltip: 'Clear all workspace layouts, limits, saved apps and autostart settings', destructive: true),
+            }, tooltip: tr("Clear all workspace layouts, limits, saved apps and autostart settings"), destructive: true),
           ]),
         ]),
       ];
@@ -962,31 +961,31 @@ class _PresetsPageState extends State<PresetsPage> {
     final own = modes['$ws'] as String?;
     final fallback = defaults['$cap'] as String?;
     return [
-      if (app!.can('windows')) groupCard(title: 'Window limit', [
+      if (app!.can('windows')) groupCard(title: tr("Window limit"), [
         choiceRow([
           for (var n = 1; n <= 4; n++)
-            (label: '$n', on: cap == n, tap: () => setLimit(ws, n), tooltip: 'Set Workspace $ws limit to ${windows(n)}'),
+            (label: '$n', on: cap == n, tap: () => setLimit(ws, n), tooltip: trf("Set Workspace {0} limit to {1}", [ws, windows(n)])),
         ]),
         if (caps.containsKey('$ws')) ...[
           const SizedBox(height: 8),
-          action('Reset Limit to Default ($globalCap)', Icons.undo,
-              () => setWs(ws, {'limit': null}, 'Workspace $ws: default limit', tiling: true)),
+          action(trf("Reset Limit to Default ({0})", [globalCap]), Icons.undo,
+              () => setWs(ws, {'limit': null}, trf("Workspace {0}: default limit", [ws]), tiling: true)),
         ],
       ]),
-      if (app!.can('tiling')) groupCard(title: 'Layout preset', [
+      if (app!.can('tiling')) groupCard(title: tr("Layout preset"), [
         if (cap <= 1)
           Padding(
             padding: const EdgeInsets.only(bottom: 6),
-            child: hint('Keeps one window on this workspace. Newly opened windows move to the next workspace with room.'),
+            child: hint(tr("Keeps one window on this workspace. Newly opened windows move to the next workspace with room.")),
           ),
         layoutChoices(ws, cap, own, width),
         if (own != null)
-          hint('Click again or Reset to remove preset.')
+          hint(tr("Click again or Reset to remove preset."))
         else if (fallback != null)
-          hint('Uses the default for ${windows(cap)}: ${modeLabel(fallback)}.'),
+          hint(trf("Uses the default for {0}: {1}.", [windows(cap), modeLabel(fallback)])),
         const SizedBox(height: 8),
-        action('Reset Workspace to Default', Icons.undo,
-            () => setWs(ws, {'mode': null, if (app!.can('windows')) 'limit': null}, 'Workspace $ws reset to the default', tiling: true)),
+        action(tr("Reset Workspace to Default"), Icons.undo,
+            () => setWs(ws, {'mode': null, if (app!.can('windows')) 'limit': null}, trf("Workspace {0} reset to the default", [ws]), tiling: true)),
       ]),
       lookControls(ws),
     ];
@@ -1005,15 +1004,15 @@ class _PresetsPageState extends State<PresetsPage> {
     ]..sort((a, b) => '${a['name']}'.toLowerCase().compareTo('${b['name']}'.toLowerCase()));
     final walls = slug == null ? const <String>[] : wallpapers[slug] ?? const <String>[];
     String nameOf(String? s) => '${visible.firstWhere((t) => t['slug'] == s, orElse: () => const {})['name']}';
-    return groupCard(title: 'Theme and wallpaper', [
+    return groupCard(title: tr("Theme and wallpaper"), [
       Row(children: [
-        const SizedBox(width: 84, child: Text('Theme')),
+        SizedBox(width: 84, child: Text(tr("Theme"))),
         Expanded(
           child: DropdownButton<String?>(
             isExpanded: true,
             value: visible.any((t) => t['slug'] == ownTheme) ? ownTheme : null,
             items: [
-              const DropdownMenuItem<String?>(value: null, child: Text('The current theme')),
+              DropdownMenuItem<String?>(value: null, child: Text(tr("The current theme"))),
               for (final t in visible)
                 DropdownMenuItem<String?>(
                     value: t['slug'] as String, child: Text('${t['name']}', overflow: TextOverflow.ellipsis)),
@@ -1021,29 +1020,29 @@ class _PresetsPageState extends State<PresetsPage> {
             onChanged: busy
                 ? null
                 : (v) => perform('workspaces.set_look', {'workspace': ws, 'theme': v},
-                    v == null ? 'Workspace $ws: the current theme' : 'Workspace $ws: ${nameOf(v)}'),
+                    v == null ? trf("Workspace {0}: the current theme", [ws]) : trf("Workspace {0}: {1}", [ws, nameOf(v)])),
           ),
         ),
       ]),
       Row(children: [
-        const SizedBox(width: 84, child: Text('Wallpaper')),
+        SizedBox(width: 84, child: Text(tr("Wallpaper"))),
         Expanded(
           child: DropdownButton<String?>(
             isExpanded: true,
             value: walls.contains(ownWall) ? ownWall : null,
             items: [
-              const DropdownMenuItem<String?>(value: null, child: Text("The theme's wallpaper")),
+              DropdownMenuItem<String?>(value: null, child: Text(tr("The theme's wallpaper"))),
               for (final w in walls)
                 DropdownMenuItem<String?>(value: w, child: Text(w, overflow: TextOverflow.ellipsis)),
             ],
             onChanged: busy || slug == null
                 ? null
                 : (v) => perform('workspaces.set_look', {'workspace': ws, 'wallpaper': v},
-                    v == null ? "Workspace $ws: the theme's wallpaper" : 'Workspace $ws: $v'),
+                    v == null ? trf("Workspace {0}: the theme's wallpaper", [ws]) : trf("Workspace {0}: {1}", [ws, v])),
           ),
         ),
       ]),
-      hint('Shown when you switch to Workspace $ws.'),
+      hint(trf("Shown when you switch to Workspace {0}.", [ws])),
     ]);
   }
 
@@ -1061,20 +1060,20 @@ class _PresetsPageState extends State<PresetsPage> {
           final matches =
               launchers.where((l) => '${l['name']} ${l['desktop_id']}'.toLowerCase().contains(query)).toList();
           return AlertDialog(
-            title: Text('Add app to Workspace $ws'),
+            title: Text(trf("Add app to Workspace {0}", [ws])),
             content: SizedBox(
               width: 480,
               height: 420,
               child: Column(children: [
                 TextField(
                   autofocus: true,
-                  decoration: const InputDecoration(hintText: 'Search apps', prefixIcon: Icon(Icons.search)),
+                  decoration: InputDecoration(hintText: tr("Search apps"), prefixIcon: Icon(Icons.search)),
                   onChanged: (v) => update(() => query = v.toLowerCase()),
                 ),
                 const SizedBox(height: 8),
                 Expanded(
                   child: matches.isEmpty
-                      ? const Center(child: Text('No installed apps found.'))
+                      ? Center(child: Text(tr("No installed apps found.")))
                       : ListView.builder(
                           itemCount: matches.length,
                           itemBuilder: (c, i) {
@@ -1091,14 +1090,14 @@ class _PresetsPageState extends State<PresetsPage> {
                 ),
               ]),
             ),
-            actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('Cancel'))],
+            actions: [TextButton(onPressed: () => Navigator.pop(c), child: Text(tr("Cancel")))],
           );
         },
       ),
     );
     if (id != null && mounted) {
       await perform('apppresets.add', {'workspace': ws, 'desktop_id': id},
-          'Added $id to Workspace $ws (Restore App Preset starts it)');
+          trf("Added {0} to Workspace {1} (Restore App Preset starts it)", [id, ws]));
     }
   }
 
@@ -1119,17 +1118,17 @@ class _PresetsPageState extends State<PresetsPage> {
     if (result['status'] == 'conflict') {
       setState(() {
         conflict = {...result!, 'workspace': ws};
-        message = 'Workspace $ws has ${result['conflict_count']} open window(s) not in this preset.';
+        message = trf("Workspace {0} has {1} open window(s) not in this preset.", [ws, result['conflict_count']]);
       });
       return;
     }
     final failed = (result['failed'] as List? ?? []).join(', ');
     final launched = (result['launched'] as List? ?? []).join(', ');
     final text = failed.isNotEmpty
-        ? (launched.isNotEmpty ? 'Launched: $launched · Could not restore: $failed' : 'Could not restore: $failed')
+        ? (launched.isNotEmpty ? trf("Launched: {0} · Could not restore: {1}", [launched, failed]) : trf("Could not restore: {0}", [failed]))
         : launched.isNotEmpty
-        ? 'Launched: $launched'
-        : 'Action completed.';
+        ? trf("Launched: {0}", [launched])
+        : tr("Action completed.");
     setState(() => message = text);
     final receipt = result['receipt'];
     app!.notify(text,
@@ -1144,11 +1143,11 @@ class _PresetsPageState extends State<PresetsPage> {
 
   Widget conflictCard(int ws) {
     final scheme = Theme.of(context).colorScheme;
-    const buttons = [
-      ('Move Conflicting Windows', 'move', 'Move conflicting windows to the next empty workspace'),
-      ('Close', 'close', 'Close existing windows and restore the saved apps'),
-      ('Keep', 'keep', 'Keep existing windows on this workspace'),
-      ('Cancel', null, 'Cancel restoring this preset'),
+    final buttons = [
+      (tr("Move Conflicting Windows"), 'move', tr("Move conflicting windows to the next empty workspace")),
+      (tr("Close"), 'close', tr("Close existing windows and restore the saved apps")),
+      (tr("Keep"), 'keep', tr("Keep existing windows on this workspace")),
+      (tr("Cancel"), null, tr("Cancel restoring this preset")),
     ];
     return Container(
       width: double.infinity,
@@ -1159,9 +1158,9 @@ class _PresetsPageState extends State<PresetsPage> {
         borderRadius: BorderRadius.circular(3),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Workspace $ws has ${conflict!['conflict_count']} open window(s) not in this preset.'),
+        Text(trf("Workspace {0} has {1} open window(s) not in this preset.", [ws, conflict!['conflict_count']])),
         const SizedBox(height: 4),
-        const Text('How would you like to handle them before restoring?'),
+        Text(tr("How would you like to handle them before restoring?")),
         const SizedBox(height: 8),
         Wrap(spacing: 6, runSpacing: 6, children: [
           for (final (label, choice, tip) in buttons)
@@ -1171,7 +1170,7 @@ class _PresetsPageState extends State<PresetsPage> {
                 onPressed: () => choice == null
                     ? setState(() {
                         conflict = null;
-                        message = 'Restore cancelled.';
+                        message = tr("Restore cancelled.");
                       })
                     : restore(ws, choice),
                 child: Text(label),
@@ -1190,8 +1189,8 @@ class _PresetsPageState extends State<PresetsPage> {
       groupCard([
         Text(
           layout == null
-              ? 'No App Preset saved yet'
-              : 'App Preset · Workspace $ws · ${apps.length} ${apps.length == 1 ? 'app' : 'apps'}',
+              ? tr("No App Preset saved yet")
+              : trf("App Preset · Workspace {0} · {1} {2}", [ws, apps.length, apps.length == 1 ? tr('app') : tr('apps')]),
           style: heading(scheme).copyWith(fontSize: 12, letterSpacing: .3),
         ),
         if (apps.isNotEmpty) ...[
@@ -1213,56 +1212,56 @@ class _PresetsPageState extends State<PresetsPage> {
                         overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13)),
                   ),
                   IconButton(
-                    tooltip: 'Remove ${apps[i]} from the App Preset',
+                    tooltip: trf("Remove {0} from the App Preset", [apps[i]]),
                     visualDensity: VisualDensity.compact,
                     iconSize: 14,
                     icon: const Icon(Icons.close),
                     onPressed: busy
                         ? null
                         : () => perform('apppresets.remove', {'workspace': ws, 'index': i},
-                            'Removed ${apps[i]} from the saved layout.'),
+                            trf("Removed {0} from the saved layout.", [apps[i]])),
                   ),
                 ]),
               ),
           ]),
-          hint('× removes an app from the App Preset; it does not close its open windows.'),
+          hint(tr("× removes an app from the App Preset; it does not close its open windows.")),
         ],
         if (conflict != null && conflict!['workspace'] == ws) ...[const SizedBox(height: 8), conflictCard(ws)],
         const SizedBox(height: 10),
         Wrap(spacing: 8, runSpacing: 8, children: [
-          action('Save App Preset', Icons.save_outlined,
-              () => perform('apppresets.save', {'workspace': ws}, 'Saved App Preset for Workspace $ws'),
-              tooltip: 'Saves the open windows of Workspace $ws as its App Preset.'),
-          action('Add app…', Icons.add, () => addApp(ws),
-              tooltip: 'Adds an installed app to the App Preset; Restore App Preset starts it.'),
+          action(tr("Save App Preset"), Icons.save_outlined,
+              () => perform('apppresets.save', {'workspace': ws}, trf("Saved App Preset for Workspace {0}", [ws])),
+              tooltip: trf("Saves the open windows of Workspace {0} as its App Preset.", [ws])),
+          action(tr("Add app…"), Icons.add, () => addApp(ws),
+              tooltip: tr("Adds an installed app to the App Preset; Restore App Preset starts it.")),
           if (apps.isNotEmpty)
-            action('Restore App Preset', Icons.refresh, () => restore(ws),
-                tooltip: 'Starts missing apps and moves their windows to Workspace $ws.'),
+            action(tr("Restore App Preset"), Icons.refresh, () => restore(ws),
+                tooltip: trf("Starts missing apps and moves their windows to Workspace {0}.", [ws])),
         ]),
         if (layout != null) ...[
           const SizedBox(height: 8),
-          action('Remove App Preset', Icons.delete_outline,
-              () => perform('apppresets.remove', {'workspace': ws}, 'Removed the App Preset of Workspace $ws'),
+          action(tr("Remove App Preset"), Icons.delete_outline,
+              () => perform('apppresets.remove', {'workspace': ws}, trf("Removed the App Preset of Workspace {0}", [ws])),
               destructive: true),
           const SizedBox(height: 8),
-          toggle('Autostart on session startup', 'Automatically launch saved apps on startup',
+          toggle(tr("Autostart on session startup"), tr("Automatically launch saved apps on startup"),
               layout['autostart'] == true,
               (v) => perform('apppresets.autostart', {'workspace': ws, 'enabled': v},
-                  v ? 'Autostart on for Workspace $ws' : 'Autostart off for Workspace $ws')),
+                  v ? trf("Autostart on for Workspace {0}", [ws]) : trf("Autostart off for Workspace {0}", [ws]))),
         ],
-        hint('Documents, window positions and sizes are not saved: ${app!.desktopName} places the windows.'),
+        hint(trf("Documents, window positions and sizes are not saved: {0} places the windows.", [app!.desktopName])),
       ]),
       groupCard([
-        toggle('Auto-move on restore', 'Move existing windows to next free workspace without asking',
+        toggle(tr("Auto-move on restore"), tr("Move existing windows to next free workspace without asking"),
             state['autoMoveOnRestore'] == true,
-            (v) => setWs(0, {'autoMoveOnRestore': v}, v ? 'Auto-move on restore on' : 'Auto-move on restore off')),
+            (v) => setWs(0, {'autoMoveOnRestore': v}, v ? tr("Auto-move on restore on") : tr("Auto-move on restore off"))),
         const SizedBox(height: 8),
-        action('Remove All App Presets', Icons.delete_outline, () async {
-          if (await confirm(context, 'Remove All App Presets?',
-              'Deletes all saved app presets and autostart settings across all workspaces.', action: 'Delete')) {
-            await perform('apppresets.remove_all', {}, 'All App Presets removed');
+        action(tr("Remove All App Presets"), Icons.delete_outline, () async {
+          if (await confirm(context, tr("Remove All App Presets?"),
+              tr("Deletes all saved app presets and autostart settings across all workspaces."), action: tr("Delete"))) {
+            await perform('apppresets.remove_all', {}, tr("All App Presets removed"));
           }
-        }, tooltip: 'Delete all saved app presets across all workspaces', destructive: true),
+        }, tooltip: tr("Delete all saved app presets across all workspaces"), destructive: true),
       ]),
     ];
   }
@@ -1317,10 +1316,10 @@ class _PresetsPageState extends State<PresetsPage> {
     if (text.isEmpty) return;
     final exists = presets.whereType<Map>().any((p) => '${p['name']}'.toLowerCase() == text.toLowerCase());
     if (exists &&
-        !await confirm(context, 'Replace “$text”?', 'A preset with this name already exists.', action: 'Replace')) {
+        !await confirm(context, trf("Replace “{0}”?", [text]), tr("A preset with this name already exists."), action: tr("Replace"))) {
       return;
     }
-    final r = await perform('presets.save', {'name': text, 'includeWorkspaces': include && app!.can('workspaces') && app!.can('tiling') && app!.can('windows')}, 'Saved preset “$text”');
+    final r = await perform('presets.save', {'name': text, 'includeWorkspaces': include && app!.can('workspaces') && app!.can('tiling') && app!.can('windows')}, trf("Saved preset “{0}”", [text]));
     if (r != null) name.clear();
   }
 
@@ -1328,27 +1327,27 @@ class _PresetsPageState extends State<PresetsPage> {
     final ws = p['workspaces'] as Map?;
     final apps = (ws?['workspaceLayouts'] as Map? ?? {}).keys.map((k) => '$k').toList()..sort();
     if (apps.isNotEmpty &&
-        !await confirm(context, 'Apply “${p['name']}”?',
-            'Missing apps on workspaces ${apps.join(', ')} start; other windows there move to a free workspace.',
-            action: 'Apply')) {
+        !await confirm(context, trf("Apply “{0}”?", [p['name']]),
+            trf("Missing apps on workspaces {0} start; other windows there move to a free workspace.", [apps.join(', ')]),
+            action: tr("Apply"))) {
       return;
     }
-    await perform('presets.apply', {'name': p['name'], 'confirmed': ws != null}, 'Preset applied');
+    await perform('presets.apply', {'name': p['name'], 'confirmed': ws != null}, tr("Preset applied"));
   }
 
   Future<void> assign(Map p) async {
     final installed = themeName(p['theme'] as String?) != null;
     final options = [
-      ('theme', 'Theme'),
-      if (installed && p['wallpaper'] != null) ('wallpaper', 'Wallpaper'),
-      if (installed && p['wallpaper'] != null) ('both', 'Theme + wallpaper'),
+      ('theme', tr("Theme")),
+      if (installed && p['wallpaper'] != null) ('wallpaper', tr("Wallpaper")),
+      if (installed && p['wallpaper'] != null) ('both', tr("Theme + wallpaper")),
     ];
     var part = options.first.$1;
     final ws = await showDialog<int>(
       context: context,
       builder: (c) => StatefulBuilder(
         builder: (c, update) => AlertDialog(
-          title: const Text('Assign to workspace'),
+          title: Text(tr("Assign to workspace")),
           content: SizedBox(
             width: 340,
             child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1376,7 +1375,7 @@ class _PresetsPageState extends State<PresetsPage> {
               ),
             ]),
           ),
-          actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('Cancel'))],
+          actions: [TextButton(onPressed: () => Navigator.pop(c), child: Text(tr("Cancel")))],
         ),
       ),
     );
@@ -1385,7 +1384,7 @@ class _PresetsPageState extends State<PresetsPage> {
       'name': p['name'],
       'part': part,
       'workspaces': [ws],
-    }, 'Workspace $ws assigned: ${p['name']}');
+    }, trf("Workspace {0} assigned: {1}", [ws, p['name']]));
   }
 
   Widget savedTab() {
@@ -1393,7 +1392,7 @@ class _PresetsPageState extends State<PresetsPage> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
       children: [
-        Text('Save the current theme, wallpaper and font for later.',
+        Text(tr("Save the current theme, wallpaper and font for later."),
             style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
         const SizedBox(height: 8),
         Row(children: [
@@ -1401,7 +1400,7 @@ class _PresetsPageState extends State<PresetsPage> {
             child: TextField(
               controller: name,
               maxLength: 60,
-              decoration: const InputDecoration(hintText: 'Preset name', counterText: ''),
+              decoration: InputDecoration(hintText: tr("Preset name"), counterText: ''),
               onChanged: (_) => setState(() {}),
               onSubmitted: (_) => saveCurrent(),
             ),
@@ -1409,18 +1408,18 @@ class _PresetsPageState extends State<PresetsPage> {
           const SizedBox(width: 6),
           FilledButton.tonal(
             onPressed: busy || name.text.trim().isEmpty ? null : saveCurrent,
-            child: const Text('Save current'),
+            child: Text(tr("Save current")),
           ),
         ]),
         if (app!.can('workspaces') && app!.can('tiling') && app!.can('windows')) CheckboxListTile(
           contentPadding: EdgeInsets.zero,
           controlAffinity: ListTileControlAffinity.leading,
           dense: true,
-          title: const Text('Include workspace presets and app presets'),
+          title: Text(tr("Include workspace presets and app presets")),
           value: include,
           onChanged: (v) => setState(() => include = v!),
         ),
-        if (presets.isEmpty) const Padding(padding: EdgeInsets.only(top: 8), child: Text('No presets yet.')),
+        if (presets.isEmpty) Padding(padding: EdgeInsets.only(top: 8), child: Text(tr("No presets yet."))),
         for (final p in presets.whereType<Map>()) ...[presetRow(p), const SizedBox(height: 8)],
       ],
     );
@@ -1450,30 +1449,30 @@ class _PresetsPageState extends State<PresetsPage> {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text('${p['name']}', maxLines: 1, overflow: TextOverflow.ellipsis),
             Text(
-              [theme ?? 'Theme missing', p['wallpaper'] ?? 'No wallpaper', p['font'] ?? 'No font'].join(' · '),
+              [theme ?? tr("Theme missing"), p['wallpaper'] ?? tr("No wallpaper"), p['font'] ?? tr("No font")].join(' · '),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: small,
             ),
-            if (!canApplyPreset(p)) Text('This preset needs workspace features unavailable on ${app!.desktopName}.', style: small),
-            if (app!.can('workspaces') && ws != null) Text('Workspace presets: $layoutCount · App presets: $appCount', style: small),
+            if (!canApplyPreset(p)) Text(trf("This preset needs workspace features unavailable on {0}.", [app!.desktopName]), style: small),
+            if (app!.can('workspaces') && ws != null) Text(trf("Workspace presets: {0} · App presets: {1}", [layoutCount, appCount]), style: small),
           ]),
         ),
         const SizedBox(width: 6),
-        if (canApplyPreset(p)) OutlinedButton(onPressed: busy || theme == null ? null : () => applyPreset(p), child: const Text('Apply')),
+        if (canApplyPreset(p)) OutlinedButton(onPressed: busy || theme == null ? null : () => applyPreset(p), child: Text(tr("Apply"))),
         if (app!.can('workspaces')) IconButton(
-          tooltip: 'Assign theme and/or wallpaper to workspace',
+          tooltip: tr("Assign theme and/or wallpaper to workspace"),
           icon: const Icon(Icons.grid_view),
           onPressed: busy || theme == null ? null : () => assign(p),
         ),
         IconButton(
-          tooltip: 'Delete preset',
+          tooltip: tr("Delete preset"),
           icon: Icon(Icons.delete_outline, color: scheme.error),
           onPressed: busy
               ? null
               : () async {
-                  if (await confirm(context, 'Delete preset “${p['name']}”?', 'You can undo this.', action: 'Delete')) {
-                    await perform('presets.delete', {'name': p['name']}, 'Deleted preset “${p['name']}”');
+                  if (await confirm(context, trf("Delete preset “{0}”?", [p['name']]), tr("You can undo this."), action: tr("Delete"))) {
+                    await perform('presets.delete', {'name': p['name']}, trf("Deleted preset “{0}”", [p['name']]));
                   }
                 },
         ),
@@ -1494,7 +1493,7 @@ class _PresetsPageState extends State<PresetsPage> {
         if (!didPop && zoomed != null) setState(() => zoomed = null);
       },
       child: SubPage(
-        title: 'Presets',
+        title: tr("Presets"),
         body: Stack(
           children: [
             Column(
@@ -1503,18 +1502,18 @@ class _PresetsPageState extends State<PresetsPage> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                   child: Wrap(spacing: 8, runSpacing: 8, children: [
-                    if (hasWorkspaces) tabButton(0, Icons.grid_view, 'Workspaces'),
-                    if (hasApps) tabButton(1, Icons.apps, 'App Presets'),
-                    tabButton(2, Icons.download_outlined, 'Save/Load Presets'),
+                    if (hasWorkspaces) tabButton(0, Icons.grid_view, tr("Workspaces")),
+                    if (hasApps) tabButton(1, Icons.apps, tr("App Presets")),
+                    tabButton(2, Icons.download_outlined, tr("Save/Load Presets")),
                     if (hasWorkspaces && app!.can('tiling') && app!.desktopId == 'kde')
                       IconButton(
-                        tooltip: 'Gaps of tiled windows and the active window frame',
+                        tooltip: tr("Gaps of tiled windows and the active window frame"),
                         icon: const Icon(Icons.border_outer),
                         onPressed: busy ? null : tileStyleDialog,
                       ),
                   ]),
                 ),
-                Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 8), child: hasWorkspaces && app!.can('tiling') && app!.can('windows') ? note() : Text('${hasWorkspaces ? 'Tiling and window limits' : 'Workspaces'} are not available on ${app!.desktopName} yet.')),
+                Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 8), child: hasWorkspaces && app!.can('tiling') && app!.can('windows') ? note() : Text(trf("{0} are not available on {1} yet.", [hasWorkspaces ? tr("Tiling and window limits") : tr("Workspaces"), app!.desktopName]))),
                 SizedBox(height: 2, child: busy ? const LinearProgressIndicator() : null),
                 Expanded(
                   child: AnimatedSwitcher(

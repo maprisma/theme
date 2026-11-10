@@ -1,3 +1,4 @@
+import '../i18n.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -49,9 +50,9 @@ class _ImportPageState extends State<ImportPage> {
     }
 
     return SubPage(
-      title: 'Import themes — ${['omarchy.org', 'cosmic-themes.org', 'KDE Store'][tab]}',
+      title: trf("Import themes — {0}", [['omarchy.org', 'cosmic-themes.org', 'KDE Store'][tab]]),
       section: false,
-      backTooltip: 'Back to themes (Left, Backspace or Esc)',
+      backTooltip: tr("Back to themes (Left, Backspace or Esc)"),
       // short labels: three sources fit the header at the smallest window size
       actions: [
         tabButton(0, 'Omarchy', 'omarchy.org'),
@@ -284,8 +285,8 @@ mixin _Gallery<T extends StatefulWidget> on State<T> {
             ),
         ],
       ),
-      menu: TileMenuButton(menuKey: menuKey, tooltip: 'Theme actions (Enter)', enabled: !busy, menu: menu),
-      bottomLeft: [if (installed) const TileBadge('installed'), ...extraBadges],
+      menu: TileMenuButton(menuKey: menuKey, tooltip: tr("Theme actions (Enter)"), enabled: !busy, menu: menu),
+      bottomLeft: [if (installed) TileBadge(tr("installed")), ...extraBadges],
       captionText: name,
       caption: caption,
     );
@@ -307,15 +308,15 @@ Future<bool> _install(
   bool apply, {
   void Function(Map<String, dynamic>)? onInstalled,
 }) async {
-  app.notify(apply ? 'Installing and applying $name…' : 'Installing $name…', duration: const Duration(seconds: 60));
+  app.notify(apply ? trf("Installing and applying {0}…", [name]) : trf("Installing {0}…", [name]), duration: const Duration(seconds: 60));
   final r = await app.run(method, {...params, 'apply': apply});
   if (r == null) return false;
   onInstalled?.call(r);
   app.changed();
   if (r['apply_error'] != null) {
-    app.notify('$name installed, but not applied: ${r['apply_error']}');
+    app.notify(trf("{0} installed, but not applied: {1}", [name, r['apply_error']]));
   } else {
-    app.notify(r['applied'] == true ? 'Theme installed and applied: $name' : 'Theme installed: $name');
+    app.notify(r['applied'] == true ? trf("Theme installed and applied: {0}", [name]) : trf("Theme installed: {0}", [name]));
   }
   return true;
 }
@@ -323,14 +324,14 @@ Future<bool> _install(
 Future<void> _open(MaprismaThemeAppState app, Object? url) async {
   final r = await app.run('import.open', {'url': url});
   if (r != null && r['opened'] != true) {
-    app.notify("No default web browser is set, so theme pages can't be opened.");
+    app.notify(tr("No default web browser is set, so theme pages can't be opened."));
   }
 }
 
 Future<void> _apply(MaprismaThemeAppState app, String slug, String name) async {
   final r = await app.run('themes.apply', {'slug': slug});
   if (r == null) return;
-  app.notify('Theme applied: $name');
+  app.notify(trf("Theme applied: {0}", [name]));
   app.changed();
 }
 
@@ -392,7 +393,7 @@ class _OmarchyTabState extends State<_OmarchyTab> with _Gallery<_OmarchyTab> {
       if (!mounted) return;
       setState(() {
         loading = false;
-        error = 'Could not load the theme list: ${errorText(e)}';
+        error = trf("Could not load the theme list: {0}", [errorText(e)]);
       });
     }
   }
@@ -436,7 +437,7 @@ class _OmarchyTabState extends State<_OmarchyTab> with _Gallery<_OmarchyTab> {
     final slug = t['slug'] as String;
     setState(() {
       busy.add(slug);
-      status = 'Installing ${t['name']}…';
+      status = trf("Installing {0}…", [t['name']]);
     });
     final ok = await _install(app, 'import.omarchy_install', {'name': slug}, t['name'] as String, apply);
     if (!mounted) return;
@@ -451,19 +452,19 @@ class _OmarchyTabState extends State<_OmarchyTab> with _Gallery<_OmarchyTab> {
     final installed = t['installed'] == true;
     return [
       if (installed) ...[
-        item(Icons.check, 'Installed', () {}, enabled: false),
-        item(Icons.play_arrow, 'Apply theme', () => _apply(app, t['slug'] as String, '${t['name']}')),
+        item(Icons.check, tr("Installed"), () {}, enabled: false),
+        item(Icons.play_arrow, tr("Apply theme"), () => _apply(app, t['slug'] as String, '${t['name']}')),
       ] else ...[
         item(
           Icons.download_outlined,
-          'Install',
+          tr("Install"),
           () => install(t, false),
-          tooltip: 'git clone into ~/.config/maprisma-theme/themes/${t['slug']}',
+          tooltip: trf("git clone into ~/.config/maprisma-theme/themes/{0}", [t['slug']]),
         ),
-        item(Icons.play_arrow, 'Install and apply', () => install(t, true)),
+        item(Icons.play_arrow, tr("Install and apply"), () => install(t, true)),
       ],
       menuLine(),
-      item(Icons.public, 'Open theme page', () => _open(app, t['repo']), tooltip: '${t['repo']}'),
+      item(Icons.public, tr("Open theme page"), () => _open(app, t['repo']), tooltip: '${t['repo']}'),
     ];
   }
 
@@ -473,16 +474,16 @@ class _OmarchyTabState extends State<_OmarchyTab> with _Gallery<_OmarchyTab> {
         status ??
         error ??
         (loading
-            ? 'Loading themes from omarchy.org…'
-            : "${themes.length} themes from omarchy.org. Enter opens a theme's menu: install, install and apply, or open its page.");
+            ? tr("Loading themes from omarchy.org…")
+            : trf("{0} themes from omarchy.org. Enter opens a theme's menu: install, install and apply, or open its page.", [themes.length]));
     return gallery(
       toolbar: _Toolbar(
         controller: search,
         focus: fieldFocus,
-        hint: 'Search themes',
+        hint: tr("Search themes"),
         onKey: onFieldKey,
         trailing: Tooltip(
-          message: 'Reload the list from omarchy.org',
+          message: tr("Reload the list from omarchy.org"),
           child: OutlinedButton(onPressed: () => load(force: true), child: const Icon(Icons.refresh, size: 18)),
         ),
       ),
@@ -491,7 +492,7 @@ class _OmarchyTabState extends State<_OmarchyTab> with _Gallery<_OmarchyTab> {
           ? const Center(child: CircularProgressIndicator())
           : themes.isEmpty
           ? null
-          : Text('No theme matches “${search.text.trim()}”.', style: hintStyle(context)),
+          : Text(trf("No theme matches “{0}”.", [search.text.trim()]), style: hintStyle(context)),
       tile: (i, isSelected) {
         final t = items[i];
         final slug = t['slug'] as String;
@@ -524,10 +525,10 @@ class _CosmicTab extends StatefulWidget {
 
 class _CosmicTabState extends State<_CosmicTab> with _Gallery<_CosmicTab> {
   List<Map<String, dynamic>> themes = [];
-  List<Map> sorts = const [
-    {'value': 'popular', 'label': 'Popular'},
-    {'value': 'new', 'label': 'New'},
-    {'value': 'name', 'label': 'Name'},
+  List<Map> sorts = [
+    {'value': 'popular', 'label': tr("Popular")},
+    {'value': 'new', 'label': tr("New")},
+    {'value': 'name', 'label': tr("Name")},
   ];
   String sort = 'popular';
   int? nextPage;
@@ -605,7 +606,7 @@ class _CosmicTabState extends State<_CosmicTab> with _Gallery<_CosmicTab> {
       if (!mounted || gen != _generation) return;
       setState(() {
         loading = false;
-        error = 'Could not load the theme list: ${errorText(e)}';
+        error = trf("Could not load the theme list: {0}", [errorText(e)]);
       });
     }
   }
@@ -639,7 +640,7 @@ class _CosmicTabState extends State<_CosmicTab> with _Gallery<_CosmicTab> {
     final id = t['id'] as int;
     setState(() {
       busy.add(id);
-      status = 'Installing ${t['name']}…';
+      status = trf("Installing {0}…", [t['name']]);
     });
     final ok = await _install(app, 'import.cosmic_install', {'id': id}, t['name'] as String, apply);
     if (!mounted) return;
@@ -655,14 +656,14 @@ class _CosmicTabState extends State<_CosmicTab> with _Gallery<_CosmicTab> {
     final slug = t['slug'];
     return [
       if (installed) ...[
-        item(Icons.check, 'Installed', () {}, enabled: false),
-        if (slug is String) item(Icons.play_arrow, 'Apply theme', () => _apply(app, slug, '${t['name']}')),
+        item(Icons.check, tr("Installed"), () {}, enabled: false),
+        if (slug is String) item(Icons.play_arrow, tr("Apply theme"), () => _apply(app, slug, '${t['name']}')),
       ] else ...[
-        item(Icons.download_outlined, 'Install', () => install(t, false)),
-        item(Icons.play_arrow, 'Install and apply', () => install(t, true)),
+        item(Icons.download_outlined, tr("Install"), () => install(t, false)),
+        item(Icons.play_arrow, tr("Install and apply"), () => install(t, true)),
       ],
       menuLine(),
-      item(Icons.public, 'Open theme page', () => _open(app, t['page']), tooltip: '${t['page']}'),
+      item(Icons.public, tr("Open theme page"), () => _open(app, t['page']), tooltip: '${t['page']}'),
     ];
   }
 
@@ -674,13 +675,13 @@ class _CosmicTabState extends State<_CosmicTab> with _Gallery<_CosmicTab> {
         status ??
         error ??
         (loading
-            ? 'Loading themes from cosmic-themes.org…'
-            : "${native ? 'Native COSMIC themes' : 'Theme colors'} from cosmic-themes.org. Enter opens a theme's menu: install, install and apply, or open its page.");
+            ? tr("Loading themes from cosmic-themes.org…")
+            : trf("{0} from cosmic-themes.org. Enter opens a theme's menu: install, install and apply, or open its page.", [native ? tr("Native COSMIC themes") : tr("Theme colors")]));
     return gallery(
       toolbar: _Toolbar(
         controller: search,
         focus: fieldFocus,
-        hint: 'Search cosmic-themes.org',
+        hint: tr("Search cosmic-themes.org"),
         onKey: onFieldKey,
         trailing: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -690,12 +691,12 @@ class _CosmicTabState extends State<_CosmicTab> with _Gallery<_CosmicTab> {
           ),
           child: DropdownButton<String>(
             value: sorts.any((s) => s['value'] == sort) ? sort : null,
-            hint: const Text('Sort'),
+            hint: Text(tr("Sort")),
             isDense: true,
             dropdownColor: look.bg,
             underline: const SizedBox.shrink(),
             style: Theme.of(context).textTheme.bodyMedium!.copyWith(fontSize: 13, color: look.fg),
-            items: [for (final s in sorts) DropdownMenuItem(value: '${s['value']}', child: Text('${s['label']}'))],
+            items: [for (final s in sorts) DropdownMenuItem(value: '${s['value']}', child: Text(tr(s['label'] as String? ?? '')))],
             onChanged: (v) {
               if (v == null || v == sort) return;
               setState(() => sort = v);
@@ -709,7 +710,7 @@ class _CosmicTabState extends State<_CosmicTab> with _Gallery<_CosmicTab> {
           ? const Center(child: CircularProgressIndicator())
           : error != null
           ? null
-          : Text(search.text.trim().isEmpty ? 'No themes found.' : 'No theme matches “${search.text.trim()}”.', style: hintStyle(context)),
+          : Text(search.text.trim().isEmpty ? tr("No themes found.") : trf("No theme matches “{0}”.", [search.text.trim()]), style: hintStyle(context)),
       footer: loadingMore
           ? const Padding(
               padding: EdgeInsets.all(12),
@@ -724,10 +725,10 @@ class _CosmicTabState extends State<_CosmicTab> with _Gallery<_CosmicTab> {
           i,
           isSelected,
           name: '${t['name']}',
-          tooltip: [if (author.isNotEmpty) 'by $author', '$downloads downloads'].join(' · '),
+          tooltip: [if (author.isNotEmpty) trf("by {0}", [author]), trf("{0} downloads", [downloads])].join(' · '),
           installed: t['installed'] == true,
           busy: busy.contains(t['id']),
-          extraBadges: [TileBadge(t['dark'] == true ? 'dark' : 'light')],
+          extraBadges: [TileBadge(t['dark'] == true ? tr('dark') : tr('light'))],
           menu: () => menu(t),
           picture: ColorPreview(colors: (t['preview'] as Map?) ?? const {}, title: '${t['name']}'),
         );
@@ -747,11 +748,11 @@ class _KdeTab extends StatefulWidget {
 
 class _KdeTabState extends State<_KdeTab> with _Gallery<_KdeTab> {
   List<Map<String, dynamic>> themes = [];
-  List<Map> sorts = const [
-    {'value': 'high', 'label': 'Rating'},
-    {'value': 'new', 'label': 'Newest'},
-    {'value': 'down', 'label': 'Downloads'},
-    {'value': 'alpha', 'label': 'Name'},
+  List<Map> sorts = [
+    {'value': 'high', 'label': tr("Rating")},
+    {'value': 'new', 'label': tr("Newest")},
+    {'value': 'down', 'label': tr("Downloads")},
+    {'value': 'alpha', 'label': tr("Name")},
   ];
   String sort = 'high';
   int? nextPage;
@@ -844,7 +845,7 @@ class _KdeTabState extends State<_KdeTab> with _Gallery<_KdeTab> {
       if (!mounted || gen != _generation) return;
       setState(() {
         loading = false;
-        error = 'Could not load the theme list: ${errorText(e)}';
+        error = trf("Could not load the theme list: {0}", [errorText(e)]);
       });
     }
   }
@@ -919,7 +920,7 @@ class _KdeTabState extends State<_KdeTab> with _Gallery<_KdeTab> {
     final id = t['id'] as int;
     setState(() {
       busy.add(id);
-      status = 'Installing ${t['name']}…';
+      status = trf("Installing {0}…", [t['name']]);
     });
     final ok = await _install(app, 'import.kde_install', {'id': id}, t['name'] as String, apply, onInstalled: (r) => t['slug'] = r['slug']);
     if (!mounted) return;
@@ -935,14 +936,14 @@ class _KdeTabState extends State<_KdeTab> with _Gallery<_KdeTab> {
     final slug = t['slug'];
     return [
       if (installed) ...[
-        item(Icons.check, 'Installed', () {}, enabled: false),
-        if (slug is String) item(Icons.play_arrow, 'Apply theme', () => _apply(app, slug, '${t['name']}')),
+        item(Icons.check, tr("Installed"), () {}, enabled: false),
+        if (slug is String) item(Icons.play_arrow, tr("Apply theme"), () => _apply(app, slug, '${t['name']}')),
       ] else ...[
-        item(Icons.download_outlined, 'Install', () => install(t, false)),
-        item(Icons.play_arrow, 'Install and apply', () => install(t, true)),
+        item(Icons.download_outlined, tr("Install"), () => install(t, false)),
+        item(Icons.play_arrow, tr("Install and apply"), () => install(t, true)),
       ],
       menuLine(),
-      item(Icons.public, 'Open theme page', () => _open(app, t['page']), tooltip: '${t['page']}'),
+      item(Icons.public, tr("Open theme page"), () => _open(app, t['page']), tooltip: '${t['page']}'),
     ];
   }
 
@@ -953,13 +954,13 @@ class _KdeTabState extends State<_KdeTab> with _Gallery<_KdeTab> {
         status ??
         error ??
         (loading
-            ? 'Loading themes from store.kde.org…'
-            : 'Plasma color schemes from the KDE Store (store.kde.org). On KDE Plasma they are applied as they are; elsewhere as their colors.');
+            ? tr("Loading themes from store.kde.org…")
+            : tr("Plasma color schemes from the KDE Store (store.kde.org). On KDE Plasma they are applied as they are; elsewhere as their colors."));
     return gallery(
       toolbar: _Toolbar(
         controller: search,
         focus: fieldFocus,
-        hint: 'Search KDE Store',
+        hint: tr("Search KDE Store"),
         maxLength: 200,
         onKey: onFieldKey,
         trailing: Container(
@@ -970,12 +971,12 @@ class _KdeTabState extends State<_KdeTab> with _Gallery<_KdeTab> {
           ),
           child: DropdownButton<String>(
             value: sorts.any((s) => s['value'] == sort) ? sort : null,
-            hint: const Text('Sort'),
+            hint: Text(tr("Sort")),
             isDense: true,
             dropdownColor: look.bg,
             underline: const SizedBox.shrink(),
             style: Theme.of(context).textTheme.bodyMedium!.copyWith(fontSize: 13, color: look.fg),
-            items: [for (final s in sorts) DropdownMenuItem(value: '${s['value']}', child: Text('${s['label']}'))],
+            items: [for (final s in sorts) DropdownMenuItem(value: '${s['value']}', child: Text(tr(s['label'] as String? ?? '')))],
             onChanged: (v) {
               if (v == null || v == sort) return;
               setState(() => sort = v);
@@ -989,7 +990,7 @@ class _KdeTabState extends State<_KdeTab> with _Gallery<_KdeTab> {
           ? const Center(child: CircularProgressIndicator())
           : error != null
           ? null
-          : Text(search.text.trim().isEmpty ? 'No themes found.' : 'No theme matches “${search.text.trim()}”.', style: hintStyle(context)),
+          : Text(search.text.trim().isEmpty ? tr("No themes found.") : trf("No theme matches “{0}”.", [search.text.trim()]), style: hintStyle(context)),
       footer: loadingMore
           ? const Padding(
               padding: EdgeInsets.all(12),
@@ -997,7 +998,7 @@ class _KdeTabState extends State<_KdeTab> with _Gallery<_KdeTab> {
             )
           : nextPage != null && !loading
           ? Center(
-              child: TextButton(onPressed: more, child: const Text('Load more')),
+              child: TextButton(onPressed: more, child: Text(tr("Load more"))),
             )
           : null,
       tile: (i, isSelected) {
@@ -1010,10 +1011,10 @@ class _KdeTabState extends State<_KdeTab> with _Gallery<_KdeTab> {
           i,
           isSelected,
           name: '${t['name']}',
-          tooltip: [if (author.isNotEmpty) 'by $author', '$downloads downloads'].join(' · '),
+          tooltip: [if (author.isNotEmpty) trf("by {0}", [author]), trf("{0} downloads", [downloads])].join(' · '),
           installed: t['installed'] == true,
           busy: busy.contains(t['id']),
-          extraBadges: [TileBadge('Score: ${t['score'] ?? 0}/100')],
+          extraBadges: [TileBadge(trf("Score: {0}/100", [t['score'] ?? 0]))],
           caption: Column(
             children: [
               Text(
@@ -1022,7 +1023,7 @@ class _KdeTabState extends State<_KdeTab> with _Gallery<_KdeTab> {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(fontSize: 13, color: look.fg),
               ),
-              if (author.isNotEmpty) Text('by $author', maxLines: 1, overflow: TextOverflow.ellipsis, style: hintStyle(context)),
+              if (author.isNotEmpty) Text(trf("by {0}", [author]), maxLines: 1, overflow: TextOverflow.ellipsis, style: hintStyle(context)),
             ],
           ),
           menu: () => menu(t),

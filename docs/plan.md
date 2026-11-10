@@ -1,8 +1,9 @@
 # Maprisma Theme: plan
 
 The COSMIC port of the Omarchy plugin **Theme Manager 2.0.0**
-(`/mnt/Data/Projects/omarchy-theme-manager`, its README is the feature spec). English only, no
-translations, no manual. Every feature of the plugin is kept; where COSMIC works differently the
+(`/mnt/Data/Projects/omarchy-theme-manager`, its README is the feature spec). Built-in interface
+translations cover English, Deutsch, Français, Español, Italiano, Português, Nederlands and Polski;
+the earlier English-only rule is lifted. No manual. Every feature of the plugin is kept; where COSMIC works differently the
 feature is adapted as listed below.
 
 ## Parts
@@ -54,6 +55,7 @@ The interface between the parts is in `docs/cosmic-interface.md`.
 | F12 screenshot + note | the Flutter window paints itself (RepaintBoundary), as Maprisma Launcher |
 | Backup export/restore | unchanged |
 | Information page | unchanged (marketplace catalog, author's entries) |
+| Language | Settings → General → Language; system locale or a saved choice, applied immediately. Shared English-key catalogs for Flutter, the Dart core, tray and Rust helper/applet; theme names stay unchanged. |
 | Corners | Like windows = the COSMIC theme's corner radius; Rounded; Square |
 | Bar widget | the panel applet: click toggles the window, scroll = next/previous wallpaper, right-click = favorites/recent, next wallpaper, open |
 | Popup: resizable, remembered size, double-click title maximise | a normal COSMIC window (positions cannot be set on Wayland); size remembered; Esc and the applet close it |

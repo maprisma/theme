@@ -1,3 +1,4 @@
+import 'i18n.dart';
 import 'dart:convert';
 import 'context.dart';
 import 'desktop.dart';
@@ -136,7 +137,7 @@ Future<Map<String, dynamic>> helper(Ctx ctx, List<String> args) async {
   if (result == null || result['error'] != null) {
     throw RouteError(
       'desktop_unavailable',
-      result?['message']?.toString() ?? 'COSMIC helper unavailable',
+      result?['message']?.toString() ?? tr("COSMIC helper unavailable"),
     );
   }
   return result;

@@ -1,6 +1,8 @@
 /// Python's shlex.split / shlex.quote / shlex.join (POSIX mode, no comments).
 library;
 
+import 'i18n.dart';
+
 final class ShlexError extends FormatException {
   const ShlexError(super.message);
 }
@@ -25,7 +27,7 @@ List<String> shlexSplit(String text) {
       if (c == '"') {
         quote = null;
       } else if (c == r'\') {
-        if (i + 1 >= text.length) throw const ShlexError('No closing quotation');
+        if (i + 1 >= text.length) throw ShlexError(tr('No closing quotation'));
         final next = text[i + 1];
         // In double quotes a backslash escapes only itself and the quote.
         if (next == r'\' || next == '"') {
@@ -47,7 +49,7 @@ List<String> shlexSplit(String text) {
       quote = c;
       inWord = true;
     } else if (c == r'\') {
-      if (i + 1 >= text.length) throw const ShlexError('No escaped character');
+      if (i + 1 >= text.length) throw ShlexError(tr('No escaped character'));
       word.write(text[i + 1]);
       i++;
       inWord = true;
@@ -57,7 +59,7 @@ List<String> shlexSplit(String text) {
     }
     i++;
   }
-  if (quote != null) throw const ShlexError('No closing quotation');
+  if (quote != null) throw ShlexError(tr('No closing quotation'));
   if (inWord) words.add(word.toString());
   return words;
 }

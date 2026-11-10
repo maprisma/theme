@@ -37,7 +37,7 @@ final class Backend {
     final b = Backend._();
     b._ready.future.ignore();
     b._inbox.listen(b._receive);
-    b._errors.listen((_) => b._fail(StateError('Core isolate failed')));
+    b._errors.listen((_) => b._fail(StateError(tr("Core isolate failed"))));
     b._isolate = await Isolate.spawn(
       _serve,
       (b._inbox.sendPort, Map<String, String>.of(Platform.environment)),
@@ -70,7 +70,7 @@ final class Backend {
     String method, [
     Map<String, dynamic> params = const {},
   ]) {
-    if (_closed) return Future.error(StateError('Core closed'));
+    if (_closed) return Future.error(StateError(tr("Core closed")));
     final id = ++_id;
     final pending = Completer<Map<String, dynamic>>();
     _pending[id] = pending;
@@ -109,5 +109,5 @@ final class Backend {
     _errors.close();
   }
 
-  void dispose() => _fail(StateError('Core closed'));
+  void dispose() => _fail(StateError(tr("Core closed")));
 }

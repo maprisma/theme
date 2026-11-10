@@ -1,3 +1,5 @@
+use crate::i18n::tr;
+pub mod i18n;
 pub mod automation;
 pub mod compositor;
 pub mod terminal;
@@ -11,7 +13,7 @@ pub fn read_bounded(path: &Path) -> Result<String> {
         .map_err(|e| e.to_string())?
         .is_file()
     {
-        return Err("expected a regular file".into());
+        return Err(tr("expected a regular file").into());
     }
     let mut data = Vec::new();
     File::open(path)
@@ -20,7 +22,7 @@ pub fn read_bounded(path: &Path) -> Result<String> {
         .read_to_end(&mut data)
         .map_err(|e| e.to_string())?;
     if data.len() as u64 > MAX_BYTES {
-        return Err("file exceeds 1 MiB".into());
+        return Err(tr("file exceeds 1 MiB").into());
     }
     String::from_utf8(data).map_err(|e| e.to_string())
 }

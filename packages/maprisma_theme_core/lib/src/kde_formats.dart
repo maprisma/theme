@@ -1,3 +1,4 @@
+import 'i18n.dart';
 import 'colors.dart';
 
 /// Render first so the scheme name is never interpreted as a template token.
@@ -148,7 +149,7 @@ String qfontWithFamily(String? old, String family) {
     throw ArgumentError.value(
       family,
       'family',
-      'Expected a single font family',
+      tr("Expected a single font family"),
     );
   }
   final parts =

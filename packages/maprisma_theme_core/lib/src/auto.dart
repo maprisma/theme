@@ -7,6 +7,8 @@
 /// resolve to a visible wallpaper the theme already lists.
 library;
 
+import 'i18n.dart';
+
 import 'dart:async';
 import 'dart:io';
 
@@ -61,7 +63,7 @@ Future<T> autoLocked<T>(Ctx ctx, Future<T> Function() body) {
     final dir = Directory(ctx.paths.cache);
     if (!dir.existsSync()) dir.createSync(recursive: true);
     final path = '${ctx.paths.cache}/auto-state.lock';
-    if (FileSystemEntity.isLinkSync(path)) throw RouteError('unsafe', 'the automation lock is a link');
+    if (FileSystemEntity.isLinkSync(path)) throw RouteError('unsafe', tr("the automation lock is a link"));
     final raf = await File(path).open(mode: FileMode.append);
     try {
       await raf.lock(FileLock.blockingExclusive);
@@ -137,7 +139,7 @@ void _saveWorkspaceThemes(Ctx ctx, Map<int, String> m) {
 }
 
 void _checkWorkspace(int workspace) {
-  if (workspace < 1 || workspace > maxWorkspace) throw RouteError('bad_params', 'workspace out of range');
+  if (workspace < 1 || workspace > maxWorkspace) throw RouteError('bad_params', tr("workspace out of range"));
 }
 
 /// Gives [workspace] the theme [slug] (null: none of its own).
@@ -312,7 +314,7 @@ void setWorkspaceWallpaper(Ctx ctx, String slug, int workspace, String? name) {
   if (name == null) {
     a.remove(workspace);
   } else {
-    if (!validWallpaperName(name)) throw RouteError('bad_params', 'bad wallpaper name');
+    if (!validWallpaperName(name)) throw RouteError('bad_params', tr("bad wallpaper name"));
     a[workspace] = name;
   }
   saveWorkspaceMap(ctx, m);
@@ -537,15 +539,15 @@ Map<String, dynamic> menuData(Ctx ctx) {
     source = 'recent';
   }
   return {
-    'title': source == 'favorites' ? 'Favorite themes' : 'Recently used',
+    'title': source == 'favorites' ? tr('Favorite themes') : tr('Recently used'),
     'source': source,
     'themes': [
       for (final s in list) {'slug': s, 'name': plainText(themes[s]!.name, 60), 'current': s == current},
     ],
-    'empty_note': 'No favorites yet: ★ a theme in Maprisma Theme',
+    'empty_note': tr('No favorites yet: ★ a theme in Maprisma Theme'),
     'items': [
-      {'id': 'next_wallpaper', 'label': 'Next wallpaper'},
-      {'id': 'open', 'label': 'Open Maprisma Theme'},
+      {'id': 'next_wallpaper', 'label': tr('Next wallpaper')},
+      {'id': 'open', 'label': tr('Open Maprisma Theme')},
     ],
   };
 }

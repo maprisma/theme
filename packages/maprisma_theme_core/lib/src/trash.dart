@@ -1,3 +1,4 @@
+import 'i18n.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -44,7 +45,7 @@ String _privateDir(String path) {
   }
   final type = FileSystemEntity.typeSync(path, followLinks: false);
   if (type != FileSystemEntityType.directory || Posix.instance.ownerOf(path, follow: false) != Posix.instance.uid) {
-    throw TrashException('$path is not a private trash directory');
+    throw TrashException(trf("{0} is not a private trash directory", [path]));
   }
   return path;
 }
@@ -89,7 +90,7 @@ TrashReceipt moveToTrash(String trash, String target, {DateTime? now}) {
     final text = '[Trash Info]\nPath=${_quote(original)}\nDeletionDate=$date\n';
     if (!Posix.instance.writeNewPrivate(info, utf8.encode(text))) {
       if (_exists(info)) continue;
-      throw TrashException('Could not write to the trash');
+      throw TrashException(tr("Could not write to the trash"));
     }
     if (_exists(dest)) {
       _remove(info);
@@ -107,14 +108,14 @@ TrashReceipt moveToTrash(String trash, String target, {DateTime? now}) {
     }
     return TrashReceipt(original, dest, info);
   }
-  throw TrashException('The trash has too many items with this name');
+  throw TrashException(tr("The trash has too many items with this name"));
 }
 
 /// Undo [moveToTrash]: the item goes back where it was, if that place is still free.
 String restoreFromTrash(TrashReceipt r) {
   final name = r.original.substring(r.original.lastIndexOf('/') + 1);
-  if (_exists(r.original)) throw TrashException('$name exists again; restore it from the trash by hand');
-  if (!_exists(r.trashed)) throw TrashException('$name is no longer in the trash');
+  if (_exists(r.original)) throw TrashException(trf("{0} exists again; restore it from the trash by hand", [name]));
+  if (!_exists(r.trashed)) throw TrashException(trf("{0} is no longer in the trash", [name]));
   Directory(File(r.original).parent.path).createSync(recursive: true);
   if (FileSystemEntity.typeSync(r.trashed, followLinks: false) == FileSystemEntityType.directory) {
     Directory(r.trashed).renameSync(r.original);
@@ -154,7 +155,7 @@ TrashReceipt? discard(String trash, String target) {
 /// [discard] could not use the trash (it is on another filesystem).
 final class TrashUnavailable implements Exception {
   @override
-  String toString() => 'The trash is on another disk, so this cannot be moved there. Nothing was deleted.';
+  String toString() => tr("The trash is on another disk, so this cannot be moved there. Nothing was deleted.");
 }
 
 /// Receipts handed to the GUI as opaque ids, kept for the life of the core.

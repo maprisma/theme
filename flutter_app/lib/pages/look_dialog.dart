@@ -1,3 +1,4 @@
+import '../i18n.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -30,7 +31,7 @@ Future<void> lookDialog(BuildContext context, MaprismaThemeAppState app, String 
   final name = data['name'] ?? slug;
   final applied = data['in_use'] == true;
   app.notify(
-    applied ? 'Font & effects saved and applied' : 'Font & effects saved for $name',
+    applied ? tr("Font & effects saved and applied") : trf("Font & effects saved for {0}", [name]),
     // Undo puts the look back as it was, also a font no longer installed (applied again only
     // when the change was applied)
     undo: previous is Map ? () => app.run('looks.set', {'slug': slug, 'look': previous, 'restore': true, 'apply': applied}) : null,
@@ -123,15 +124,15 @@ class _LookDialogState extends State<_LookDialog> {
   /// What "Theme default" means for a font: the theme's, else the user's own.
   String _defaultFont(String key) {
     final t = _theme[key];
-    if (t is String) return 'Theme default ($t)';
+    if (t is String) return trf("Theme default ({0})", [t]);
     final own = _own[key];
-    return own is String ? 'Theme default (yours: $own)' : 'Theme default (desktop font)';
+    return own is String ? trf("Theme default (yours: {0})", [own]) : tr("Theme default (desktop font)");
   }
 
   String _defaultBlur() {
     final t = _blurInfo['theme'], own = _blurInfo['own'];
-    String describe(Object? b) => b is Map ? (b['on'] == true ? 'on, ${b['strength']}' : 'off') : 'unknown';
-    return t is Map ? 'Theme default (${describe(t)})' : 'Theme default (yours, ${describe(own)})';
+    String describe(Object? b) => b is Map ? (b['on'] == true ? trf('on, {0}', [b['strength']]) : tr('off')) : tr('unknown');
+    return t is Map ? trf("Theme default ({0})", [describe(t)]) : trf("Theme default (yours, {0})", [describe(own)]);
   }
 
   Widget _fontRow(String key, String label, String tip, String? value, ValueChanged<String?> onChanged) {
@@ -158,7 +159,7 @@ class _LookDialogState extends State<_LookDialog> {
           dropdownMenuEntries: [
             DropdownMenuEntry<String?>(value: null, label: _defaultFont(key)),
             // a saved font no longer installed stays until another is chosen
-            if (missing) DropdownMenuEntry<String?>(value: value, label: '$value (not installed)'),
+            if (missing) DropdownMenuEntry<String?>(value: value, label: trf("{0} (not installed)", [value])),
             for (final f in fonts) DropdownMenuEntry<String?>(value: f, label: f),
           ],
           onSelected: (v) {
@@ -175,7 +176,7 @@ class _LookDialogState extends State<_LookDialog> {
     final small = Theme.of(context).textTheme.bodySmall;
     final b = blur;
     return AlertDialog(
-      title: Text('Font & effects · ${widget.data['name'] ?? widget.data['slug']}'),
+      title: Text(trf("Font & effects · {0}", [widget.data['name'] ?? widget.data['slug']])),
       content: SizedBox(
         width: 520,
         child: SingleChildScrollView(
@@ -184,29 +185,28 @@ class _LookDialogState extends State<_LookDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Used whenever this theme is applied; the theme files stay as they are. '
-                'Themes without a choice give your own fonts and blur back.',
+                tr("Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back."),
                 style: small,
               ),
               const SizedBox(height: 12),
               if (widget.caps.contains('mono_font'))
-                _fontRow('mono_font', 'Monospace font', 'Terminals and editors', mono, (v) => setState(() => mono = v)),
+                _fontRow('mono_font', tr("Monospace font"), tr("Terminals and editors"), mono, (v) => setState(() => mono = v)),
               if (widget.caps.contains('ui_font'))
-                _fontRow('ui_font', 'Interface font', 'Menus, panels, window titles and app texts', ui, (v) => setState(() => ui = v)),
+                _fontRow('ui_font', tr("Interface font"), tr("Menus, panels, window titles and app texts"), ui, (v) => setState(() => ui = v)),
               if (widget.caps.contains('blur')) ...[
                 _Row(
-                  label: 'Blur',
-                  tip: 'Behind see-through panels, menus and windows',
+                  label: tr("Blur"),
+                  tip: tr("Behind see-through panels, menus and windows"),
                   child: Semantics(
-                    label: 'Blur',
+                    label: tr("Blur"),
                     container: true,
                     child: SegmentedButton<String>(
                       key: const ValueKey('look-blur'),
                       showSelectedIcon: false,
-                      segments: const [
-                        ButtonSegment(value: 'default', label: Text('Theme default')),
-                        ButtonSegment(value: 'on', label: Text('On')),
-                        ButtonSegment(value: 'off', label: Text('Off')),
+                      segments: [
+                        ButtonSegment(value: 'default', label: Text(tr("Theme default"))),
+                        ButtonSegment(value: 'on', label: Text(tr("On"))),
+                        ButtonSegment(value: 'off', label: Text(tr("Off"))),
                       ],
                       selected: {b == null ? 'default' : (b['on'] == true ? 'on' : 'off')},
                       onSelectionChanged: (s) => setState(() {
@@ -227,8 +227,8 @@ class _LookDialogState extends State<_LookDialog> {
                   ),
                 if (b != null && b['on'] == true)
                   _Row(
-                    label: 'Strength',
-                    tip: 'From light (1) to strong (15)',
+                    label: tr("Strength"),
+                    tip: tr("From light (1) to strong (15)"),
                     child: Row(
                       children: [
                         Expanded(
@@ -239,7 +239,7 @@ class _LookDialogState extends State<_LookDialog> {
                             divisions: 14,
                             value: (b['strength'] as int).toDouble(),
                             label: '${b['strength']}',
-                            semanticFormatterCallback: (v) => 'Blur strength ${v.round()} of 15',
+                            semanticFormatterCallback: (v) => trf("Blur strength {0} of 15", [v.round()]),
                             onChanged: (v) => setState(() => blur = {'on': true, 'strength': v.round()}),
                           ),
                         ),
@@ -248,22 +248,22 @@ class _LookDialogState extends State<_LookDialog> {
                     ),
                   ),
               ],
-              if (widget.caps.isEmpty) Text('This desktop has no fonts or blur Maprisma Theme can change.', style: small),
+              if (widget.caps.isEmpty) Text(tr("This desktop has no fonts or blur Maprisma Theme can change."), style: small),
             ],
           ),
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(tr("Cancel"))),
         Tooltip(
           message: _inUse
-              ? 'Saves the change and puts it on the desktop now'
-              : 'Saves the change; it is used whenever this theme is applied',
+              ? tr("Saves the change and puts it on the desktop now")
+              : tr("Saves the change; it is used whenever this theme is applied"),
           child: FilledButton(
             key: const ValueKey('look-save'),
             focusNode: _saveFocus,
             onPressed: widget.caps.isEmpty || saving || !_changed ? null : _submit,
-            child: const Text('Apply'),
+            child: Text(tr("Apply")),
           ),
         ),
       ],

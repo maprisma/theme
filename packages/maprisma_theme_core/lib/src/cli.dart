@@ -1,3 +1,4 @@
+import 'i18n.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -8,8 +9,9 @@ import 'core.dart';
 /// shortcuts (docs/cosmic-interface.md). Prints one JSON object.
 Future<int> runCli(List<String> args, {CoreService? service}) async {
   final core = service ?? CoreService(environment: Platform.environment);
+  languageSetting = core.ctx.settings.get('language') as String? ?? 'auto';
   if (args.isEmpty) {
-    stderr.writeln('usage: maprisma-theme-core apply <slug> | bg next|prev | theme next|prev | workspace <n> | tick | menu | autostart | status');
+    stderr.writeln(trf('Usage: {0}', ['maprisma-theme-core apply <slug> | bg next|prev | theme next|prev | workspace <n> | tick | menu | autostart | status']));
     return 2;
   }
   final (method, params) = switch (args) {

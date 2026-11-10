@@ -1,3 +1,4 @@
+use crate::i18n::{tr, trf};
 use crate::{Result, read_bounded};
 use cosmic_config::{ConfigGet, CosmicConfigEntry};
 use cosmic_theme::{CosmicPalette, Roundness, Theme, ThemeBuilder, ThemeMode};
@@ -10,7 +11,7 @@ pub fn rgb(value: &str) -> Result<Srgb> {
         || !value.starts_with('#')
         || !value[1..].bytes().all(|c| c.is_ascii_hexdigit())
     {
-        return Err(format!("invalid color: {value}"));
+        return Err(trf("invalid color: {0}", &[value.to_string()]));
     }
     let n = u32::from_str_radix(&value[1..], 16).map_err(|e| e.to_string())?;
     Ok(Srgb::new(
@@ -23,7 +24,7 @@ fn color(v: &Value, key: &str) -> Result<Option<Srgb>> {
     v.get(key)
         .map(|v| {
             v.as_str()
-                .ok_or_else(|| format!("{key} must be a color"))
+                .ok_or_else(|| trf("{0} must be a color", &[key.to_string()]))
                 .and_then(rgb)
         })
         .transpose()
@@ -32,7 +33,7 @@ pub fn dark(v: &Value) -> Result<bool> {
     match v.get("mode").and_then(Value::as_str) {
         Some("dark") => Ok(true),
         Some("light") => Ok(false),
-        Some(_) => Err("mode must be dark or light".into()),
+        Some(_) => Err(tr("mode must be dark or light").into()),
         None => {
             let c = color(v, "background")?
                 .unwrap_or(Srgb::new(0., 0., 0.))
@@ -44,20 +45,20 @@ pub fn dark(v: &Value) -> Result<bool> {
 pub fn colors_file(path: &Path) -> Result<Value> {
     let v: Value = serde_json::from_str(&read_bounded(path)?).map_err(|e| e.to_string())?;
     if !v.is_object() {
-        return Err("expected colors object".into());
+        return Err(tr("expected colors object").into());
     }
     for (k, v) in v.as_object().unwrap() {
         if k != "mode" && k != "corner" {
-            rgb(v.as_str().ok_or("expected hex color")?)?;
+            rgb(v.as_str().ok_or(tr("expected hex color"))?)?;
         }
     }
     if v.get("mode").is_some_and(|m| !m.is_string()) {
-        return Err("mode must be dark or light".into());
+        return Err(tr("mode must be dark or light").into());
     }
     if v.get("corner")
         .is_some_and(|c| !c.is_null() && !c.is_string())
     {
-        return Err("corner must be a string or null".into());
+        return Err(tr("corner must be a string or null").into());
     }
     dark(&v)?;
     Ok(v)
@@ -89,7 +90,7 @@ pub fn builder(v: &Value) -> Result<ThemeBuilder> {
         Some("slightly_round") => Roundness::SlightlyRound.into(),
         Some("square") => Roundness::Square.into(),
         None => b.corner_radii,
-        Some(_) => return Err("invalid corner".into()),
+        Some(_) => return Err(tr("invalid corner").into()),
     };
     Ok(b)
 }
@@ -100,7 +101,7 @@ pub fn ron_builder(path: &Path, mode: Option<&str>) -> Result<ThemeBuilder> {
         b.palette = match mode {
             "dark" => CosmicPalette::Dark(p),
             "light" => CosmicPalette::Light(p),
-            _ => return Err("invalid mode".into()),
+            _ => return Err(tr("invalid mode").into()),
         };
     }
     Ok(b)
@@ -201,16 +202,16 @@ pub fn blur() -> Value {
     json!({"mode":if now {"dark"} else {"light"},"dark":of(true),"light":of(false)})
 }
 fn check_patch(v: &Value) -> Result<&serde_json::Map<String, Value>> {
-    let o = v.as_object().ok_or("blur must be an object")?;
+    let o = v.as_object().ok_or(tr("blur must be an object"))?;
     for (k, x) in o {
         match k.as_str() {
             "strength" => {
-                x.as_u64().filter(|n| *n <= 13).ok_or("strength must be 0..13")?;
+                x.as_u64().filter(|n| *n <= 13).ok_or(tr("strength must be 0..13"))?;
             }
             "windows" | "system" | "panel" | "applets" | "maximized" => {
-                x.as_bool().ok_or_else(|| format!("{k} must be true or false"))?;
+                x.as_bool().ok_or_else(|| trf("{0} must be true or false", &[k.to_string()]))?;
             }
-            _ => return Err(format!("unknown key {k}")),
+            _ => return Err(trf("unknown key {0}", &[k.to_string()])),
         }
     }
     Ok(o)
@@ -257,10 +258,10 @@ fn write_mode(dark: bool, b: &ThemeBuilder) -> Result<()> {
 /// it is the one in use. When a write fails, the modes written before get
 /// their old builders back.
 pub fn set_blur(v: &Value) -> Result<Value> {
-    let o = v.as_object().ok_or("blur must be an object")?;
+    let o = v.as_object().ok_or(tr("blur must be an object"))?;
     let per_mode = o.contains_key("dark") || o.contains_key("light");
     if per_mode && o.keys().any(|k| k != "dark" && k != "light") {
-        return Err("give dark and light, or one change".into());
+        return Err(tr("give dark and light, or one change").into());
     }
     let now = is_dark_now();
     let mut plan = Vec::new();
@@ -283,7 +284,7 @@ pub fn set_blur(v: &Value) -> Result<Value> {
         plan.push((dark, old, b));
     }
     if plan.is_empty() || o.is_empty() {
-        return Err("nothing to change".into());
+        return Err(tr("nothing to change").into());
     }
     for i in 0..plan.len() {
         if let Err(e) = write_mode(plan[i].0, &plan[i].2) {

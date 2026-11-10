@@ -5,6 +5,8 @@
 /// step 4; until then their caps are missing.
 library;
 
+import 'i18n.dart';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -160,7 +162,7 @@ final class KdeDesktop extends DesktopBase {
   Future<Map<String, dynamic>> _setTileStyle(String json) => _serial(() => _setTileStyleNow(json));
 
   Future<Map<String, dynamic>> _setTileStyleNow(String json) async {
-    if (!maprismaTilingInstalled) return {'error': 'not_available', 'message': 'Maprisma Tiling is not installed'};
+    if (!maprismaTilingInstalled) return {'error': 'not_available', 'message': tr("Maprisma Tiling is not installed")};
     final Object? v;
     try {
       v = jsonDecode(json);
@@ -179,7 +181,7 @@ final class KdeDesktop extends DesktopBase {
       final n = v[e.key];
       if (n == null || n == old[e.key]) continue;
       if (!await _run(['kwriteconfig6', '--file', 'kwinrc', '--group', e.value.$1, '--key', e.value.$2, '$n'])) {
-        return {'error': 'unavailable', 'message': 'kwinrc could not be written'};
+        return {'error': 'unavailable', 'message': tr("kwinrc could not be written")};
       }
     }
     await _run(['qdbus6', 'org.kde.KWin', '/KWin', 'reconfigure']);
@@ -269,7 +271,7 @@ final class KdeDesktop extends DesktopBase {
       return {'error': 'bad_args'};
     }
     final qdbus = _qdbus;
-    if (qdbus == null) return {'error': 'unavailable', 'message': 'qdbus6 is not installed'};
+    if (qdbus == null) return {'error': 'unavailable', 'message': tr("qdbus6 is not installed")};
     final old = animations();
     final text = _text(_kwinrc);
     final saved = _savedAnimations();
@@ -296,7 +298,7 @@ final class KdeDesktop extends DesktopBase {
     }
     if (!await _writeEffects(qdbus, after)) {
       await _writeEffects(qdbus, before);
-      return {'error': 'unavailable', 'message': 'KWin did not take the change'};
+      return {'error': 'unavailable', 'message': tr("KWin did not take the change")};
     }
     writeJson(_animationsFile, saved);
     return {'done': true, 'previous': old, ...animations()};
@@ -375,17 +377,17 @@ final class KdeDesktop extends DesktopBase {
   Future<Map<String, dynamic>> _setTiling(int index, bool on) => _serial(() => _setTilingNow(index, on));
 
   Future<Map<String, dynamic>> _setTilingNow(int index, bool on) async {
-    if (!maprismaTilingInstalled) return {'error': 'not_available', 'message': 'Maprisma Tiling is not installed'};
+    if (!maprismaTilingInstalled) return {'error': 'not_available', 'message': tr("Maprisma Tiling is not installed")};
     final ws = await (workspacesQuery?.call() ?? wm(['workspaces']));
     final list = ws?['workspaces'];
     if (list is! List) return ws ?? {'error': 'unavailable'};
-    if (!list.whereType<Map>().any((w) => w['index'] == index)) return {'error': 'not_found', 'message': 'no workspace $index'};
+    if (!list.whereType<Map>().any((w) => w['index'] == index)) return {'error': 'not_found', 'message': trf("no workspace {0}", [index])};
     final ignored = untiledDesktops;
     final changed = on ? ignored.remove(index) : ignored.add(index);
     if (!changed) return {'done': true};
     final indices = ignored.toList()..sort();
     if (!await _run(['kwriteconfig6', '--file', 'kwinrc', '--group', 'Script-maprisma-tiling', '--key', 'untiledDesktops', indices.join(',')])) {
-      return {'error': 'unavailable', 'message': 'kwinrc could not be written'};
+      return {'error': 'unavailable', 'message': tr("kwinrc could not be written")};
     }
     await _run(['qdbus6', 'org.kde.KWin', '/KWin', 'reconfigure']);
     return {'done': true};
@@ -806,7 +808,7 @@ print('maprisma-snapshot ' + JSON.stringify(r));
       return _setTiling(int.parse(args[1]), args[2] == 'on');
     }
     final b = bridge;
-    if (b == null) return {'error': 'unavailable', 'message': 'no session bus'};
+    if (b == null) return {'error': 'unavailable', 'message': tr("no session bus")};
     try {
       final r = await kdeWm(b, args).timeout(timeout);
       return args.isNotEmpty && args.first == 'workspaces' ? withTiling(r) : r;
