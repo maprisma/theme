@@ -657,5 +657,9 @@
   "Set up": "Skonfiguruj",
   "the picture generator is not set up": "generator obrazów nie jest skonfigurowany",
   "the picture took too long": "tworzenie obrazu trwało zbyt długo",
-  "the setup stopped (exit {0})": "konfiguracja została przerwana (kod {0})"
+  "the setup stopped (exit {0})": "konfiguracja została przerwana (kod {0})",
+  "Adds it to {0} and sets it as the background": "Dodaje do {0} i ustawia jako tło",
+  "Adds it to {0}, applies {0} and sets it as the background": "Dodaje do {0}, stosuje {0} i ustawia jako tło",
+  "Applied {0} with {1}.": "Zastosowano {0} z {1}.",
+  "Could not apply {0}: {1}": "Nie udało się zastosować {0}: {1}"
 }

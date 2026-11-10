@@ -64,6 +64,7 @@ void main() {
   var createAnswer = false, generatorReady = true;
   var made = 0;
   var settingUp = false;
+  final applied = <String>[];
 
   setUpAll(loadShotFonts);
 
@@ -73,6 +74,7 @@ void main() {
     generatorReady = true;
     made = 0;
     settingUp = false;
+    applied.clear();
     root = Directory.systemTemp.createTempSync('maprisma-ui-parity-');
     Directory('${root.path}/bin').createSync();
     final env = {'HOME': '${root.path}/home', 'XDG_RUNTIME_DIR': '${root.path}/run', 'PATH': '${root.path}/bin'};
@@ -154,6 +156,18 @@ void main() {
         'text': '(models)',
         'download_bytes': generatorReady ? 0 : 11193150692,
       };
+    }
+    if (m == 'webimg.add') {
+      applied.add('add ${p['url']}');
+      return {'path': '${core.ctx.paths.systemThemes}/fireside/backgrounds/1-fireside.png', 'name': '1-fireside.png', 'set': false};
+    }
+    if (m == 'wallpapers.set' && p['slug'] == 'fireside') {
+      applied.add('set ${'${p['path']}'.split('/').last}');
+      return {'set': false, 'remembered': true};
+    }
+    if (m == 'themes.apply' && applied.isNotEmpty) {
+      applied.add('apply ${p['slug']}');
+      return {'applied': p['slug']};
     }
     if (m == 'create.setup' || m == 'create.cancel_setup') {
       settingUp = m == 'create.setup';
@@ -425,6 +439,39 @@ void main() {
     await settle(tester);
     expect(settingUp, isFalse);
     expect(find.text('Set up'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('wallpapers: Apply in the tile menu adds, sets and applies the theme', (tester) async {
+    aiOn = true;
+    tester.view.physicalSize = const Size(1300, 820);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.runAsync(() async {
+      await tester.pumpWidget(MaprismaThemeApp(call: call));
+    });
+    await settle(tester);
+    final app = tester.state<MaprismaThemeAppState>(find.byType(MaprismaThemeApp));
+    await tester.runAsync(() async {
+      app.navigator.currentState!.push(MaterialPageRoute<void>(
+          builder: (_) => const WallhavenPage(slug: 'fireside', themeName: 'Fireside', askAi: true)));
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      }
+    });
+    await settle(tester);
+    await tester.enterText(find.byType(TextField).at(1), 'calm');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await settle(tester);
+    await tester.tap(find.byIcon(Icons.menu).first);
+    await settle(tester, 100);
+    expect(find.text('Apply'), findsOneWidget);
+    expect(find.text('Add and set as background'), findsNothing);
+    await tester.tap(find.text('Apply'));
+    await settle(tester);
+    expect(applied, ['add https://img.example.com/snow-peak.jpg', 'set 1-fireside.png', 'apply fireside']);
+    expect(find.textContaining('Applied Fireside with Snow peak.'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 }

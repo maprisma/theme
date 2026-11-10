@@ -1353,7 +1353,11 @@ const translationCatalogs = <String, Map<String, String>>{
     "Set up": "Set up",
     "the picture generator is not set up": "the picture generator is not set up",
     "the picture took too long": "the picture took too long",
-    "the setup stopped (exit {0})": "the setup stopped (exit {0})"
+    "the setup stopped (exit {0})": "the setup stopped (exit {0})",
+    "Adds it to {0} and sets it as the background": "Adds it to {0} and sets it as the background",
+    "Adds it to {0}, applies {0} and sets it as the background": "Adds it to {0}, applies {0} and sets it as the background",
+    "Applied {0} with {1}.": "Applied {0} with {1}.",
+    "Could not apply {0}: {1}": "Could not apply {0}: {1}"
   },
   "de": {
     "A key that applies this theme from anywhere": "Eine Taste, die dieses Theme von überall anwendet",
@@ -2708,7 +2712,11 @@ const translationCatalogs = <String, Map<String, String>>{
     "Set up": "Einrichten",
     "the picture generator is not set up": "der Bildgenerator ist nicht eingerichtet",
     "the picture took too long": "das Bild hat zu lange gedauert",
-    "the setup stopped (exit {0})": "die Einrichtung wurde beendet (Exit {0})"
+    "the setup stopped (exit {0})": "die Einrichtung wurde beendet (Exit {0})",
+    "Adds it to {0} and sets it as the background": "Fügt es zu {0} hinzu und setzt es als Hintergrund",
+    "Adds it to {0}, applies {0} and sets it as the background": "Fügt es zu {0} hinzu, wendet {0} an und setzt es als Hintergrund",
+    "Applied {0} with {1}.": "{0} mit {1} angewendet.",
+    "Could not apply {0}: {1}": "{0} konnte nicht angewendet werden: {1}"
   },
   "fr": {
     "A key that applies this theme from anywhere": "Une touche qui applique ce thème de partout",
@@ -4063,7 +4071,11 @@ const translationCatalogs = <String, Map<String, String>>{
     "Set up": "Installer",
     "the picture generator is not set up": "le générateur d’images n’est pas installé",
     "the picture took too long": "l’image a pris trop de temps",
-    "the setup stopped (exit {0})": "l’installation s’est arrêtée (code {0})"
+    "the setup stopped (exit {0})": "l’installation s’est arrêtée (code {0})",
+    "Adds it to {0} and sets it as the background": "L’ajoute à {0} et le définit comme fond d’écran",
+    "Adds it to {0}, applies {0} and sets it as the background": "L’ajoute à {0}, applique {0} et le définit comme fond d’écran",
+    "Applied {0} with {1}.": "{0} appliqué avec {1}.",
+    "Could not apply {0}: {1}": "Impossible d’appliquer {0} : {1}"
   },
   "es": {
     "A key that applies this theme from anywhere": "Una tecla que aplica este tema desde cualquier lugar",
@@ -5418,7 +5430,11 @@ const translationCatalogs = <String, Map<String, String>>{
     "Set up": "Instalar",
     "the picture generator is not set up": "el generador de imágenes no está instalado",
     "the picture took too long": "la imagen tardó demasiado",
-    "the setup stopped (exit {0})": "la instalación se detuvo (código {0})"
+    "the setup stopped (exit {0})": "la instalación se detuvo (código {0})",
+    "Adds it to {0} and sets it as the background": "Lo añade a {0} y lo pone como fondo",
+    "Adds it to {0}, applies {0} and sets it as the background": "Lo añade a {0}, aplica {0} y lo pone como fondo",
+    "Applied {0} with {1}.": "{0} aplicado con {1}.",
+    "Could not apply {0}: {1}": "No se pudo aplicar {0}: {1}"
   },
   "it": {
     "A key that applies this theme from anywhere": "Un tasto che applica questo tema ovunque",
@@ -6773,7 +6789,11 @@ const translationCatalogs = <String, Map<String, String>>{
     "Set up": "Installa",
     "the picture generator is not set up": "il generatore di immagini non è installato",
     "the picture took too long": "l’immagine ha richiesto troppo tempo",
-    "the setup stopped (exit {0})": "l’installazione si è fermata (codice {0})"
+    "the setup stopped (exit {0})": "l’installazione si è fermata (codice {0})",
+    "Adds it to {0} and sets it as the background": "Lo aggiunge a {0} e lo imposta come sfondo",
+    "Adds it to {0}, applies {0} and sets it as the background": "Lo aggiunge a {0}, applica {0} e lo imposta come sfondo",
+    "Applied {0} with {1}.": "{0} applicato con {1}.",
+    "Could not apply {0}: {1}": "Impossibile applicare {0}: {1}"
   },
   "pt": {
     "A key that applies this theme from anywhere": "Uma tecla que aplica este tema de qualquer lugar",
@@ -8128,7 +8148,11 @@ const translationCatalogs = <String, Map<String, String>>{
     "Set up": "Instalar",
     "the picture generator is not set up": "o gerador de imagens não está instalado",
     "the picture took too long": "a imagem demorou demasiado",
-    "the setup stopped (exit {0})": "a instalação parou (código {0})"
+    "the setup stopped (exit {0})": "a instalação parou (código {0})",
+    "Adds it to {0} and sets it as the background": "Adiciona-o a {0} e define-o como fundo",
+    "Adds it to {0}, applies {0} and sets it as the background": "Adiciona-o a {0}, aplica {0} e define-o como fundo",
+    "Applied {0} with {1}.": "{0} aplicado com {1}.",
+    "Could not apply {0}: {1}": "Não foi possível aplicar {0}: {1}"
   },
   "nl": {
     "A key that applies this theme from anywhere": "Een toets die dit thema overal toepast",
@@ -9483,7 +9507,11 @@ const translationCatalogs = <String, Map<String, String>>{
     "Set up": "Instellen",
     "the picture generator is not set up": "de afbeeldingsgenerator is niet ingesteld",
     "the picture took too long": "de afbeelding duurde te lang",
-    "the setup stopped (exit {0})": "het instellen is gestopt (code {0})"
+    "the setup stopped (exit {0})": "het instellen is gestopt (code {0})",
+    "Adds it to {0} and sets it as the background": "Voegt het toe aan {0} en zet het als achtergrond",
+    "Adds it to {0}, applies {0} and sets it as the background": "Voegt het toe aan {0}, past {0} toe en zet het als achtergrond",
+    "Applied {0} with {1}.": "{0} toegepast met {1}.",
+    "Could not apply {0}: {1}": "Kon {0} niet toepassen: {1}"
   },
   "pl": {
     "A key that applies this theme from anywhere": "Klawisz, który stosuje ten motyw z dowolnego miejsca",
@@ -10838,6 +10866,10 @@ const translationCatalogs = <String, Map<String, String>>{
     "Set up": "Skonfiguruj",
     "the picture generator is not set up": "generator obrazów nie jest skonfigurowany",
     "the picture took too long": "tworzenie obrazu trwało zbyt długo",
-    "the setup stopped (exit {0})": "konfiguracja została przerwana (kod {0})"
+    "the setup stopped (exit {0})": "konfiguracja została przerwana (kod {0})",
+    "Adds it to {0} and sets it as the background": "Dodaje do {0} i ustawia jako tło",
+    "Adds it to {0}, applies {0} and sets it as the background": "Dodaje do {0}, stosuje {0} i ustawia jako tło",
+    "Applied {0} with {1}.": "Zastosowano {0} z {1}.",
+    "Could not apply {0}: {1}": "Nie udało się zastosować {0}: {1}"
   }
 };

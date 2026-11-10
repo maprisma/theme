@@ -657,5 +657,9 @@
   "Set up": "Instellen",
   "the picture generator is not set up": "de afbeeldingsgenerator is niet ingesteld",
   "the picture took too long": "de afbeelding duurde te lang",
-  "the setup stopped (exit {0})": "het instellen is gestopt (code {0})"
+  "the setup stopped (exit {0})": "het instellen is gestopt (code {0})",
+  "Adds it to {0} and sets it as the background": "Voegt het toe aan {0} en zet het als achtergrond",
+  "Adds it to {0}, applies {0} and sets it as the background": "Voegt het toe aan {0}, past {0} toe en zet het als achtergrond",
+  "Applied {0} with {1}.": "{0} toegepast met {1}.",
+  "Could not apply {0}: {1}": "Kon {0} niet toepassen: {1}"
 }

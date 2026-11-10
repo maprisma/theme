@@ -657,5 +657,9 @@
   "Set up": "Einrichten",
   "the picture generator is not set up": "der Bildgenerator ist nicht eingerichtet",
   "the picture took too long": "das Bild hat zu lange gedauert",
-  "the setup stopped (exit {0})": "die Einrichtung wurde beendet (Exit {0})"
+  "the setup stopped (exit {0})": "die Einrichtung wurde beendet (Exit {0})",
+  "Adds it to {0} and sets it as the background": "Fügt es zu {0} hinzu und setzt es als Hintergrund",
+  "Adds it to {0}, applies {0} and sets it as the background": "Fügt es zu {0} hinzu, wendet {0} an und setzt es als Hintergrund",
+  "Applied {0} with {1}.": "{0} mit {1} angewendet.",
+  "Could not apply {0}: {1}": "{0} konnte nicht angewendet werden: {1}"
 }

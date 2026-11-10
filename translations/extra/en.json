@@ -657,5 +657,9 @@
   "Set up": "Set up",
   "the picture generator is not set up": "the picture generator is not set up",
   "the picture took too long": "the picture took too long",
-  "the setup stopped (exit {0})": "the setup stopped (exit {0})"
+  "the setup stopped (exit {0})": "the setup stopped (exit {0})",
+  "Adds it to {0} and sets it as the background": "Adds it to {0} and sets it as the background",
+  "Adds it to {0}, applies {0} and sets it as the background": "Adds it to {0}, applies {0} and sets it as the background",
+  "Applied {0} with {1}.": "Applied {0} with {1}.",
+  "Could not apply {0}: {1}": "Could not apply {0}: {1}"
 }

@@ -657,5 +657,9 @@
   "Set up": "Installa",
   "the picture generator is not set up": "il generatore di immagini non è installato",
   "the picture took too long": "l’immagine ha richiesto troppo tempo",
-  "the setup stopped (exit {0})": "l’installazione si è fermata (codice {0})"
+  "the setup stopped (exit {0})": "l’installazione si è fermata (codice {0})",
+  "Adds it to {0} and sets it as the background": "Lo aggiunge a {0} e lo imposta come sfondo",
+  "Adds it to {0}, applies {0} and sets it as the background": "Lo aggiunge a {0}, applica {0} e lo imposta come sfondo",
+  "Applied {0} with {1}.": "{0} applicato con {1}.",
+  "Could not apply {0}: {1}": "Impossibile applicare {0}: {1}"
 }

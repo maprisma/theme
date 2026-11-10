@@ -492,6 +492,46 @@ class _WallhavenPageState extends State<WallhavenPage> {
     }
   }
 
+  /// Apply in one step: the picture into the theme (or its copy there), as
+  /// the theme's wallpaper, and the theme applied when it is not in use.
+  Future<void> applyNow(Map<String, dynamic> item) async {
+    setState(() => status = trf("Applying {0}…", [item['file_name']]));
+    String? path = item['added_path'] as String?;
+    try {
+      if (path == null && item['added'] == true) {
+        final list = await app.call('wallpapers.list', {'slug': widget.slug});
+        path = [
+          for (final w in (list['wallpapers'] as List? ?? const []))
+            if (w is Map && w['name'] == item['file_name']) w['path'] as String,
+        ].firstOrNull;
+      }
+      if (path == null) {
+        final r = isMade(item)
+            ? await app.call('create.add', {'slug': widget.slug, 'path': item['path']})
+            : isWeb(item)
+            ? await app.call('webimg.add', {'slug': widget.slug, 'url': item['url']})
+            : await app.call('wallhaven.add', {'slug': widget.slug, 'item': _plain(item)});
+        path = r['path'] as String;
+        if (mounted) {
+          setState(() {
+            item['added'] = true;
+            item['added_path'] = path;
+          });
+        }
+      }
+      await app.call('wallpapers.set', {'slug': widget.slug, 'path': path});
+      if (!widget.current) await app.call('themes.apply', {'slug': widget.slug});
+      if (!mounted) return;
+      setState(() => status = trf("Applied {0} with {1}.", [widget.themeName, item['file_name']]));
+      app.notify(trf("Applied {0} with {1}.", [widget.themeName, item['file_name']]));
+      app.changed();
+    } catch (e) {
+      final why = failText(e);
+      if (mounted) setState(() => status = trf("Could not apply {0}: {1}", [item['file_name'], why]));
+      app.notify(trf("Could not apply {0}: {1}", [item['file_name'], why]));
+    }
+  }
+
   /// The fields the core checks again (its exact URL shapes).
   Map<String, dynamic> _plain(Map item) => {
     for (final k in ['id', 'page', 'thumb', 'full', 'resolution', 'file_size']) k: item[k],
@@ -548,11 +588,15 @@ class _WallhavenPageState extends State<WallhavenPage> {
   }
 
   List<PopupMenuEntry<VoidCallback>> menuFor(Map<String, dynamic> w) => [
+    if (app.can('wallpaper'))
+      item(Icons.check_circle_outline, tr("Apply"), () => applyNow(w),
+          tooltip: widget.current
+              ? trf("Adds it to {0} and sets it as the background", [widget.themeName])
+              : trf("Adds it to {0}, applies {0} and sets it as the background", [widget.themeName])),
     if (w['added'] == true)
       item_(Icons.check, tr("Already added"), null)
     else ...[
       item(Icons.add, trf("Add to {0}", [widget.themeName]), () => add(w), tooltip: trf("Saved in ~/.config/maprisma-theme/backgrounds/{0}/", [widget.slug])),
-      if (widget.current && app.can('wallpaper')) item_(Icons.wallpaper_outlined, tr("Add and set as background"), () => add(w, set: true)),
     ],
     if (app.can('wallpaper'))
       item(Icons.visibility_outlined, tr("Preview on desktop"), () => preview(w, seconds: previewSeconds),
