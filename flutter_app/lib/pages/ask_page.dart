@@ -767,6 +767,8 @@ class _AskPageState extends State<AskPage> {
               fit: StackFit.expand,
               children: [
                 _LookAlike(colors: colors, wallpaper: picture),
+                if (_webWall(card) case final w?)
+                  Positioned(left: 6, bottom: 6, child: TileBadge(tr("web"), tooltip: '${w['url']}')),
                 if (busy != null)
                   Center(
                     child: Container(
@@ -790,7 +792,7 @@ class _AskPageState extends State<AskPage> {
           const SizedBox(height: 6),
           _strip(c, colors, scheme, card),
           if (card.search != null) ...[const SizedBox(height: 4), _searchRow(card)],
-          if (c['wallpaper_query'] is String) _wallRow(card, scheme),
+          if (c['wallpaper_query'] is String || card.walls.isNotEmpty) _wallRow(card, scheme),
           if (reason.isNotEmpty) ...[const SizedBox(height: 4), Text(reason, style: hint)],
           const SizedBox(height: 8),
           Wrap(
@@ -914,10 +916,33 @@ class _AskPageState extends State<AskPage> {
     );
   }
 
-  /// ‹ "phrase" · n/24 ›: the wallhaven search's pictures, no tokens.
+  /// The card's shown wallpaper when it is a picture from the web, else null.
+  static Map? _webWall(_Card card) {
+    if (card.walls.isEmpty || card.wall < 0 || card.wall >= card.walls.length) return null;
+    final w = card.walls[card.wall];
+    return w['kind'] == 'web' ? w : null;
+  }
+
+  static String _hostOf(Map w) => Uri.tryParse('${w['page'] ?? w['url']}')?.host ?? '';
+
+  Future<void> _openWebPage(Map w) async {
+    final r = await app.run('webimg.open', {'page': w['page'] ?? w['url']});
+    if (r != null && r['opened'] != true) app.notify(tr("No web browser could be started (xdg-open)."));
+  }
+
+  /// ‹ "phrase" · n/24 ›: the pictures from the web, then the wallhaven
+  /// search's (no tokens); a web picture's page opens with the button.
   Widget _wallRow(_Card card, ColorScheme scheme) {
     final c = card.c;
     const tight = VisualDensity(horizontal: -4, vertical: -4);
+    final web = _webWall(card);
+    final count = '${card.wall + 1}/${card.walls.length}';
+    final label = card.wallNote ??
+        (web != null
+            ? '${'${web['title'] ?? ''}'.trim().isEmpty ? _hostOf(web) : web['title']} · ${tr("web")} · $count'
+            : c['wallpaper_query'] is String
+                ? '“${c['wallpaper_query']}” · $count'
+                : count);
     return Row(
       children: [
         IconButton(
@@ -929,12 +954,19 @@ class _AskPageState extends State<AskPage> {
         const SizedBox(width: 4),
         Expanded(
           child: Text(
-            card.wallNote ?? '“${c['wallpaper_query']}” · ${card.wall + 1}/${card.walls.length}',
+            label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
           ),
         ),
+        if (web != null)
+          IconButton(
+            tooltip: trf("Open on {0}", [_hostOf(web)]),
+            visualDensity: tight,
+            onPressed: () => _openWebPage(web),
+            icon: const Icon(Icons.open_in_browser, size: 18),
+          ),
         IconButton(
           tooltip: tr("Next wallpaper"),
           visualDensity: tight,

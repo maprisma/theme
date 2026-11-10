@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -92,6 +93,9 @@ void main() {
                 'font': 'Fira Code',
                 'blur': {'on': true, 'strength': 6},
                 'wallpaper_query': 'ocean night',
+                'wallpaper_images': [
+                  {'url': 'https://img.example.com/ocean.png', 'page': 'https://img.example.com/ocean', 'title': 'Ocean at night'},
+                ],
                 'summary': 'Calm and blue',
               },
               {
@@ -135,6 +139,11 @@ void main() {
           };
         }
         if (m == 'wallhaven.thumb') return {'path': null};
+        if (m == 'webimg.get') {
+          final png = File('${root.path}/web-ocean.png')
+            ..writeAsBytesSync(base64Decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='));
+          return {'path': png.path};
+        }
         if (m == 'import.omarchy_preview') return {'path': wall(3)};
         if (m == 'import.omarchy_list') return {'themes': <Map>[]};
         return core.call(m, p);
@@ -197,6 +206,10 @@ void main() {
       expect(asked.single['request'], 'A calm forest green theme with a misty mountain wallpaper');
       expect(find.text('Deep Sea'), findsOneWidget);
       expect(find.text('Fira Code · Blur 6'), findsOneWidget);
+      // A picture the helper found on the web: its badge, its page, first in the card's wallpapers.
+      expect(find.text('web'), findsOneWidget);
+      expect(find.byTooltip('Open on img.example.com'), findsOneWidget);
+      expect(find.textContaining('Ocean at night · web · 1/'), findsOneWidget);
       // A new theme is new for you: its base (Nord) is internal (2026-11-09).
       expect(find.text('New theme'), findsOneWidget);
       expect(find.textContaining('from Nord'), findsNothing);
