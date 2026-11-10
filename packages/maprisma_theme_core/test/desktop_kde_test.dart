@@ -376,6 +376,59 @@ void main() {
     expect(text.indexOf('org.kde.KWin /KWin reconfigure'), greaterThan(text.indexOf('borderColor')));
   });
 
+  test('a scheme file without a focus decoration: the frame takes its accent or selection, never the old colour', () async {
+    final noFocus = File('${root.path}/nofocus.colors')
+      ..writeAsStringSync('[Colors:Selection]\nBackgroundNormal=200,10,20\n\n[General]\nName=NoFocus\n');
+    expect(await kde.applyKdeScheme(noFocus.path), isTrue);
+    expect(logText(), contains('--key borderColor #c80a14'));
+    final accent = File('${root.path}/accent.colors')
+      ..writeAsStringSync('[Colors:Selection]\nBackgroundNormal=200,10,20\n\n[General]\nAccentColor=1,2,3\nName=Accent\n');
+    expect(await kde.applyKdeScheme(accent.path), isTrue);
+    expect(logText(), contains('--key borderColor #010203'));
+    // nothing usable: the key goes (the script's default), never the previous theme's colour
+    File(log).writeAsStringSync('');
+    final none = File('${root.path}/none.colors')..writeAsStringSync('[General]\nName=None\n');
+    expect(await kde.applyKdeScheme(none.path), isTrue);
+    expect(logText(), contains('--key borderColor --delete'));
+    expect(logText(), contains('org.kde.KWin /KWin reconfigure'));
+  });
+
+  test('two themes applied at once: one after the other; the frame is the colour of the scheme in use', () async {
+    final red = {...colors, 'accent': '#bf616a'};
+    final results = await Future.wait([kde.applyColors(colors), kde.applyColors(red)]);
+    expect(results, [true, true]);
+    final text = logText();
+    expect(text.indexOf('plasma-apply-colorscheme MaprismaB'), greaterThan(text.indexOf('--key borderColor #81a1c1')));
+    expect(text.lastIndexOf('--key borderColor'), text.indexOf('--key borderColor #bf616a'));
+    expect(iniValue(File('$config/kdeglobals').readAsStringSync(), 'General', 'ColorScheme'), 'MaprismaB');
+  });
+
+  test('two desktops untiled at once: both stay in the list', () async {
+    statefulKwriteconfig();
+    Directory('${root.path}/home/.local/share/kwin/scripts/maprisma-tiling').createSync(recursive: true);
+    File('${root.path}/home/.local/share/kwin/scripts/maprisma-tiling/metadata.json').writeAsStringSync('{}');
+    // the workspaces query (kwin bridge) answered by a fake wm
+    kde.workspacesQuery = () async {
+      await Future<void>.delayed(const Duration(milliseconds: 20)); // both queries in flight together
+      return {'workspaces': [for (var i = 1; i <= 4; i++) {'index': i}]};
+    };
+    await Future.wait([kde.wm(['set-tiling', '2', 'off']), kde.wm(['set-tiling', '3', 'off'])]);
+    expect(kde.untiledDesktops, {2, 3});
+  });
+
+  test('tile style: read as the script reads it (rounded, within its bounds)', () {
+    File('$config/kwinrc').writeAsStringSync(
+        '[Script-maprisma-tiling]\nborderWidth=99\ncornerRadius=4.6\ngapTop=-3\ngapLeft=abc\ngapRight=\ngapBottom=0x10\ngapBetween=Infinity\n');
+    final st = kde.tileStyle();
+    expect(st['border'], 16);
+    expect(st['radius'], 5);
+    expect(st['top'], 0);
+    expect(st['left'], 10); // not a number: the default
+    expect(st['right'], 0); // empty: Number('') is 0
+    expect(st['bottom'], 16);
+    expect(st['between'], 200);
+  });
+
   test('tile style reads every setting from the tiling script group', () {
     File('$config/kwinrc').writeAsStringSync('[Script-maprisma-tiling]\ngapTop=11\ngapRight=12\ngapBottom=13\ngapLeft=14\ngapBetween=15\nborderWidth=4\ncornerRadius=16\n');
     expect(kde.tileStyle(), {'top': 11, 'right': 12, 'bottom': 13, 'left': 14, 'between': 15, 'border': 4, 'radius': 16, 'can_tile': false});

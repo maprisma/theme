@@ -60,7 +60,15 @@ final class KdeDesktop extends DesktopBase {
       if (int.tryParse(n.trim()) case final int index when index > 0) index,
   };
 
-  Future<void> _limitsPending = Future<void>.value();
+  /// One change of kwinrc's tiling keys or of the colour scheme at a time: a read-modify-write
+  /// (untiled desktops) or a scheme with its frame colour must not interleave with another one.
+  Future<void> _kwinQueue = Future<void>.value();
+
+  Future<T> _serial<T>(Future<T> Function() f) {
+    final next = _kwinQueue.then((_) => f());
+    _kwinQueue = next.then<void>((_) {}, onError: (Object _) {});
+    return next;
+  }
 
   @override
   Future<void> publishTilingAutomation(Map<String, dynamic> tiling) {
@@ -70,7 +78,7 @@ final class KdeDesktop extends DesktopBase {
       'defaultLimit': '${tiling['default_limit'] ?? 2}',
       'limits': limits.entries.map((e) => '${e.key}:${e.value}').join(','),
     };
-    return _limitsPending = _limitsPending.then((_) async {
+    return _serial(() async {
       if (!maprismaTilingInstalled) return;
       // Every core start publishes: KWin only reloads when something changed.
       final text = _text(_kwinrc);
@@ -81,6 +89,29 @@ final class KdeDesktop extends DesktopBase {
       await _run(['qdbus6', 'org.kde.KWin', '/KWin', 'reconfigure']);
     }).catchError((Object _) {});
   }
+
+  /// The largest value Maprisma Tiling accepts for a tile style key (it clamps to it).
+  static int tileStyleMax(String key) => switch (key) { 'border' => 16, 'radius' => 32, _ => 200 };
+
+  /// A kwinrc number as the script's num() reads it (JavaScript Number()): missing → the default,
+  /// empty → 0, decimal or 0x hex, ±Infinity clamped, anything else → the default; then rounded
+  /// and clamped to 0..max.
+  static int _scriptValue(String? raw, int fallback, int max) {
+    if (raw == null) return fallback;
+    final t = raw.trim();
+    if (t.isEmpty) return 0;
+    final hex = RegExp(r'^0[xX][0-9a-fA-F]+$').hasMatch(t) ? int.tryParse(t.substring(2), radix: 16) : null;
+    final v = hex?.toDouble() ?? (RegExp(r'^[+-]?Infinity$').hasMatch(t) ? (t.startsWith('-') ? double.negativeInfinity : double.infinity) : double.tryParse(t));
+    if (v == null || v.isNaN) return fallback;
+    if (v.isInfinite) return v > 0 ? max : 0;
+    return v.round().clamp(0, max);
+  }
+
+  /// The active window frame's colour from a colour scheme's text (#rrggbb), or null.
+  static String? kdeFrameColour(String scheme) =>
+      kdeRgbHex(iniValue(scheme, 'Colors:View', 'DecorationFocus')) ??
+      kdeRgbHex(iniValue(scheme, 'General', 'AccentColor')) ??
+      kdeRgbHex(iniValue(scheme, 'Colors:Selection', 'BackgroundNormal'));
 
   /// "r,g,b" (a KDE colour) as #rrggbb, or null.
   static String? kdeRgbHex(String? v) {
@@ -119,13 +150,16 @@ final class KdeDesktop extends DesktopBase {
     final text = _text(_kwinrc);
     return {
       for (final e in tileStyleKeys.entries)
-        e.key: int.tryParse(iniValue(text, e.value.$1, e.value.$2) ?? '') ?? e.value.$3,
+        // as the script reads it: rounded, within its bounds
+        e.key: _scriptValue(iniValue(text, e.value.$1, e.value.$2), e.value.$3, tileStyleMax(e.key)),
       'can_tile': maprismaTilingInstalled,
     };
   }
 
   /// Validates the entire style before writing and reconfigures once.
-  Future<Map<String, dynamic>> _setTileStyle(String json) async {
+  Future<Map<String, dynamic>> _setTileStyle(String json) => _serial(() => _setTileStyleNow(json));
+
+  Future<Map<String, dynamic>> _setTileStyleNow(String json) async {
     if (!maprismaTilingInstalled) return {'error': 'not_available', 'message': 'Maprisma Tiling is not installed'};
     final Object? v;
     try {
@@ -139,7 +173,7 @@ final class KdeDesktop extends DesktopBase {
     for (final e in tileStyleKeys.entries) {
       final n = v[e.key];
       if (n == null) continue;
-      if (n is! int || n < 0 || n > (switch (e.key) { 'border' => 16, 'radius' => 32, _ => 200 })) return {'error': 'bad_args', 'message': e.key};
+      if (n is! int || n < 0 || n > tileStyleMax(e.key)) return {'error': 'bad_args', 'message': e.key};
     }
     for (final e in tileStyleKeys.entries) {
       final n = v[e.key];
@@ -338,9 +372,11 @@ final class KdeDesktop extends DesktopBase {
   }
 
   /// Tiling is selected by the stable 1-based workspace index.
-  Future<Map<String, dynamic>> _setTiling(int index, bool on) async {
+  Future<Map<String, dynamic>> _setTiling(int index, bool on) => _serial(() => _setTilingNow(index, on));
+
+  Future<Map<String, dynamic>> _setTilingNow(int index, bool on) async {
     if (!maprismaTilingInstalled) return {'error': 'not_available', 'message': 'Maprisma Tiling is not installed'};
-    final ws = await wm(['workspaces']);
+    final ws = await (workspacesQuery?.call() ?? wm(['workspaces']));
     final list = ws?['workspaces'];
     if (list is! List) return ws ?? {'error': 'unavailable'};
     if (!list.whereType<Map>().any((w) => w['index'] == index)) return {'error': 'not_found', 'message': 'no workspace $index'};
@@ -357,6 +393,9 @@ final class KdeDesktop extends DesktopBase {
 
   /// KWin through scripts (kwin_bridge.dart), opened on first use.
   KWinBridge? _bridge;
+
+  /// Tests: the workspaces as KWin would list them (instead of asking it through the bridge).
+  Future<Map<String, dynamic>?> Function()? workspacesQuery;
 
   /// The bridge's scripts unloaded (the daemon at exit).
   Future<void> close() async {
@@ -415,25 +454,25 @@ final class KdeDesktop extends DesktopBase {
   // --- colors ----------------------------------------------------------------
 
   @override
-  Future<bool> applyColors(Map<String, String> colors) async {
+  Future<bool> applyColors(Map<String, String> colors) => _serial(() async {
     final template = readSmall('${paths.templates}/kde.colors.tpl', limit: 256 * 1024);
     if (template == null) return false;
     final name = _nextSchemeName();
     final text = renderKdeScheme(template, resolveColors(colors), name);
     if (text == null) return false;
     return _applyScheme(name, text);
-  }
+  });
 
   /// A KDE Store scheme as it came, under Maprisma's alternating name.
   @override
-  Future<bool> applyKdeScheme(String path) async {
+  Future<bool> applyKdeScheme(String path) => _serial(() async {
     final original = readSmall(path, limit: 256 * 1024);
     if (original == null) return false;
     final name = _nextSchemeName();
     var text = setIniValue(original, 'General', 'ColorScheme', name);
     text = setIniValue(text, 'General', 'Name', name);
     return _applyScheme(name, text);
-  }
+  });
 
   String _nextSchemeName() {
     final inUse = iniValue(_text(_kdeglobals), 'General', 'ColorScheme');
@@ -452,13 +491,17 @@ final class KdeDesktop extends DesktopBase {
     for (final other in kdeSchemeNames) {
       if (other != name) DesktopBase.deleteQuietly('$dir/$other.colors');
     }
-    // The active window frame (Maprisma Tiling) in the theme's accent.
-    final focus = kdeRgbHex(iniValue(text, 'Colors:View', 'DecorationFocus'));
-    if (focus != null) {
-      await _run(['kwriteconfig6', '--file', 'kwinrc', '--group', 'Script-maprisma-tiling', '--key', 'borderColor', focus]);
-      // The script reads its settings when KWin reconfigures.
-      await _run(['qdbus6', 'org.kde.KWin', '/KWin', 'reconfigure']);
-    }
+    // The active window frame (Maprisma Tiling) in the theme's accent: the focus decoration,
+    // else Plasma's accent setting, else the selection (a scheme file may lack any of them; the
+    // frame must never keep the previous theme's colour).
+    // None of them: the key goes, so the script draws its own default.
+    final focus = kdeFrameColour(text);
+    await _run([
+      'kwriteconfig6', '--file', 'kwinrc', '--group', 'Script-maprisma-tiling', '--key', 'borderColor',
+      if (focus != null) focus else '--delete',
+    ]);
+    // The script reads its settings when KWin reconfigures.
+    await _run(['qdbus6', 'org.kde.KWin', '/KWin', 'reconfigure']);
     return true;
   }
 
