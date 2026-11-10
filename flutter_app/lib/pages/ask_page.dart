@@ -114,6 +114,8 @@ class _AskPageState extends State<AskPage> {
 
   @override
   void dispose() {
+    _askGen++;
+    if (asking) app.call('ask.cancel').ignore();
     _ticker?.cancel();
     _setupPoll?.cancel();
     _hidden?.cancel();
@@ -160,8 +162,14 @@ class _AskPageState extends State<AskPage> {
     }
   }
 
+  /// Each Ask belongs to this number; another helper or leaving the page moves
+  /// it on, so an answer still on its way never replaces the cards.
+  int _askGen = 0;
+
   void _chooseHelper(String? id) {
     if (id == null || id == helper) return;
+    _askGen++;
+    if (asking) app.call('ask.cancel').ignore(); // the old helper's answer is not this one's
     setState(() => helper = id);
     _release(id); // another model or an online agent: the old model's memory back
     _set('ask_ai_helper', id);
@@ -382,6 +390,7 @@ class _AskPageState extends State<AskPage> {
     final h = chosen;
     final text = _tidy(words ?? request.text);
     if (asking || h == null || text.isEmpty) return;
+    final mine = ++_askGen;
     setState(() {
       asking = true;
       parent?.refining = true;
@@ -395,6 +404,7 @@ class _AskPageState extends State<AskPage> {
     });
     try {
       final cat = await _catalog();
+      if (!mounted || mine != _askGen) return; // another helper meanwhile: this Ask never starts
       final r = await app.call('ask.run', {
         'helper': h['id'],
         'request': text,
@@ -404,7 +414,7 @@ class _AskPageState extends State<AskPage> {
         'rejected': rejected,
         if (parent != null) 'refine': parent.c,
       });
-      if (!mounted) return;
+      if (!mounted || mine != _askGen) return; // another helper or the page left: stale
       final found = [for (final c in r['candidates'] as List) _Card(Map<String, dynamic>.from(c as Map))];
       setState(() {
         if (parent != null && found.isEmpty) {

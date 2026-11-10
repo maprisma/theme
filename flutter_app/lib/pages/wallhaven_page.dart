@@ -88,6 +88,19 @@ class _WallhavenPageState extends State<WallhavenPage> {
     }
   }
 
+  /// Pictures being made belong to this number: a new Ask, a search of your
+  /// own or leaving the page moves it on and stops the job.
+  int makeGen = 0;
+
+  void dropMaking() {
+    makeGen++;
+    if (making) {
+      app.call('create.cancel').ignore();
+      making = false;
+      stopMaking = true;
+    }
+  }
+
   /// The ready helpers (signed in) for the choice at the title's right, and
   /// whether Settings › Ask AI lets a helper search the web.
   List<Map> aiReady = [];
@@ -186,6 +199,7 @@ class _WallhavenPageState extends State<WallhavenPage> {
     if (words.isEmpty || helper == null || asking) return;
     final mine = ++askGen;
     setState(() {
+      dropMaking(); // the old Ask's pictures stop; this one brings its own
       asking = true;
       aiSummary = '';
       status = aiWeb
@@ -231,7 +245,7 @@ class _WallhavenPageState extends State<WallhavenPage> {
     });
     if (picturePrompt != null) makePictures();
     if (queries.isNotEmpty) {
-      searchFor(queries.first);
+      searchFor(queries.first, fromAsk: true);
     } else if (picturePrompt == null) {
       setState(() => status = trf("{0} pictures from the web.", [pictures.length]));
     }
@@ -245,14 +259,15 @@ class _WallhavenPageState extends State<WallhavenPage> {
   Future<void> makePictures() async {
     final prompt = picturePrompt;
     if (prompt == null || making) return;
+    final mine = makeGen;
     Map<String, dynamic> st;
     try {
       st = await app.call('create.status');
     } catch (e) {
-      if (mounted) setState(() => status = trf("No picture generator: {0}", [failText(e)]));
+      if (mounted && mine == makeGen) setState(() => status = trf("No picture generator: {0}", [failText(e)]));
       return;
     }
-    if (!mounted) return;
+    if (!mounted || mine != makeGen) return;
     setState(() => generator = st);
     if (st['ready'] != true) {
       if (st['setting_up'] == true) _pollSetup();
@@ -266,11 +281,11 @@ class _WallhavenPageState extends State<WallhavenPage> {
     });
     final random = math.Random();
     var failed = false;
-    for (var i = 0; i < batchSize && !stopMaking && mounted; i++) {
+    for (var i = 0; i < batchSize && !stopMaking && mounted && mine == makeGen; i++) {
       setState(() => status = trf("Making picture {0} of {1} on this computer…", [i + 1, batchSize]));
       try {
         final r = await app.call('create.make', {'prompt': prompt, 'seed': random.nextInt(1 << 31)});
-        if (!mounted || picturePrompt != prompt) break;
+        if (!mounted || mine != makeGen || picturePrompt != prompt) break; // a newer Ask or search
         final path = r['path'] as String;
         final item = {'kind': 'created', 'id': 'made${created.length}:$path', 'path': path, 'file_name': trf("Created picture {0}", [created.length + 1])};
         setState(() {
@@ -280,11 +295,11 @@ class _WallhavenPageState extends State<WallhavenPage> {
         });
       } catch (e) {
         failed = true;
-        if (mounted && !stopMaking) setState(() => status = trf("Could not make the picture: {0}", [failText(e)]));
+        if (mounted && !stopMaking && mine == makeGen) setState(() => status = trf("Could not make the picture: {0}", [failText(e)]));
         break;
       }
     }
-    if (!mounted) return;
+    if (!mounted || mine != makeGen) return; // dropMaking already ended it
     setState(() {
       making = false;
       if (!failed) {
@@ -432,16 +447,17 @@ class _WallhavenPageState extends State<WallhavenPage> {
     } catch (_) {}
   }
 
-  void searchFor(String phrase) {
+  void searchFor(String phrase, {bool fromAsk = false}) {
     if (!aiSearched.contains(phrase)) aiSearched.add(phrase);
     field.text = phrase;
-    search();
+    search(fromAsk: fromAsk);
   }
 
   @override
   void dispose() {
     generation++;
     askGen++;
+    makeGen++;
     if (previewShown) app.call('wallpapers.preview_end').ignore();
     previewTimer?.cancel();
     field.dispose();
@@ -461,11 +477,14 @@ class _WallhavenPageState extends State<WallhavenPage> {
     return trf("Type what you are looking for and press Enter. Results come from {0}: safe for work, landscape, at least 1920×1080.", [_source]);
   }
 
-  Future<void> search() async {
+  /// [fromAsk]: the search Ask AI's answer starts (its pictures go on being
+  /// made); a search of your own stops everything the Ask still has running.
+  Future<void> search({bool fromAsk = false}) async {
     final q = field.text.trim();
     if (q.isEmpty) return;
     generation++;
     dropAsk(); // a new search: an Ask still on its way never starts its own
+    if (!fromAsk) dropMaking();
     _thumbQueue.removeWhere((x) => !isWeb(x));
     setState(() {
       query = q;
