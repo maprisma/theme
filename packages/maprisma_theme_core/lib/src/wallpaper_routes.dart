@@ -12,6 +12,7 @@ import 'themes.dart';
 import 'trash.dart';
 import 'wallhaven.dart';
 import 'wallpapers.dart';
+import 'web_images.dart';
 
 /// The name a drop offers in its type (`application/octet-stream;name="x.jpg"`,
 /// how Chromium offers a dragged picture), or ''.
@@ -29,6 +30,7 @@ const maxInlineBytes = 40 * 1024;
 Map<String, Handler> wallpaperRoutes(Ctx ctx, {Fetch? fetch}) {
   final receipts = ReceiptBook();
   final web = Wallhaven(ctx, fetch: fetch);
+  final pictures = WebImages(ctx);
   var previewing = false;
   Object? beforePreview;
 
@@ -198,5 +200,17 @@ Map<String, Handler> wallpaperRoutes(Ctx ctx, {Fetch? fetch}) {
       return {'path': path, 'name': baseName(path), 'set': set};
     },
     'wallhaven.open': (p) async => {'opened': await openWallhavenPage(ctx, str(p, 'page'))},
+    // Pictures Ask AI found on the web: the local copy (thumbnail and preview), add, open.
+    'webimg.get': (p) async => {'path': await pictures.get(p['url'])},
+    'webimg.add': (p) async {
+      final theme = themeOf(p);
+      final path = await pictures.add(theme.slug, p['url']);
+      var set = false;
+      if (boolParam(p, 'set', fallback: false) && theme.slug == ctx.current.slug) {
+        set = await setBackground(ctx, path);
+      }
+      return {'path': path, 'name': baseName(path), 'set': set};
+    },
+    'webimg.open': (p) async => {'opened': await openWebPage(ctx, p['page'])},
   };
 }

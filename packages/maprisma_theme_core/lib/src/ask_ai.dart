@@ -61,6 +61,11 @@ typedef Helper = ({
   // Codex can read files: it runs in bubblewrap, its own folders as
   // throw-away overlays, the files in `keep` written through.
   ({List<String> overlay, List<String> keep})? jail,
+  // Web search for wallpapers: these arguments of argv (`off`, its "no tools")
+  // are swapped for `on` (only its web search and web fetch tools); null when
+  // the helper has no web tools. A helper (local ones too) that gains web
+  // search only needs this filled in.
+  ({List<String> off, List<String> on})? web,
 });
 
 List<Helper> get helpers => [
@@ -85,6 +90,7 @@ List<Helper> get helpers => [
     login: 'claude auth login',
     note: tr("No tools: it only reads what Maprisma Theme sends."),
     jail: null,
+    web: (off: ['--tools', ''], on: ['--tools', 'WebSearch,WebFetch', '--allowedTools', 'WebSearch,WebFetch']),
   ),
   (
     id: 'codex',
@@ -110,6 +116,7 @@ List<Helper> get helpers => [
     login: 'codex login',
     note: tr("Read-only sandbox, inside a bubblewrap jail that shows it none of your files."),
     jail: (overlay: ['.codex'], keep: ['.codex/auth.json']),
+    web: null,
   ),
   (
     id: 'pi',
@@ -120,6 +127,7 @@ List<Helper> get helpers => [
     login: 'pi',
     note: tr("No tools, MCP servers, extensions or project files."),
     jail: null,
+    web: null,
   ),
   (
     id: 'hermes',
@@ -130,8 +138,26 @@ List<Helper> get helpers => [
     login: 'hermes',
     note: tr("Only its in-memory task list: no files, terminal, web or MCP."),
     jail: null,
+    web: null,
   ),
 ];
+
+/// Whether the helper with this id (`pi:<provider>/<model>` too) can search the web.
+bool canSearchWeb(String helperId) => helperFor(helperId)?.web != null;
+
+/// [argv] with the helper's web tools instead of none (unchanged without).
+List<String> withWebTools(Helper helper, List<String> argv) {
+  final web = helper.web;
+  if (web == null) return argv;
+  for (var i = 0; i + web.off.length <= argv.length; i++) {
+    var match = true;
+    for (var j = 0; j < web.off.length && match; j++) {
+      match = argv[i + j] == web.off[j];
+    }
+    if (match) return [...argv.sublist(0, i), ...web.on, ...argv.sublist(i + web.off.length)];
+  }
+  return argv;
+}
 
 Helper? helperFor(String id) {
   final base = id.startsWith('pi:') ? 'pi' : id;
@@ -723,7 +749,9 @@ final class AskRunner {
   }
 
   /// One answer from [helperId] for [prompt]; throws [AskError].
-  Future<String> run(String helperId, String prompt, {Duration timeout = askTimeout}) async {
+  /// [web]: the helper may search and read the web (only helpers with web
+  /// tools, see [Helper.web]); otherwise it has none.
+  Future<String> run(String helperId, String prompt, {Duration timeout = askTimeout, bool web = false}) async {
     if (_busy) throw AskError(tr("another Ask is running"));
     _busy = true;
     _cancelled = false;
@@ -747,7 +775,7 @@ final class AskRunner {
         if (helper.id == 'pi') extra.addAll(['--offline', '--provider', local.provider, '--model', local.model]);
       }
       try {
-        return await _runHelper(helper, extra, prompt, timeout);
+        return await _runHelper(helper, extra, prompt, timeout, web: web && helper.web != null);
       } finally {
         if (local != null) await _remember(local, before);
       }
@@ -820,7 +848,7 @@ final class AskRunner {
     throw AskError(trf("{0} did not answer", [unit]));
   }
 
-  Future<String> _runHelper(Helper helper, List<String> extra, String prompt, Duration timeout) async {
+  Future<String> _runHelper(Helper helper, List<String> extra, String prompt, Duration timeout, {bool web = false}) async {
     final setsid = which('setsid', environment), prlimit = which('prlimit', environment);
     if (setsid == null || prlimit == null) throw AskError(tr("setsid and prlimit (util-linux) are needed"));
     final binary = which(helper.argv.first, environment);
@@ -831,6 +859,7 @@ final class AskRunner {
     Process? process;
     try {
       var argv = [for (final a in helper.argv) a == '{answer}' ? answerFile : a, ...extra];
+      if (web) argv = withWebTools(helper, argv);
       if (helper.jail != null) {
         argv = await jailArgv(helper, argv, work, home, environment);
       } else {

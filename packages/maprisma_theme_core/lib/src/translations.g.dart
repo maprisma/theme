@@ -1310,7 +1310,17 @@ const translationCatalogs = <String, Map<String, String>>{
     "Ask {0} for search words: it gets your words and this theme's name and colors; the search itself uses no tokens": "Ask {0} for search words: it gets your words and this theme's name and colors; the search itself uses no tokens",
     "Search for “{0}”": "Search for “{0}”",
     "Ask AI…": "Ask AI…",
-    "Describe the wallpaper you want: Ask AI turns it into searches on wallhaven.cc": "Describe the wallpaper you want: Ask AI turns it into searches on wallhaven.cc"
+    "Describe the wallpaper you want: Ask AI turns it into searches on wallhaven.cc": "Describe the wallpaper you want: Ask AI turns it into searches on wallhaven.cc",
+    "{0} could not be found": "{0} could not be found",
+    "{0} is not a public web address": "{0} is not a public web address",
+    "{0} pictures from the web.": "{0} pictures from the web.",
+    "A helper that can search the web (now Claude Code) also looks for wallpaper pictures beyond wallhaven.cc. It takes longer and uses more of your plan or tokens. The pictures are downloaded only from public https addresses and checked before they are shown.": "A helper that can search the web (now Claude Code) also looks for wallpaper pictures beyond wallhaven.cc. It takes longer and uses more of your plan or tokens. The pictures are downloaded only from public https addresses and checked before they are shown.",
+    "Asking {0} for wallpaper ideas and searching the web… (this can take a few minutes)": "Asking {0} for wallpaper ideas and searching the web… (this can take a few minutes)",
+    "not a public https address": "not a public https address",
+    "not a public https image address": "not a public https image address",
+    "Search the web for wallpapers": "Search the web for wallpapers",
+    "the link is not a JPEG, PNG or WebP picture": "the link is not a JPEG, PNG or WebP picture",
+    "web": "web"
   },
   "de": {
     "A key that applies this theme from anywhere": "Eine Taste, die dieses Theme von überall anwendet",
@@ -2622,7 +2632,17 @@ const translationCatalogs = <String, Map<String, String>>{
     "Ask {0} for search words: it gets your words and this theme's name and colors; the search itself uses no tokens": "{0} nach Suchwörtern fragen: Es bekommt deine Wörter sowie Name und Farben dieses Themes; die Suche selbst braucht keine Tokens",
     "Search for “{0}”": "Nach „{0}“ suchen",
     "Ask AI…": "Ask AI…",
-    "Describe the wallpaper you want: Ask AI turns it into searches on wallhaven.cc": "Beschreibe den gewünschten Hintergrund: Ask AI macht daraus Suchen auf wallhaven.cc"
+    "Describe the wallpaper you want: Ask AI turns it into searches on wallhaven.cc": "Beschreibe den gewünschten Hintergrund: Ask AI macht daraus Suchen auf wallhaven.cc",
+    "{0} could not be found": "{0} wurde nicht gefunden",
+    "{0} is not a public web address": "{0} ist keine öffentliche Webadresse",
+    "{0} pictures from the web.": "{0} Bilder aus dem Web.",
+    "A helper that can search the web (now Claude Code) also looks for wallpaper pictures beyond wallhaven.cc. It takes longer and uses more of your plan or tokens. The pictures are downloaded only from public https addresses and checked before they are shown.": "Ein Helfer, der im Web suchen kann (derzeit Claude Code), sucht auch Hintergrundbilder außerhalb von wallhaven.cc. Das dauert länger und verbraucht mehr von deinem Abo oder deinen Tokens. Die Bilder werden nur von öffentlichen https-Adressen geladen und vor dem Anzeigen geprüft.",
+    "Asking {0} for wallpaper ideas and searching the web… (this can take a few minutes)": "Frage {0} nach Ideen für Hintergründe und suche im Web… (das kann einige Minuten dauern)",
+    "not a public https address": "keine öffentliche https-Adresse",
+    "not a public https image address": "keine öffentliche https-Bildadresse",
+    "Search the web for wallpapers": "Im Web nach Hintergründen suchen",
+    "the link is not a JPEG, PNG or WebP picture": "der Link ist kein JPEG-, PNG- oder WebP-Bild",
+    "web": "Web"
   },
   "fr": {
     "A key that applies this theme from anywhere": "Une touche qui applique ce thème de partout",
@@ -3934,7 +3954,17 @@ const translationCatalogs = <String, Map<String, String>>{
     "Ask {0} for search words: it gets your words and this theme's name and colors; the search itself uses no tokens": "Demander des mots de recherche à {0} : il reçoit vos mots ainsi que le nom et les couleurs de ce thème ; la recherche elle-même n’utilise aucun jeton",
     "Search for “{0}”": "Rechercher « {0} »",
     "Ask AI…": "Ask AI…",
-    "Describe the wallpaper you want: Ask AI turns it into searches on wallhaven.cc": "Décrivez le fond d’écran souhaité : Ask AI en fait des recherches sur wallhaven.cc"
+    "Describe the wallpaper you want: Ask AI turns it into searches on wallhaven.cc": "Décrivez le fond d’écran souhaité : Ask AI en fait des recherches sur wallhaven.cc",
+    "{0} could not be found": "{0} est introuvable",
+    "{0} is not a public web address": "{0} n’est pas une adresse web publique",
+    "{0} pictures from the web.": "{0} images du web.",
+    "A helper that can search the web (now Claude Code) also looks for wallpaper pictures beyond wallhaven.cc. It takes longer and uses more of your plan or tokens. The pictures are downloaded only from public https addresses and checked before they are shown.": "Un assistant capable de chercher sur le web (actuellement Claude Code) cherche aussi des fonds d’écran au-delà de wallhaven.cc. C’est plus long et consomme davantage de votre forfait ou de vos jetons. Les images ne sont téléchargées que depuis des adresses https publiques et vérifiées avant d’être affichées.",
+    "Asking {0} for wallpaper ideas and searching the web… (this can take a few minutes)": "Demande d’idées de fonds d’écran à {0} et recherche sur le web… (cela peut prendre quelques minutes)",
+    "not a public https address": "pas une adresse https publique",
+    "not a public https image address": "pas une adresse d’image https publique",
+    "Search the web for wallpapers": "Chercher des fonds d’écran sur le web",
+    "the link is not a JPEG, PNG or WebP picture": "le lien n’est pas une image JPEG, PNG ou WebP",
+    "web": "web"
   },
   "es": {
     "A key that applies this theme from anywhere": "Una tecla que aplica este tema desde cualquier lugar",
@@ -5246,7 +5276,17 @@ const translationCatalogs = <String, Map<String, String>>{
     "Ask {0} for search words: it gets your words and this theme's name and colors; the search itself uses no tokens": "Pedir palabras de búsqueda a {0}: recibe tus palabras y el nombre y los colores de este tema; la búsqueda en sí no usa tokens",
     "Search for “{0}”": "Buscar «{0}»",
     "Ask AI…": "Ask AI…",
-    "Describe the wallpaper you want: Ask AI turns it into searches on wallhaven.cc": "Describe el fondo que quieres: Ask AI lo convierte en búsquedas en wallhaven.cc"
+    "Describe the wallpaper you want: Ask AI turns it into searches on wallhaven.cc": "Describe el fondo que quieres: Ask AI lo convierte en búsquedas en wallhaven.cc",
+    "{0} could not be found": "No se encontró {0}",
+    "{0} is not a public web address": "{0} no es una dirección web pública",
+    "{0} pictures from the web.": "{0} imágenes de la web.",
+    "A helper that can search the web (now Claude Code) also looks for wallpaper pictures beyond wallhaven.cc. It takes longer and uses more of your plan or tokens. The pictures are downloaded only from public https addresses and checked before they are shown.": "Un asistente que puede buscar en la web (ahora Claude Code) también busca fondos fuera de wallhaven.cc. Tarda más y consume más de tu plan o tokens. Las imágenes solo se descargan de direcciones https públicas y se comprueban antes de mostrarse.",
+    "Asking {0} for wallpaper ideas and searching the web… (this can take a few minutes)": "Pidiendo a {0} ideas de fondos y buscando en la web… (puede tardar unos minutos)",
+    "not a public https address": "no es una dirección https pública",
+    "not a public https image address": "no es una dirección https pública de imagen",
+    "Search the web for wallpapers": "Buscar fondos en la web",
+    "the link is not a JPEG, PNG or WebP picture": "el enlace no es una imagen JPEG, PNG o WebP",
+    "web": "web"
   },
   "it": {
     "A key that applies this theme from anywhere": "Un tasto che applica questo tema ovunque",
@@ -6558,7 +6598,17 @@ const translationCatalogs = <String, Map<String, String>>{
     "Ask {0} for search words: it gets your words and this theme's name and colors; the search itself uses no tokens": "Chiedi a {0} parole di ricerca: riceve le tue parole e il nome e i colori di questo tema; la ricerca in sé non usa token",
     "Search for “{0}”": "Cerca «{0}»",
     "Ask AI…": "Ask AI…",
-    "Describe the wallpaper you want: Ask AI turns it into searches on wallhaven.cc": "Descrivi lo sfondo che vuoi: Ask AI lo trasforma in ricerche su wallhaven.cc"
+    "Describe the wallpaper you want: Ask AI turns it into searches on wallhaven.cc": "Descrivi lo sfondo che vuoi: Ask AI lo trasforma in ricerche su wallhaven.cc",
+    "{0} could not be found": "{0} non trovato",
+    "{0} is not a public web address": "{0} non è un indirizzo web pubblico",
+    "{0} pictures from the web.": "{0} immagini dal web.",
+    "A helper that can search the web (now Claude Code) also looks for wallpaper pictures beyond wallhaven.cc. It takes longer and uses more of your plan or tokens. The pictures are downloaded only from public https addresses and checked before they are shown.": "Un assistente che può cercare sul web (ora Claude Code) cerca anche sfondi oltre wallhaven.cc. Richiede più tempo e consuma più del tuo piano o dei tuoi token. Le immagini vengono scaricate solo da indirizzi https pubblici e controllate prima di essere mostrate.",
+    "Asking {0} for wallpaper ideas and searching the web… (this can take a few minutes)": "Chiedo a {0} idee per sfondi e cerco sul web… (può richiedere qualche minuto)",
+    "not a public https address": "non è un indirizzo https pubblico",
+    "not a public https image address": "non è un indirizzo https pubblico di un’immagine",
+    "Search the web for wallpapers": "Cerca sfondi sul web",
+    "the link is not a JPEG, PNG or WebP picture": "il link non è un’immagine JPEG, PNG o WebP",
+    "web": "web"
   },
   "pt": {
     "A key that applies this theme from anywhere": "Uma tecla que aplica este tema de qualquer lugar",
@@ -7870,7 +7920,17 @@ const translationCatalogs = <String, Map<String, String>>{
     "Ask {0} for search words: it gets your words and this theme's name and colors; the search itself uses no tokens": "Pedir palavras de pesquisa a {0}: recebe as suas palavras e o nome e as cores deste tema; a pesquisa em si não usa tokens",
     "Search for “{0}”": "Pesquisar «{0}»",
     "Ask AI…": "Ask AI…",
-    "Describe the wallpaper you want: Ask AI turns it into searches on wallhaven.cc": "Descreva o fundo que quer: o Ask AI transforma-o em pesquisas no wallhaven.cc"
+    "Describe the wallpaper you want: Ask AI turns it into searches on wallhaven.cc": "Descreva o fundo que quer: o Ask AI transforma-o em pesquisas no wallhaven.cc",
+    "{0} could not be found": "{0} não foi encontrado",
+    "{0} is not a public web address": "{0} não é um endereço web público",
+    "{0} pictures from the web.": "{0} imagens da web.",
+    "A helper that can search the web (now Claude Code) also looks for wallpaper pictures beyond wallhaven.cc. It takes longer and uses more of your plan or tokens. The pictures are downloaded only from public https addresses and checked before they are shown.": "Um assistente que pode pesquisar na web (agora o Claude Code) também procura fundos para além de wallhaven.cc. Demora mais e usa mais do seu plano ou tokens. As imagens só são transferidas de endereços https públicos e verificadas antes de serem mostradas.",
+    "Asking {0} for wallpaper ideas and searching the web… (this can take a few minutes)": "A pedir a {0} ideias de fundos e a pesquisar na web… (pode demorar alguns minutos)",
+    "not a public https address": "não é um endereço https público",
+    "not a public https image address": "não é um endereço https público de imagem",
+    "Search the web for wallpapers": "Pesquisar fundos na web",
+    "the link is not a JPEG, PNG or WebP picture": "a ligação não é uma imagem JPEG, PNG ou WebP",
+    "web": "web"
   },
   "nl": {
     "A key that applies this theme from anywhere": "Een toets die dit thema overal toepast",
@@ -9182,7 +9242,17 @@ const translationCatalogs = <String, Map<String, String>>{
     "Ask {0} for search words: it gets your words and this theme's name and colors; the search itself uses no tokens": "{0} om zoekwoorden vragen: het krijgt je woorden en de naam en kleuren van dit thema; het zoeken zelf gebruikt geen tokens",
     "Search for “{0}”": "Zoeken naar „{0}”",
     "Ask AI…": "Ask AI…",
-    "Describe the wallpaper you want: Ask AI turns it into searches on wallhaven.cc": "Beschrijf de achtergrond die je wilt: Ask AI maakt er zoekopdrachten op wallhaven.cc van"
+    "Describe the wallpaper you want: Ask AI turns it into searches on wallhaven.cc": "Beschrijf de achtergrond die je wilt: Ask AI maakt er zoekopdrachten op wallhaven.cc van",
+    "{0} could not be found": "{0} niet gevonden",
+    "{0} is not a public web address": "{0} is geen openbaar webadres",
+    "{0} pictures from the web.": "{0} afbeeldingen van het web.",
+    "A helper that can search the web (now Claude Code) also looks for wallpaper pictures beyond wallhaven.cc. It takes longer and uses more of your plan or tokens. The pictures are downloaded only from public https addresses and checked before they are shown.": "Een helper die op het web kan zoeken (nu Claude Code) zoekt ook achtergronden buiten wallhaven.cc. Dat duurt langer en kost meer van je abonnement of tokens. De afbeeldingen worden alleen van openbare https-adressen gedownload en gecontroleerd voordat ze worden getoond.",
+    "Asking {0} for wallpaper ideas and searching the web… (this can take a few minutes)": "{0} vragen om ideeën voor achtergronden en op het web zoeken… (dit kan enkele minuten duren)",
+    "not a public https address": "geen openbaar https-adres",
+    "not a public https image address": "geen openbaar https-adres van een afbeelding",
+    "Search the web for wallpapers": "Op het web naar achtergronden zoeken",
+    "the link is not a JPEG, PNG or WebP picture": "de link is geen JPEG-, PNG- of WebP-afbeelding",
+    "web": "web"
   },
   "pl": {
     "A key that applies this theme from anywhere": "Klawisz, który stosuje ten motyw z dowolnego miejsca",
@@ -10494,6 +10564,16 @@ const translationCatalogs = <String, Map<String, String>>{
     "Ask {0} for search words: it gets your words and this theme's name and colors; the search itself uses no tokens": "Zapytaj {0} o słowa wyszukiwania: otrzymuje Twoje słowa oraz nazwę i kolory tego motywu; samo wyszukiwanie nie zużywa tokenów",
     "Search for “{0}”": "Szukaj „{0}”",
     "Ask AI…": "Ask AI…",
-    "Describe the wallpaper you want: Ask AI turns it into searches on wallhaven.cc": "Opisz tapetę, której szukasz: Ask AI zamieni to w wyszukiwania na wallhaven.cc"
+    "Describe the wallpaper you want: Ask AI turns it into searches on wallhaven.cc": "Opisz tapetę, której szukasz: Ask AI zamieni to w wyszukiwania na wallhaven.cc",
+    "{0} could not be found": "Nie znaleziono {0}",
+    "{0} is not a public web address": "{0} nie jest publicznym adresem w sieci",
+    "{0} pictures from the web.": "{0} obrazów z sieci.",
+    "A helper that can search the web (now Claude Code) also looks for wallpaper pictures beyond wallhaven.cc. It takes longer and uses more of your plan or tokens. The pictures are downloaded only from public https addresses and checked before they are shown.": "Pomocnik, który potrafi szukać w sieci (obecnie Claude Code), szuka też tapet poza wallhaven.cc. Trwa to dłużej i zużywa więcej Twojego planu lub tokenów. Obrazy są pobierane tylko z publicznych adresów https i sprawdzane przed wyświetleniem.",
+    "Asking {0} for wallpaper ideas and searching the web… (this can take a few minutes)": "Pytam {0} o pomysły na tapety i szukam w sieci… (może to potrwać kilka minut)",
+    "not a public https address": "to nie jest publiczny adres https",
+    "not a public https image address": "to nie jest publiczny adres https obrazu",
+    "Search the web for wallpapers": "Szukaj tapet w sieci",
+    "the link is not a JPEG, PNG or WebP picture": "link nie jest obrazem JPEG, PNG ani WebP",
+    "web": "sieć"
   }
 };

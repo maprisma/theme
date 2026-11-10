@@ -614,5 +614,15 @@
   "Ask {0} for search words: it gets your words and this theme's name and colors; the search itself uses no tokens": "Ask {0} for search words: it gets your words and this theme's name and colors; the search itself uses no tokens",
   "Search for “{0}”": "Search for “{0}”",
   "Ask AI…": "Ask AI…",
-  "Describe the wallpaper you want: Ask AI turns it into searches on wallhaven.cc": "Describe the wallpaper you want: Ask AI turns it into searches on wallhaven.cc"
+  "Describe the wallpaper you want: Ask AI turns it into searches on wallhaven.cc": "Describe the wallpaper you want: Ask AI turns it into searches on wallhaven.cc",
+  "{0} could not be found": "{0} could not be found",
+  "{0} is not a public web address": "{0} is not a public web address",
+  "{0} pictures from the web.": "{0} pictures from the web.",
+  "A helper that can search the web (now Claude Code) also looks for wallpaper pictures beyond wallhaven.cc. It takes longer and uses more of your plan or tokens. The pictures are downloaded only from public https addresses and checked before they are shown.": "A helper that can search the web (now Claude Code) also looks for wallpaper pictures beyond wallhaven.cc. It takes longer and uses more of your plan or tokens. The pictures are downloaded only from public https addresses and checked before they are shown.",
+  "Asking {0} for wallpaper ideas and searching the web… (this can take a few minutes)": "Asking {0} for wallpaper ideas and searching the web… (this can take a few minutes)",
+  "not a public https address": "not a public https address",
+  "not a public https image address": "not a public https image address",
+  "Search the web for wallpapers": "Search the web for wallpapers",
+  "the link is not a JPEG, PNG or WebP picture": "the link is not a JPEG, PNG or WebP picture",
+  "web": "web"
 }

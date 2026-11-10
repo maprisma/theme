@@ -38,6 +38,10 @@ class _WallhavenPageState extends State<WallhavenPage> {
   final _menuKeys = <String, GlobalKey<PopupMenuButtonState<VoidCallback>>>{};
 
   List<Map<String, dynamic>> results = [];
+
+  /// Pictures Ask AI found on the web (kind `web`), shown before the wallhaven results.
+  List<Map<String, dynamic>> webPictures = [];
+  List<Map<String, dynamic>> get shown => [...webPictures, ...results];
   final thumbs = <String, String?>{};
   String query = '', status = '';
   int page = 0, lastPage = 1, generation = 0, selected = 0, columns = 3;
@@ -50,6 +54,9 @@ class _WallhavenPageState extends State<WallhavenPage> {
   final aiFocus = FocusNode();
   Map? aiHelper;
   bool asking = false;
+
+  /// The helper also searches the web (it can, and Settings › Ask AI allows it).
+  bool aiWeb = false;
   String aiSummary = '';
   List<String> aiQueries = [];
   final aiSearched = <String>[];
@@ -81,7 +88,10 @@ class _WallhavenPageState extends State<WallhavenPage> {
     final chosen = r['chosen'];
     final h = [for (final h in (r['helpers'] as List?) ?? const []) if (h is Map && h['id'] == chosen && h['signed_in'] == true) h].firstOrNull;
     if (h == null) return;
-    setState(() => aiHelper = h);
+    setState(() {
+      aiHelper = h;
+      aiWeb = h['web'] == true && r!['web'] != false;
+    });
     if (widget.askAi) WidgetsBinding.instance.addPostFrameCallback((_) => aiFocus.requestFocus());
   }
 
@@ -92,7 +102,9 @@ class _WallhavenPageState extends State<WallhavenPage> {
     setState(() {
       asking = true;
       aiSummary = '';
-      status = trf("Asking {0} for wallpaper ideas…", [helper['name']]);
+      status = aiWeb
+          ? trf("Asking {0} for wallpaper ideas and searching the web… (this can take a few minutes)", [helper['name']])
+          : trf("Asking {0} for wallpaper ideas…", [helper['name']]);
     });
     Map<String, dynamic>? r;
     String? error;
@@ -108,17 +120,48 @@ class _WallhavenPageState extends State<WallhavenPage> {
     }
     if (!mounted) return;
     final queries = [for (final q in (r?['queries'] as List?) ?? const []) if (q is String) q];
+    final pictures = [
+      for (final (i, e) in ((r?['images'] as List?) ?? const []).indexed)
+        if (e is Map && e['url'] is String) webItem(e, i),
+    ];
     setState(() {
       asking = false;
-      if (r == null || queries.isEmpty) {
+      webPictures = pictures;
+      for (final w in pictures) {
+        if (!_thumbQueue.contains(w)) _thumbQueue.add(w);
+      }
+      if (r == null || (queries.isEmpty && pictures.isEmpty)) {
         status = trf("Ask AI failed: {0}", [error ?? tr("no usable search words in the answer")]);
         return;
       }
       aiQueries = queries;
       aiSummary = '${r['summary'] ?? ''}';
     });
-    if (queries.isNotEmpty) searchFor(queries.first);
+    if (queries.isNotEmpty) {
+      searchFor(queries.first);
+    } else {
+      setState(() => status = trf("{0} pictures from the web.", [pictures.length]));
+      _pumpThumbs(generation);
+    }
   }
+
+  /// A picture from the web as a tile: its link, the page it is on, a caption.
+  static Map<String, dynamic> webItem(Map e, int i) {
+    final url = e['url'] as String;
+    final title = '${e['title'] ?? ''}'.trim();
+    final host = Uri.tryParse(url)?.host ?? '';
+    return {
+      'kind': 'web',
+      'id': 'web$i:${url.hashCode}',
+      'url': url,
+      if (e['page'] is String) 'page': e['page'],
+      'title': title,
+      'host': host,
+      'file_name': title.isNotEmpty ? title : host,
+    };
+  }
+
+  static bool isWeb(Map item) => item['kind'] == 'web';
 
   Future<void> stopAsking() async {
     try {
@@ -156,7 +199,7 @@ class _WallhavenPageState extends State<WallhavenPage> {
     final q = field.text.trim();
     if (q.isEmpty) return;
     generation++;
-    _thumbQueue.clear();
+    _thumbQueue.removeWhere((x) => !isWeb(x));
     setState(() {
       query = q;
       page = 0;
@@ -215,13 +258,19 @@ class _WallhavenPageState extends State<WallhavenPage> {
       () async {
         String? path;
         try {
-          path = (await app.call('wallhaven.thumb', {'item': item}))['path'] as String?;
+          path = isWeb(item)
+              ? (await app.call('webimg.get', {'url': item['url']}))['path'] as String?
+              : (await app.call('wallhaven.thumb', {'item': item}))['path'] as String?;
         } catch (_) {
           path = null;
         }
         _thumbsRunning--;
-        if (!mounted || gen != generation) return;
-        setState(() => thumbs[item['id'] as String] = path);
+        if (!mounted || (gen != generation && !isWeb(item))) return;
+        setState(() {
+          thumbs[item['id'] as String] = path;
+          // A web link that is no usable picture (or not public) is left out.
+          if (path == null && isWeb(item)) webPictures.remove(item);
+        });
         _pumpThumbs(gen);
       }();
     }
@@ -232,7 +281,9 @@ class _WallhavenPageState extends State<WallhavenPage> {
   Future<void> add(Map<String, dynamic> item, {bool set = false}) async {
     setState(() => status = trf("Downloading {0}…", [item['file_name']]));
     try {
-      final r = await app.call('wallhaven.add', {'slug': widget.slug, 'item': _plain(item), 'set': set});
+      final r = isWeb(item)
+          ? await app.call('webimg.add', {'slug': widget.slug, 'url': item['url'], 'set': set})
+          : await app.call('wallhaven.add', {'slug': widget.slug, 'item': _plain(item), 'set': set});
       if (!mounted) return;
       setState(() {
         item['added'] = true;
@@ -260,7 +311,9 @@ class _WallhavenPageState extends State<WallhavenPage> {
     setState(() => status = trf("Loading a preview of {0}…", [item['file_name']]));
     String? path;
     try {
-      path = (await app.call('wallhaven.preview', {'item': _plain(item)}))['path'] as String?;
+      path = isWeb(item)
+          ? (await app.call('webimg.get', {'url': item['url']}))['path'] as String?
+          : (await app.call('wallhaven.preview', {'item': _plain(item)}))['path'] as String?;
     } catch (_) {
       path = null;
     }
@@ -292,7 +345,9 @@ class _WallhavenPageState extends State<WallhavenPage> {
   }
 
   Future<void> openPage(Map item) async {
-    final r = await app.run('wallhaven.open', {'page': item['page']});
+    final r = isWeb(item)
+        ? await app.run('webimg.open', {'page': item['page'] ?? item['url']})
+        : await app.run('wallhaven.open', {'page': item['page']});
     if (r != null && r['opened'] != true) app.notify(tr("No web browser could be started (xdg-open)."));
   }
 
@@ -307,7 +362,8 @@ class _WallhavenPageState extends State<WallhavenPage> {
       item(Icons.visibility_outlined, tr("Preview on desktop"), () => preview(w, seconds: previewSeconds),
           tooltip: trf("Loads the full image and shows it for {0} seconds; or hold Space on the tile", [previewSeconds])),
     menuLine(),
-    item(Icons.open_in_browser, trf("Open on {0}", [_source]), () => openPage(w), tooltip: '${w['page']}'),
+    item(Icons.open_in_browser, trf("Open on {0}", [isWeb(w) ? w['host'] : _source]), () => openPage(w),
+        tooltip: '${w['page'] ?? w['url']}'),
   ];
 
   PopupMenuItem<VoidCallback> item_(IconData icon, String label, VoidCallback? action) =>
@@ -316,18 +372,18 @@ class _WallhavenPageState extends State<WallhavenPage> {
   // --- keyboard ------------------------------------------------------------------
 
   void select(int i) {
-    if (results.isEmpty) return;
-    setState(() => selected = i.clamp(0, results.length - 1));
-    final ctx = _tileKeys['${results[selected]['id']}']?.currentContext;
+    if (shown.isEmpty) return;
+    setState(() => selected = i.clamp(0, shown.length - 1));
+    final ctx = _tileKeys['${shown[selected]['id']}']?.currentContext;
     if (ctx != null) Scrollable.ensureVisible(ctx, alignment: .5, duration: const Duration(milliseconds: 120));
-    if (selected >= results.length - columns) loadMore();
+    if (selected >= shown.length - columns) loadMore();
   }
 
   KeyEventResult onGridKey(FocusNode node, KeyEvent e) {
     final key = e.logicalKey;
     if (key == LogicalKeyboardKey.space && app.can('wallpaper')) {
-      if (e is KeyDownEvent && selected < results.length) {
-        preview(results[selected]);
+      if (e is KeyDownEvent && selected < shown.length) {
+        preview(shown[selected]);
       } else if (e is KeyUpEvent && previewTimer == null) {
         endPreview();
       }
@@ -354,9 +410,9 @@ class _WallhavenPageState extends State<WallhavenPage> {
       case LogicalKeyboardKey.home:
         select(0);
       case LogicalKeyboardKey.end:
-        select(results.length - 1);
+        select(shown.length - 1);
       case LogicalKeyboardKey.enter || LogicalKeyboardKey.numpadEnter || LogicalKeyboardKey.contextMenu:
-        if (selected < results.length) _menuKeys['${results[selected]['id']}']?.currentState?.showButtonMenu();
+        if (selected < shown.length) _menuKeys['${shown[selected]['id']}']?.currentState?.showButtonMenu();
       case LogicalKeyboardKey.escape || LogicalKeyboardKey.backspace:
         Navigator.of(context).maybePop();
       default:
@@ -375,7 +431,7 @@ class _WallhavenPageState extends State<WallhavenPage> {
 
   KeyEventResult onFieldKey(FocusNode node, KeyEvent e) {
     if (e is! KeyDownEvent) return KeyEventResult.ignored;
-    if (e.logicalKey == LogicalKeyboardKey.arrowDown && results.isNotEmpty) {
+    if (e.logicalKey == LogicalKeyboardKey.arrowDown && shown.isNotEmpty) {
       gridFocus.requestFocus();
       select(selected);
       return KeyEventResult.handled;
@@ -410,8 +466,11 @@ class _WallhavenPageState extends State<WallhavenPage> {
               child: thumbs.containsKey(id) ? Icon(Icons.image_not_supported_outlined, color: look.muted) : null,
             ),
       menu: TileMenuButton(menuKey: menuKey, tooltip: tr("Wallpaper actions (Enter)"), menu: () => menuFor(item)),
-      bottomLeft: [if (item['added'] == true) TileBadge(tr("added"))],
-      captionText: '${item['resolution']}'.replaceAll('x', ' × '),
+      bottomLeft: [
+        if (isWeb(item)) TileBadge(tr("web"), tooltip: '${item['url']}'),
+        if (item['added'] == true) TileBadge(tr("added")),
+      ],
+      captionText: isWeb(item) ? '${item['file_name']}' : '${item['resolution']}'.replaceAll('x', ' × '),
     );
   }
 
@@ -509,11 +568,11 @@ class _WallhavenPageState extends State<WallhavenPage> {
               columns = gridColumns(box.maxWidth);
               return TileGrid(
                 controller: scroll,
-                count: results.length,
+                count: shown.length,
                 columns: columns,
                 footer: loading ? const Padding(padding: EdgeInsets.all(12), child: Center(child: CircularProgressIndicator())) : null,
                 builder: (context, i) {
-                  final item = results[i];
+                  final item = shown[i];
                   return KeyedSubtree(
                     key: _tileKeys.putIfAbsent('${item['id']}', () => GlobalKey()),
                     child: tile(item, i),

@@ -614,5 +614,15 @@
   "Ask {0} for search words: it gets your words and this theme's name and colors; the search itself uses no tokens": "Demander des mots de recherche à {0} : il reçoit vos mots ainsi que le nom et les couleurs de ce thème ; la recherche elle-même n’utilise aucun jeton",
   "Search for “{0}”": "Rechercher « {0} »",
   "Ask AI…": "Ask AI…",
-  "Describe the wallpaper you want: Ask AI turns it into searches on wallhaven.cc": "Décrivez le fond d’écran souhaité : Ask AI en fait des recherches sur wallhaven.cc"
+  "Describe the wallpaper you want: Ask AI turns it into searches on wallhaven.cc": "Décrivez le fond d’écran souhaité : Ask AI en fait des recherches sur wallhaven.cc",
+  "{0} could not be found": "{0} est introuvable",
+  "{0} is not a public web address": "{0} n’est pas une adresse web publique",
+  "{0} pictures from the web.": "{0} images du web.",
+  "A helper that can search the web (now Claude Code) also looks for wallpaper pictures beyond wallhaven.cc. It takes longer and uses more of your plan or tokens. The pictures are downloaded only from public https addresses and checked before they are shown.": "Un assistant capable de chercher sur le web (actuellement Claude Code) cherche aussi des fonds d’écran au-delà de wallhaven.cc. C’est plus long et consomme davantage de votre forfait ou de vos jetons. Les images ne sont téléchargées que depuis des adresses https publiques et vérifiées avant d’être affichées.",
+  "Asking {0} for wallpaper ideas and searching the web… (this can take a few minutes)": "Demande d’idées de fonds d’écran à {0} et recherche sur le web… (cela peut prendre quelques minutes)",
+  "not a public https address": "pas une adresse https publique",
+  "not a public https image address": "pas une adresse d’image https publique",
+  "Search the web for wallpapers": "Chercher des fonds d’écran sur le web",
+  "the link is not a JPEG, PNG or WebP picture": "le lien n’est pas une image JPEG, PNG ou WebP",
+  "web": "web"
 }

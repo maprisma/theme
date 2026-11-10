@@ -128,15 +128,28 @@ void main() {
       return aiOn
           ? {
               'helpers': [
-                {'id': 'claude', 'name': 'Claude Code', 'signed_in': true},
+                {'id': 'claude', 'name': 'Claude Code', 'signed_in': true, 'web': true},
               ],
               'chosen': 'claude',
               'enabled': true,
+              'web': true,
             }
           : {'helpers': <Map>[], 'chosen': null, 'enabled': false};
     }
     if (m == 'ask.wallpapers') {
-      return {'summary': 'Calm, wintry scenes in the theme\'s blues.', 'queries': ['snowy mountains night', 'winter forest', 'frozen lake']};
+      return {
+        'summary': 'Calm, wintry scenes in the theme\'s blues.',
+        'queries': ['snowy mountains night', 'winter forest', 'frozen lake'],
+        'images': [
+          {'url': 'https://img.example.com/snow-peak.jpg', 'page': 'https://img.example.com/snow', 'title': 'Snow peak'},
+          {'url': 'https://img.example.com/broken.jpg', 'title': 'Broken'},
+        ],
+        'web': true,
+      };
+    }
+    if (m == 'webimg.get') {
+      if ('${p['url']}'.contains('broken')) throw StateError('not a picture');
+      return {'path': '${core.ctx.paths.systemThemes}/kanagawa/backgrounds/3-kanagawa.png'};
     }
     return core.call(m, p);
   }
@@ -289,6 +302,9 @@ void main() {
       expect(find.widgetWithText(ActionChip, q), findsOneWidget, reason: q);
     }
     expect(find.text('snowy mountains night'), findsWidgets);
+    expect(find.text('Snow peak'), findsOneWidget, reason: 'the web picture, first');
+    expect(find.text('Broken'), findsNothing, reason: 'a link that is no picture is left out');
+    expect(find.text('web'), findsOneWidget);
     await shoot(tester, key, 'wallhaven-ai-1300');
     expect(tester.takeException(), isNull);
   });

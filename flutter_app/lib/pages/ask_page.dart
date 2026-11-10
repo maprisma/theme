@@ -460,9 +460,26 @@ class _AskPageState extends State<AskPage> {
     return null;
   }
 
+  /// The suggestion's pictures from the web (a web Ask), as wallpaper results.
+  static List<Map> _webWalls(_Card card) => [
+    for (final (i, e) in ((card.c['wallpaper_images'] as List?) ?? const []).indexed)
+      if (e is Map && e['url'] is String)
+        {'kind': 'web', 'id': 'web$i', 'url': e['url'], if (e['page'] is String) 'page': e['page'], 'title': '${e['title'] ?? ''}'},
+  ];
+
   Future<void> _searchWalls(_Card card) async {
     final query = card.c['wallpaper_query'] as String?;
-    if (query == null || query.isEmpty) return;
+    final web = card.c['query_by_user'] == true ? const <Map>[] : _webWalls(card);
+    if (query == null || query.isEmpty) {
+      if (web.isEmpty) return;
+      setState(() {
+        card.walls = web;
+        card.wall = 0;
+        card.wallNote = null;
+      });
+      _loadThumb(card);
+      return;
+    }
     final token = card.token = Object();
     setState(() {
       card.searching = true;
@@ -495,6 +512,8 @@ class _AskPageState extends State<AskPage> {
       if (results.isNotEmpty) break;
     }
     if (!mounted || card.token != token) return;
+    // The web's pictures first: chosen for this suggestion.
+    results = [...web, ...results];
     setState(() {
       card.searching = false;
       card.walls = results;
@@ -515,16 +534,27 @@ class _AskPageState extends State<AskPage> {
     if (_thumb(item) != null) return;
     setState(() => card.loadingPicture = true);
     try {
-      final r = await app.call('wallhaven.thumb', {
-        'item': {
-          for (final e in item.entries)
-            if (e.key != 'added' && e.key != 'thumb_path') '${e.key}': e.value,
-        },
-      });
+      final r = item['kind'] == 'web'
+          ? await app.call('webimg.get', {'url': item['url']})
+          : await app.call('wallhaven.thumb', {
+              'item': {
+                for (final e in item.entries)
+                  if (e.key != 'added' && e.key != 'thumb_path') '${e.key}': e.value,
+              },
+            });
       final path = r['path'];
       if (path is String && mounted) setState(() => item['thumb_path'] = path);
     } catch (_) {
-      // no picture: the card shows the colors only
+      // no picture: a web link that is none is left out; otherwise the card shows the colors only
+      if (item['kind'] == 'web' && mounted) {
+        setState(() {
+          card.walls = [...card.walls]..remove(item);
+          if (card.wall >= card.walls.length) card.wall = 0;
+        });
+        if (mounted) setState(() => card.loadingPicture = false);
+        _loadThumb(card);
+        return;
+      }
     }
     if (mounted) setState(() => card.loadingPicture = false);
   }
@@ -638,7 +668,11 @@ class _AskPageState extends State<AskPage> {
   /// Adds the card's wallpaper to [slug]; shown right away when [slug] is the
   /// theme in use (the core only sets it then).
   Future<void> _addWall(String slug, Map<String, dynamic> wall) async {
-    await app.run('wallhaven.add', {'slug': slug, 'item': wall, 'set': true}, tr("Could not add the wallpaper"));
+    if (wall['kind'] == 'web') {
+      await app.run('webimg.add', {'slug': slug, 'url': wall['url'], 'set': true}, tr("Could not add the wallpaper"));
+    } else {
+      await app.run('wallhaven.add', {'slug': slug, 'item': wall, 'set': true}, tr("Could not add the wallpaper"));
+    }
   }
 
   Future<void> _install(String slug, bool apply) async {

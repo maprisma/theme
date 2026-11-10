@@ -44,16 +44,20 @@ Future<List<String>> fontFacts(Ctx ctx) async {
 Map<String, Handler> askRoutes(Ctx ctx) {
   final runner = AskRunner(home: ctx.paths.home, environment: ctx.environment);
   List<Map<String, dynamic>> states() => helperStates(ctx.paths.home, ctx.environment);
+  // Every wallpaper prompt the same: a helper with web tools also searches the
+  // web for pictures, unless Settings › Ask AI › Search the web is off.
+  bool searchesWeb(String helper) => ctx.settings.get('ask_ai_web') != false && canSearchWeb(helper);
 
   return {
     'ask.helpers': (p) async {
-      final list = states();
+      final list = [for (final h in states()) {...h, 'web': canSearchWeb(h['id'] as String)}];
       final ready = [for (final h in list) if (h['signed_in'] == true) h['id'] as String];
       final saved = ctx.settings.get('ask_ai_helper');
       return {
         'helpers': list,
         'chosen': ready.contains(saved) ? saved : ready.firstOrNull,
         'enabled': ctx.settings.get('ask_ai') == true,
+        'web': ctx.settings.get('ask_ai_web') != false,
         'busy': runner.busy,
       };
     },
@@ -81,11 +85,12 @@ Map<String, Handler> askRoutes(Ctx ctx) {
         for (final r in p['rejected'] is List ? (p['rejected'] as List).take(20) : const [])
           if (r is String && r.isNotEmpty) plainText(r, 80),
       ];
+      final web = searchesWeb(helper);
       final prompt = buildPrompt(request, themes, catalog, fonts,
-          previous: parent == null ? null : forRefine(parent), rejected: rejected);
+          previous: parent == null ? null : forRefine(parent), rejected: rejected, web: web);
       String text;
       try {
-        text = await runner.run(helper, prompt);
+        text = await runner.run(helper, prompt, web: web);
       } on AskError catch (e) {
         throw RouteError(e.message == 'cancelled' ? 'cancelled' : 'helper_failed', e.message == 'cancelled' ? tr('Cancelled') : e.message);
       }
@@ -93,7 +98,7 @@ Map<String, Handler> askRoutes(Ctx ctx) {
       if (json == null) throw RouteError('bad_answer', tr("no JSON object in the answer"));
       final limit = parent == null || wantsOptions(request) ? maxCandidates : 1;
       final (summary, candidates) = verify(json, themes, catalog, fonts,
-          parent: parent, limit: limit, current: ctx.current.slug);
+          parent: parent, limit: limit, current: ctx.current.slug, web: web);
       return {
         'summary': summary,
         'candidates': candidates,
@@ -118,17 +123,19 @@ Map<String, Handler> askRoutes(Ctx ctx) {
         for (final r in p['rejected'] is List ? (p['rejected'] as List).take(20) : const [])
           if (r is String && r.isNotEmpty) plainText(r, 80),
       ];
+      final web = searchesWeb(helper);
       String text;
       try {
-        text = await runner.run(helper, buildWallpaperPrompt(request, theme, rejected: rejected));
+        text = await runner.run(helper, buildWallpaperPrompt(request, theme, rejected: rejected, web: web), web: web);
       } on AskError catch (e) {
         throw RouteError(e.message == 'cancelled' ? 'cancelled' : 'helper_failed', e.message == 'cancelled' ? tr('Cancelled') : e.message);
       }
       final json = firstJson(text);
       if (json == null) throw RouteError('bad_answer', tr("no JSON object in the answer"));
       final (summary, queries) = verifyWallpaperAnswer(json);
-      if (queries.isEmpty) throw RouteError('bad_answer', tr("no usable search words in the answer"));
-      return {'summary': summary, 'queries': queries};
+      final images = web ? verifyWallpaperImages(json) : const <Map<String, String>>[];
+      if (queries.isEmpty && images.isEmpty) throw RouteError('bad_answer', tr("no usable search words in the answer"));
+      return {'summary': summary, 'queries': queries, 'images': images, 'web': web};
     },
     'ask.cancel': (p) async {
       runner.cancel();

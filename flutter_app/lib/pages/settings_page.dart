@@ -548,6 +548,12 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
       _Row(
         'ask-ai',
+        tr("Search the web for wallpapers"),
+        tr("A helper that can search the web (now Claude Code) also looks for wallpaper pictures beyond wallhaven.cc. It takes longer and uses more of your plan or tokens. The pictures are downloaded only from public https addresses and checked before they are shown."),
+        _switch(settings['ask_ai_web'] != false, (on) => set('ask_ai_web', on)),
+      ),
+      _Row(
+        'ask-ai',
         tr("Maprisma hints"),
         tr("A ? here and on the Ask AI page opens the note on easy AI setup with Maprisma."),
         _switch(settings['maprisma_hints'] != false, (on) => set('maprisma_hints', on)),
