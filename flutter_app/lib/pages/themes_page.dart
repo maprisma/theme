@@ -95,14 +95,18 @@ class _ThemesPageState extends State<ThemesPage> {
   /// The active theme is always listed (marked when hidden), as in the plugin.
   bool _listed(Map t) => showHidden || t['hidden'] != true || t['current'] == true;
 
+  /// The listed themes, the one in use first; the rest keep their order.
   List<Map<String, dynamic>> get shown {
     final q = filter.trim().toLowerCase();
-    return [
+    final list = [
       for (final t in themes)
         if (_listed(t) &&
             (q.isEmpty || '${t['name']}'.toLowerCase().contains(q) || '${t['slug']}'.toLowerCase().contains(q)))
           t,
     ];
+    final i = list.indexWhere((t) => t['current'] == true);
+    if (i > 0) list.insert(0, list.removeAt(i));
+    return list;
   }
 
   int get hiddenOut => themes.where((t) => !_listed(t)).length;
@@ -524,10 +528,14 @@ class _ThemeTileState extends State<ThemeTile> {
             fit: BoxFit.cover, cacheWidth: 640, errorBuilder: (_, _, _) => ColorPreview(colors: colors))
         : ColorPreview(colors: colors);
     final tile = Container(
-      padding: const EdgeInsets.all(3),
+      padding: EdgeInsets.all(t['current'] == true ? 2 : 3), // the wider border keeps the tile's size
       decoration: BoxDecoration(
         color: look.fg.withValues(alpha: .08),
-        border: Border.all(color: hover ? look.accent : look.fg.withValues(alpha: .22)),
+        // The theme in use: its own green (its accent without one), a little wider,
+        // also under the pointer; the desktop's palette may carry no green (KDE).
+        border: t['current'] == true
+            ? Border.all(color: hexColor(colors, 'green') ?? hexColor(colors, 'accent') ?? look.accent, width: 2)
+            : Border.all(color: hover ? look.accent : look.fg.withValues(alpha: .22)),
         borderRadius: BorderRadius.circular(r),
       ),
       child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
