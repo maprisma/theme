@@ -27,6 +27,16 @@ and uses the same theme format (Omarchy's `colors.toml`), so themes move freely 
 - **Interface languages**: English, Deutsch, Français, Español, Italiano, Português, Nederlands and Polski.
   Follow the system or choose one in **Settings → General → Language**; changes take effect immediately.
 - **Backup and restore** of all settings.
+- **Corners** (**Settings → General → Corners**): like the desktop's windows, slightly rounded (6 px),
+  rounded (12 px) or square. The window, cards, dialogs and menus take the full radius; buttons, choice boxes,
+  fields, tooltips and key caps at most 8 px; check boxes, slider tracks, progress bars, colour swatches and
+  tags at most 4 px. Square squares everything and keeps the slider knob small.
+- **F12 saves a screenshot** of the Maprisma Theme window (on by default, **Settings → Screenshots**), for
+  telling what is wrong: the window draws itself into a PNG (no screenshot program, nothing uploaded), saved to
+  `~/Pictures/MaprismaTheme` (your XDG pictures folder) or a folder you choose, never over an older picture.
+  An optional note goes next to it as a `.txt` with the same name. Only a folder of yours that others cannot
+  write to is used (made private, 0700, when it is new); pictures and notes are private files (0600). F12 with
+  Ctrl, Shift, Alt or Super does nothing.
 
 ## Build and install
 

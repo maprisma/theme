@@ -600,5 +600,11 @@
   "invalid {0}": "Nieprawidłowe: {0}",
   "on, {0}": "włączone, {0}",
   "off": "wyłączone",
-  "unknown": "nieznane"
+  "unknown": "nieznane",
+  "Corners of the window, its cards and every control (buttons, choice boxes, fields). “Like windows” follows the desktop's window rounding.": "Narożniki okna, jego kart i wszystkich kontrolek (przyciski, listy wyboru, pola). „Jak okna” podąża za zaokrągleniem okien pulpitu.",
+  "Slightly rounded ({0} px)": "Lekko zaokrąglone ({0} px)",
+  "Rounded ({0} px)": "Zaokrąglone ({0} px)",
+  "Saved as {0}": "Zapisano jako {0}",
+  "The screenshot could not be saved: {0}": "Nie udało się zapisać zrzutu ekranu: {0}",
+  "The note could not be saved: {0}": "Nie udało się zapisać notatki: {0}"
 }

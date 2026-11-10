@@ -10,7 +10,7 @@ const defaultSettings = <String, dynamic>{
   'size': null,
   'workspace_wallpapers': true,
   'workspace_themes': false,
-  'corners': 'windows', // windows, rounded, square
+  'corners': 'windows', // windows, slight (6 px), rounded (12 px), square
   'sort': 'name', // name, recent
   'slideshow_minutes': 0, // 0 = never, else 5..120
   'schedule': {'enabled': false, 'day': '', 'night': '', 'day_at': '07:00', 'night_at': '19:00'},
@@ -91,7 +91,7 @@ final class Settings {
     'size' => v == null || (v is List && v.length == 2 && v.every((e) => e is int && e >= 320 && e <= 10000)),
     'workspace_wallpapers' || 'workspace_themes' || 'screenshot_key' || 'ask_ai' || 'maprisma_hints' || 'show_hidden' =>
       v is bool,
-    'corners' => v is String && const {'windows', 'rounded', 'square'}.contains(v),
+    'corners' => v is String && const {'windows', 'slight', 'rounded', 'square'}.contains(v),
     'sort' => v is String && const {'name', 'recent'}.contains(v),
     'slideshow_minutes' => v is int && slideshowChoices.contains(v),
     'schedule' => v is Map &&

@@ -233,7 +233,7 @@ class _ShortcutPageState extends State<ShortcutPage> {
             padding: EdgeInsets.symmetric(horizontal: large ? 10 : 6, vertical: large ? 5 : 2),
             decoration: BoxDecoration(
               border: Border.all(color: scheme.outlineVariant),
-              borderRadius: BorderRadius.circular(5),
+              borderRadius: BorderRadius.circular(cornerSizes(context).control),
               color: scheme.surfaceContainerHighest,
             ),
             child: Text(part, style: TextStyle(fontSize: large ? 14 : 12, fontWeight: FontWeight.w600)),
@@ -274,13 +274,13 @@ class _ShortcutPageState extends State<ShortcutPage> {
                         message: keyTip(comboLabel(mods, name), info),
                         child: InkWell(
                           key: ValueKey('key-$name'),
-                          borderRadius: BorderRadius.circular(5),
+                          borderRadius: BorderRadius.circular(cornerSizes(context).control),
                           onTap: () => setState(() => key = picked ? null : name),
                           child: Container(
                             constraints: const BoxConstraints(minWidth: 30),
                             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
                             decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(5),
+                              borderRadius: BorderRadius.circular(cornerSizes(context).control),
                               color: color.withValues(alpha: picked ? .55 : .18),
                               border: Border.all(color: picked ? scheme.onSurface : color, width: picked ? 2 : 1),
                             ),

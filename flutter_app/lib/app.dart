@@ -121,6 +121,15 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
     });
     refreshAsk();
     _subs.add(AppWindow.instance.shown.stream.listen((_) => refreshLook()));
+    HardwareKeyboard.instance.addHandler(_f12);
+  }
+
+  /// F12 (Settings › F12 saves a screenshot): wherever the keyboard is, also in a dialog or a
+  /// field, but not with Ctrl, Shift, Alt or Super.
+  bool _f12(KeyEvent event) {
+    if (!isScreenshotKey(event) || settings['screenshot_key'] == false) return false;
+    takeScreenshot(this);
+    return true;
   }
 
   Timer? _sizeTimer;
@@ -151,6 +160,7 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    HardwareKeyboard.instance.removeHandler(_f12);
     _sizeTimer?.cancel();
     for (final s in _subs) {
       s.cancel();
@@ -314,9 +324,6 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
         theme: appTheme(platform, colors, radius),
         builder: (context, child) => CallbackShortcuts(
           bindings: {
-            const SingleActivator(LogicalKeyboardKey.f12): () {
-              if (settings['screenshot_key'] != false) takeScreenshot(this);
-            },
             const SingleActivator(LogicalKeyboardKey.keyZ, control: true): () => undoLast(),
           },
           child: RepaintBoundary(

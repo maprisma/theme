@@ -600,5 +600,11 @@
   "invalid {0}": "Invalide : {0}",
   "on, {0}": "activé, {0}",
   "off": "désactivé",
-  "unknown": "inconnu"
+  "unknown": "inconnu",
+  "Corners of the window, its cards and every control (buttons, choice boxes, fields). “Like windows” follows the desktop's window rounding.": "Coins de la fenêtre, de ses cartes et de toutes les commandes (boutons, listes de choix, champs). « Comme les fenêtres » suit l'arrondi des fenêtres du bureau.",
+  "Slightly rounded ({0} px)": "Légèrement arrondis ({0} px)",
+  "Rounded ({0} px)": "Arrondis ({0} px)",
+  "Saved as {0}": "Enregistrée sous {0}",
+  "The screenshot could not be saved: {0}": "La capture n'a pas pu être enregistrée : {0}",
+  "The note could not be saved: {0}": "La note n'a pas pu être enregistrée : {0}"
 }

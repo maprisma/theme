@@ -600,5 +600,11 @@
   "invalid {0}": "invalid {0}",
   "on, {0}": "on, {0}",
   "off": "off",
-  "unknown": "unknown"
+  "unknown": "unknown",
+  "Corners of the window, its cards and every control (buttons, choice boxes, fields). “Like windows” follows the desktop's window rounding.": "Corners of the window, its cards and every control (buttons, choice boxes, fields). “Like windows” follows the desktop's window rounding.",
+  "Slightly rounded ({0} px)": "Slightly rounded ({0} px)",
+  "Rounded ({0} px)": "Rounded ({0} px)",
+  "Saved as {0}": "Saved as {0}",
+  "The screenshot could not be saved: {0}": "The screenshot could not be saved: {0}",
+  "The note could not be saved: {0}": "The note could not be saved: {0}"
 }

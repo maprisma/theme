@@ -10,6 +10,7 @@ export 'src/desktop.dart';
 export 'src/looks.dart';
 export 'src/paths.dart';
 export 'src/posix.dart';
+export 'src/screenshot.dart';
 export 'src/protocol.dart';
 export 'src/settings.dart';
 export 'src/store.dart';

@@ -82,12 +82,12 @@ class Tag extends StatelessWidget {
   Widget build(BuildContext context) {
     final look = Look.of(context);
     final c = color ?? look.muted;
-    final r = corners(context);
+    final r = cornerSizes(context).small;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
       decoration: BoxDecoration(
         color: c.withValues(alpha: .14),
-        borderRadius: BorderRadius.circular(r == 0 ? 0 : math.max(4, r - 6)),
+        borderRadius: BorderRadius.circular(r),
       ),
       child: Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: c)),
     );
@@ -107,7 +107,7 @@ class TileBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final look = Look.of(context);
-    final r = corners(context);
+    final r = cornerSizes(context).small;
     final (bg, fg) = switch (kind) {
       BadgeKind.current => (look.accent, look.bg),
       BadgeKind.workspace => (look.accent.withValues(alpha: .85), look.bg),
@@ -115,7 +115,7 @@ class TileBadge extends StatelessWidget {
     };
     final badge = Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(r == 0 ? 0 : math.max(4, r - 6))),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(r)),
       child: Text(label, maxLines: 1, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: fg, height: 1.25)),
     );
     return tooltip == null ? badge : Tooltip(message: tooltip!, child: badge);
@@ -139,7 +139,7 @@ class _TileMenuButtonState extends State<TileMenuButton> {
   @override
   Widget build(BuildContext context) {
     final look = Look.of(context);
-    final r = corners(context);
+    final r = cornerSizes(context).control;
     return MouseRegion(
       onEnter: (_) => setState(() => hover = true),
       onExit: (_) => setState(() => hover = false),
@@ -156,7 +156,7 @@ class _TileMenuButtonState extends State<TileMenuButton> {
           padding: const EdgeInsets.all(3),
           decoration: BoxDecoration(
             color: hover ? look.accent : Colors.black.withValues(alpha: .6),
-            borderRadius: BorderRadius.circular(r == 0 ? 0 : math.max(4, r - 4)),
+            borderRadius: BorderRadius.circular(r),
           ),
           child: Icon(Icons.menu, size: 16, color: hover ? look.bg : Colors.white),
         ),
@@ -480,7 +480,7 @@ class _WorkspaceGridState extends State<_WorkspaceGrid> {
   @override
   Widget build(BuildContext context) {
     final look = Look.of(context);
-    final r = corners(context);
+    final r = cornerSizes(context).control;
     Widget cell(int ws) {
       final mine = widget.mine.contains(ws);
       final other = widget.others[ws];

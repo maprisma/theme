@@ -1296,7 +1296,13 @@ const translationCatalogs = <String, Map<String, String>>{
     "invalid {0}": "invalid {0}",
     "on, {0}": "on, {0}",
     "off": "off",
-    "unknown": "unknown"
+    "unknown": "unknown",
+    "Corners of the window, its cards and every control (buttons, choice boxes, fields). “Like windows” follows the desktop's window rounding.": "Corners of the window, its cards and every control (buttons, choice boxes, fields). “Like windows” follows the desktop's window rounding.",
+    "Slightly rounded ({0} px)": "Slightly rounded ({0} px)",
+    "Rounded ({0} px)": "Rounded ({0} px)",
+    "Saved as {0}": "Saved as {0}",
+    "The screenshot could not be saved: {0}": "The screenshot could not be saved: {0}",
+    "The note could not be saved: {0}": "The note could not be saved: {0}"
   },
   "de": {
     "A key that applies this theme from anywhere": "Eine Taste, die dieses Theme von überall anwendet",
@@ -2594,7 +2600,13 @@ const translationCatalogs = <String, Map<String, String>>{
     "invalid {0}": "Ungültig: {0}",
     "on, {0}": "an, {0}",
     "off": "aus",
-    "unknown": "unbekannt"
+    "unknown": "unbekannt",
+    "Corners of the window, its cards and every control (buttons, choice boxes, fields). “Like windows” follows the desktop's window rounding.": "Ecken des Fensters, seiner Karten und aller Bedienelemente (Knöpfe, Auswahlfelder, Eingabefelder). „Wie Fenster“ folgt der Fensterrundung des Desktops.",
+    "Slightly rounded ({0} px)": "Leicht abgerundet ({0} px)",
+    "Rounded ({0} px)": "Abgerundet ({0} px)",
+    "Saved as {0}": "Gespeichert als {0}",
+    "The screenshot could not be saved: {0}": "Das Bildschirmfoto konnte nicht gespeichert werden: {0}",
+    "The note could not be saved: {0}": "Die Notiz konnte nicht gespeichert werden: {0}"
   },
   "fr": {
     "A key that applies this theme from anywhere": "Une touche qui applique ce thème de partout",
@@ -3892,7 +3904,13 @@ const translationCatalogs = <String, Map<String, String>>{
     "invalid {0}": "Invalide : {0}",
     "on, {0}": "activé, {0}",
     "off": "désactivé",
-    "unknown": "inconnu"
+    "unknown": "inconnu",
+    "Corners of the window, its cards and every control (buttons, choice boxes, fields). “Like windows” follows the desktop's window rounding.": "Coins de la fenêtre, de ses cartes et de toutes les commandes (boutons, listes de choix, champs). « Comme les fenêtres » suit l'arrondi des fenêtres du bureau.",
+    "Slightly rounded ({0} px)": "Légèrement arrondis ({0} px)",
+    "Rounded ({0} px)": "Arrondis ({0} px)",
+    "Saved as {0}": "Enregistrée sous {0}",
+    "The screenshot could not be saved: {0}": "La capture n'a pas pu être enregistrée : {0}",
+    "The note could not be saved: {0}": "La note n'a pas pu être enregistrée : {0}"
   },
   "es": {
     "A key that applies this theme from anywhere": "Una tecla que aplica este tema desde cualquier lugar",
@@ -5190,7 +5208,13 @@ const translationCatalogs = <String, Map<String, String>>{
     "invalid {0}": "No válido: {0}",
     "on, {0}": "activado, {0}",
     "off": "desactivado",
-    "unknown": "desconocido"
+    "unknown": "desconocido",
+    "Corners of the window, its cards and every control (buttons, choice boxes, fields). “Like windows” follows the desktop's window rounding.": "Esquinas de la ventana, sus tarjetas y todos los controles (botones, listas de opciones, campos). «Como las ventanas» sigue el redondeo de las ventanas del escritorio.",
+    "Slightly rounded ({0} px)": "Ligeramente redondeadas ({0} px)",
+    "Rounded ({0} px)": "Redondeadas ({0} px)",
+    "Saved as {0}": "Guardada como {0}",
+    "The screenshot could not be saved: {0}": "No se pudo guardar la captura: {0}",
+    "The note could not be saved: {0}": "No se pudo guardar la nota: {0}"
   },
   "it": {
     "A key that applies this theme from anywhere": "Un tasto che applica questo tema ovunque",
@@ -6488,7 +6512,13 @@ const translationCatalogs = <String, Map<String, String>>{
     "invalid {0}": "Non valido: {0}",
     "on, {0}": "attivo, {0}",
     "off": "disattivo",
-    "unknown": "sconosciuto"
+    "unknown": "sconosciuto",
+    "Corners of the window, its cards and every control (buttons, choice boxes, fields). “Like windows” follows the desktop's window rounding.": "Angoli della finestra, delle sue schede e di tutti i controlli (pulsanti, caselle di scelta, campi). «Come le finestre» segue l'arrotondamento delle finestre del desktop.",
+    "Slightly rounded ({0} px)": "Leggermente arrotondati ({0} px)",
+    "Rounded ({0} px)": "Arrotondati ({0} px)",
+    "Saved as {0}": "Salvato come {0}",
+    "The screenshot could not be saved: {0}": "Impossibile salvare lo screenshot: {0}",
+    "The note could not be saved: {0}": "Impossibile salvare la nota: {0}"
   },
   "pt": {
     "A key that applies this theme from anywhere": "Uma tecla que aplica este tema de qualquer lugar",
@@ -7786,7 +7816,13 @@ const translationCatalogs = <String, Map<String, String>>{
     "invalid {0}": "Inválido: {0}",
     "on, {0}": "ligado, {0}",
     "off": "desligado",
-    "unknown": "desconhecido"
+    "unknown": "desconhecido",
+    "Corners of the window, its cards and every control (buttons, choice boxes, fields). “Like windows” follows the desktop's window rounding.": "Cantos da janela, dos seus cartões e de todos os controlos (botões, caixas de escolha, campos). «Como as janelas» segue o arredondamento das janelas do ambiente de trabalho.",
+    "Slightly rounded ({0} px)": "Levemente arredondados ({0} px)",
+    "Rounded ({0} px)": "Arredondados ({0} px)",
+    "Saved as {0}": "Guardada como {0}",
+    "The screenshot could not be saved: {0}": "Não foi possível guardar a captura: {0}",
+    "The note could not be saved: {0}": "Não foi possível guardar a nota: {0}"
   },
   "nl": {
     "A key that applies this theme from anywhere": "Een toets die dit thema overal toepast",
@@ -9084,7 +9120,13 @@ const translationCatalogs = <String, Map<String, String>>{
     "invalid {0}": "Ongeldig: {0}",
     "on, {0}": "aan, {0}",
     "off": "uit",
-    "unknown": "onbekend"
+    "unknown": "onbekend",
+    "Corners of the window, its cards and every control (buttons, choice boxes, fields). “Like windows” follows the desktop's window rounding.": "Hoeken van het venster, zijn kaarten en alle bedieningselementen (knoppen, keuzelijsten, velden). ‘Zoals vensters’ volgt de vensterafronding van het bureaublad.",
+    "Slightly rounded ({0} px)": "Licht afgerond ({0} px)",
+    "Rounded ({0} px)": "Afgerond ({0} px)",
+    "Saved as {0}": "Bewaard als {0}",
+    "The screenshot could not be saved: {0}": "De schermafbeelding kon niet worden bewaard: {0}",
+    "The note could not be saved: {0}": "De notitie kon niet worden bewaard: {0}"
   },
   "pl": {
     "A key that applies this theme from anywhere": "Klawisz, który stosuje ten motyw z dowolnego miejsca",
@@ -10382,6 +10424,12 @@ const translationCatalogs = <String, Map<String, String>>{
     "invalid {0}": "Nieprawidłowe: {0}",
     "on, {0}": "włączone, {0}",
     "off": "wyłączone",
-    "unknown": "nieznane"
+    "unknown": "nieznane",
+    "Corners of the window, its cards and every control (buttons, choice boxes, fields). “Like windows” follows the desktop's window rounding.": "Narożniki okna, jego kart i wszystkich kontrolek (przyciski, listy wyboru, pola). „Jak okna” podąża za zaokrągleniem okien pulpitu.",
+    "Slightly rounded ({0} px)": "Lekko zaokrąglone ({0} px)",
+    "Rounded ({0} px)": "Zaokrąglone ({0} px)",
+    "Saved as {0}": "Zapisano jako {0}",
+    "The screenshot could not be saved: {0}": "Nie udało się zapisać zrzutu ekranu: {0}",
+    "The note could not be saved: {0}": "Nie udało się zapisać notatki: {0}"
   }
 };

@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:maprisma_theme_core/maprisma_theme_core.dart' show ServiceError, baseColorKeys, colorLabel, derivedColors, maxNameLength;
 
 import '../app.dart';
+import '../theme.dart';
 import '../widgets.dart';
 
 final _hexRe = RegExp(r'^#[0-9a-fA-F]{6}$');
@@ -565,14 +566,14 @@ class _EditorPageState extends State<EditorPage> {
           Tooltip(
             message: tr("Pick a color"),
             child: InkWell(
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(cornerSizes(context).small),
               onTap: () => pick(key),
               child: Container(
                 width: 34,
                 height: 26,
                 decoration: BoxDecoration(
                   color: _color(colors[key]!),
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(cornerSizes(context).small),
                   border: Border.all(color: scheme.onSurface.withValues(alpha: .4)),
                 ),
               ),
@@ -758,7 +759,7 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
               onPanDown: (e) => _square(e.localPosition, size),
               onPanUpdate: (e) => _square(e.localPosition, size),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(cornerSizes(context).small),
                 child: CustomPaint(size: size, painter: _SquarePainter(hsv)),
               ),
             ),
@@ -767,7 +768,7 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
               onPanDown: (e) => _hue(e.localPosition, size.width),
               onPanUpdate: (e) => _hue(e.localPosition, size.width),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(cornerSizes(context).small),
                 child: CustomPaint(size: Size(size.width, 20), painter: _HuePainter(hsv.hue)),
               ),
             ),

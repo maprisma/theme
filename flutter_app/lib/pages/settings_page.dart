@@ -195,7 +195,7 @@ class _SettingsPageState extends State<SettingsPage> {
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
         border: Border.all(color: look.fg.withValues(alpha: .35)),
-        borderRadius: BorderRadius.circular(corners(context)),
+        borderRadius: BorderRadius.circular(cornerSizes(context).control),
       ),
       child: DropdownButton<T>(
         key: key,
@@ -203,7 +203,7 @@ class _SettingsPageState extends State<SettingsPage> {
         isDense: true,
         underline: const SizedBox(),
         dropdownColor: look.bg,
-        borderRadius: BorderRadius.circular(corners(context)),
+        borderRadius: BorderRadius.circular(corners(context)), // the open list: a pop-up
         style: Theme.of(context).textTheme.bodyMedium!.copyWith(fontSize: 12, color: look.fg),
         icon: Icon(Icons.expand_more, size: 16, color: look.fg),
         items: [for (final (v, label) in choices) DropdownMenuItem(value: v, child: Text(label))],
@@ -231,7 +231,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Widget _caps(String label) {
     final look = Look.of(context);
-    final r = corners(context);
+    final r = cornerSizes(context).control;
     return Wrap(
       spacing: 4,
       children: [
@@ -240,7 +240,7 @@ class _SettingsPageState extends State<SettingsPage> {
             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
             decoration: BoxDecoration(
               border: Border.all(color: look.fg.withValues(alpha: .35)),
-              borderRadius: BorderRadius.circular(r == 0 ? 0 : (r - 4).clamp(4, 100)),
+              borderRadius: BorderRadius.circular(r),
               color: look.fg.withValues(alpha: .08),
             ),
             child: Text(part, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
@@ -329,7 +329,7 @@ class _SettingsPageState extends State<SettingsPage> {
   // --- rows ------------------------------------------------------------------------
 
   String get _cornersTip =>
-      trf("Corners of the window and its theme cards. “Like windows” follows the {0} theme's corner radius.", [app.desktopName]);
+      tr("Corners of the window, its cards and every control (buttons, choice boxes, fields). “Like windows” follows the desktop's window rounding.");
 
   List<_Row> rows() {
     final marks = markColors(context);
@@ -360,7 +360,8 @@ class _SettingsPageState extends State<SettingsPage> {
         _cornersTip,
         _dropdown('${settings['corners'] ?? 'windows'}', [
           ('windows', radius == null ? tr("Like windows") : trf("Like windows ({0} px)", [radius])),
-          ('rounded', tr("Rounded")),
+          ('slight', trf("Slightly rounded ({0} px)", [slightRadius])),
+          ('rounded', trf("Rounded ({0} px)", [roundedRadius])),
           ('square', tr("Square")),
         ], (v) => set('corners', v)),
       ),
@@ -759,14 +760,15 @@ class _SettingsPageState extends State<SettingsPage> {
                   );
                   Widget navButton(String key, String name, {bool chip = false}) {
                     final active = search.isEmpty && section == key;
+                    final c = cornerSizes(context).control;
                     return Material(
                       color: active ? look.selection : Colors.transparent,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(r),
+                        borderRadius: BorderRadius.circular(c),
                         side: chip && !active ? BorderSide(color: look.fg.withValues(alpha: .25)) : BorderSide.none,
                       ),
                       child: InkWell(
-                        borderRadius: BorderRadius.circular(r),
+                        borderRadius: BorderRadius.circular(c),
                         onTap: () => _select(key),
                         child: Padding(
                           padding: chip

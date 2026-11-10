@@ -270,7 +270,7 @@ class _AskPageState extends State<AskPage> {
           ),
           Expanded(
             child: InkWell(
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(cornerSizes(context).control),
               onTap: enabled && chosen != null && !asking
                   ? () {
                       request.text = text;
@@ -989,7 +989,7 @@ class _AskPageState extends State<AskPage> {
   Widget _helperRow(ColorScheme scheme) {
     final list = ready;
     final current = chosen;
-    final radius = BorderRadius.circular(corners(context).clamp(0, 6));
+    final radius = BorderRadius.circular(cornerSizes(context).control);
     return Row(
       children: [
         Text(tr("Helper:")),
@@ -1093,7 +1093,7 @@ class _AskPageState extends State<AskPage> {
         IconButton.outlined(
           tooltip: tr("Save as suggestion"),
           style: ButtonStyle(
-            shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(corners(context).clamp(0, 6)))),
+            shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(cornerSizes(context).control))),
           ),
           onPressed: _savePrompt,
           icon: const Icon(Icons.bookmark_border, size: 18),

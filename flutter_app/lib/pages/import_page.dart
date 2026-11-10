@@ -28,7 +28,7 @@ class _ImportPageState extends State<ImportPage> {
   @override
   Widget build(BuildContext context) {
     final look = Look.of(context);
-    final r = corners(context);
+    final r = cornerSizes(context).control;
     Widget tabButton(int i, String label, String source) {
       final on = tab == i;
       return Padding(
@@ -687,7 +687,7 @@ class _CosmicTabState extends State<_CosmicTab> with _Gallery<_CosmicTab> {
           padding: const EdgeInsets.symmetric(horizontal: 8),
           decoration: BoxDecoration(
             border: Border.all(color: look.fg.withValues(alpha: .25)),
-            borderRadius: BorderRadius.circular(corners(context)),
+            borderRadius: BorderRadius.circular(cornerSizes(context).control),
           ),
           child: DropdownButton<String>(
             value: sorts.any((s) => s['value'] == sort) ? sort : null,
@@ -967,7 +967,7 @@ class _KdeTabState extends State<_KdeTab> with _Gallery<_KdeTab> {
           padding: const EdgeInsets.symmetric(horizontal: 8),
           decoration: BoxDecoration(
             border: Border.all(color: look.fg.withValues(alpha: .25)),
-            borderRadius: BorderRadius.circular(corners(context)),
+            borderRadius: BorderRadius.circular(cornerSizes(context).control),
           ),
           child: DropdownButton<String>(
             value: sorts.any((s) => s['value'] == sort) ? sort : null,

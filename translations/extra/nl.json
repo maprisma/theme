@@ -600,5 +600,11 @@
   "invalid {0}": "Ongeldig: {0}",
   "on, {0}": "aan, {0}",
   "off": "uit",
-  "unknown": "onbekend"
+  "unknown": "onbekend",
+  "Corners of the window, its cards and every control (buttons, choice boxes, fields). “Like windows” follows the desktop's window rounding.": "Hoeken van het venster, zijn kaarten en alle bedieningselementen (knoppen, keuzelijsten, velden). ‘Zoals vensters’ volgt de vensterafronding van het bureaublad.",
+  "Slightly rounded ({0} px)": "Licht afgerond ({0} px)",
+  "Rounded ({0} px)": "Afgerond ({0} px)",
+  "Saved as {0}": "Bewaard als {0}",
+  "The screenshot could not be saved: {0}": "De schermafbeelding kon niet worden bewaard: {0}",
+  "The note could not be saved: {0}": "De notitie kon niet worden bewaard: {0}"
 }

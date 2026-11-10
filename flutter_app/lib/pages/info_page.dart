@@ -141,7 +141,7 @@ class _CardState extends State<_Card> {
               Container(
                 width: 30,
                 height: 30,
-                decoration: BoxDecoration(color: look.accent.withValues(alpha: .16), borderRadius: BorderRadius.circular(5)),
+                decoration: BoxDecoration(color: look.accent.withValues(alpha: .16), borderRadius: BorderRadius.circular(cornerSizes(context).small)),
                 child: Icon(_icons[p['id']] ?? Icons.inventory_2_outlined, size: 17, color: look.accent),
               ),
               const SizedBox(width: 8),

@@ -392,7 +392,7 @@ class _PresetsPageState extends State<PresetsPage> {
           foregroundColor: scheme.onSurface,
           backgroundColor: on ? scheme.surfaceContainerHigh : null,
           side: BorderSide(color: on ? scheme.primary : scheme.outlineVariant, width: on ? 2 : 1),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(cornerSizes(context).control)),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           visualDensity: VisualDensity.compact,
         ),
@@ -409,7 +409,7 @@ class _PresetsPageState extends State<PresetsPage> {
       decoration: BoxDecoration(
         color: scheme.surfaceContainer,
         border: Border.all(color: scheme.outlineVariant),
-        borderRadius: BorderRadius.circular(3),
+        borderRadius: BorderRadius.circular(cornerSizes(context).small),
       ),
       child: Text(
         state['active'] == true
@@ -448,7 +448,7 @@ class _PresetsPageState extends State<PresetsPage> {
                   side: BorderSide(
                       color: group == i ? scheme.onSurface.withValues(alpha: .8) : scheme.outlineVariant,
                       width: group == i ? 1.5 : 1),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(3)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(cornerSizes(context).control)),
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   visualDensity: VisualDensity.compact,
                 ),
@@ -564,9 +564,9 @@ class _PresetsPageState extends State<PresetsPage> {
         child: Material(
           color: chosen ? scheme.surfaceContainerHigh : scheme.surfaceContainerLow,
           shape: ws == 0
-              ? _DashedBorder(chosen ? scheme.onSurface.withValues(alpha: .8) : scheme.outline)
+              ? _DashedBorder(chosen ? scheme.onSurface.withValues(alpha: .8) : scheme.outline, cornerSizes(context).control)
               : RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(3),
+                  borderRadius: BorderRadius.circular(cornerSizes(context).control),
                   side: BorderSide(
                     color: chosen ? scheme.onSurface.withValues(alpha: .7) : scheme.outlineVariant,
                     width: chosen ? 1.5 : 1,
@@ -787,7 +787,7 @@ class _PresetsPageState extends State<PresetsPage> {
       decoration: BoxDecoration(
         color: scheme.surfaceContainerLow,
         border: Border.all(color: scheme.outlineVariant),
-        borderRadius: BorderRadius.circular(3),
+        borderRadius: BorderRadius.circular(cornerSizes(context).small),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -824,7 +824,7 @@ class _PresetsPageState extends State<PresetsPage> {
                     side: BorderSide(
                         color: items[i].on ? scheme.onSurface.withValues(alpha: .85) : scheme.outlineVariant,
                         width: items[i].on ? 1.5 : 1),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(3)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(cornerSizes(context).control)),
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     visualDensity: VisualDensity.compact,
                   ),
@@ -857,7 +857,7 @@ class _PresetsPageState extends State<PresetsPage> {
               child: Material(
                 color: mode == chosen ? scheme.surfaceContainerHigh : Colors.transparent,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(3),
+                  borderRadius: BorderRadius.circular(cornerSizes(context).control),
                   side: BorderSide(
                       color: mode == chosen ? scheme.onSurface.withValues(alpha: .85) : scheme.outlineVariant,
                       width: mode == chosen ? 1.5 : 1),
@@ -898,7 +898,7 @@ class _PresetsPageState extends State<PresetsPage> {
       style: OutlinedButton.styleFrom(
         foregroundColor: destructive ? scheme.error : scheme.onSurface,
         side: BorderSide(color: destructive ? scheme.error.withValues(alpha: .6) : scheme.outlineVariant),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(cornerSizes(context).control)),
         visualDensity: VisualDensity.compact,
       ),
     );
@@ -1155,7 +1155,7 @@ class _PresetsPageState extends State<PresetsPage> {
       decoration: BoxDecoration(
         color: scheme.surfaceContainer,
         border: Border.all(color: scheme.outlineVariant),
-        borderRadius: BorderRadius.circular(3),
+        borderRadius: BorderRadius.circular(cornerSizes(context).small),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(trf("Workspace {0} has {1} open window(s) not in this preset.", [ws, conflict!['conflict_count']])),
@@ -1201,7 +1201,7 @@ class _PresetsPageState extends State<PresetsPage> {
                 padding: const EdgeInsets.only(left: 8),
                 decoration: BoxDecoration(
                   border: Border.all(color: scheme.outlineVariant),
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(cornerSizes(context).small),
                 ),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                   Icon(Icons.apps, size: 16, color: scheme.onSurfaceVariant),
@@ -1442,7 +1442,7 @@ class _PresetsPageState extends State<PresetsPage> {
       decoration: BoxDecoration(
         color: scheme.surfaceContainerLow,
         border: Border.all(color: scheme.outlineVariant),
-        borderRadius: BorderRadius.circular(3),
+        borderRadius: BorderRadius.circular(cornerSizes(context).small),
       ),
       child: Row(children: [
         Expanded(
@@ -1807,20 +1807,21 @@ class _RoundHandleState extends State<_RoundHandle> {
 
 /// A dashed frame for the All Workspaces card (the defaults, not a workspace).
 class _DashedBorder extends ShapeBorder {
-  const _DashedBorder(this.color);
+  const _DashedBorder(this.color, [this.radius = 3]);
   final Color color;
+  final double radius;
   @override
   EdgeInsetsGeometry get dimensions => const EdgeInsets.all(1);
   @override
   Path getInnerPath(Rect rect, {TextDirection? textDirection}) =>
-      Path()..addRRect(RRect.fromRectAndRadius(rect.deflate(1), const Radius.circular(3)));
+      Path()..addRRect(RRect.fromRectAndRadius(rect.deflate(1), Radius.circular(radius)));
   @override
   Path getOuterPath(Rect rect, {TextDirection? textDirection}) =>
-      Path()..addRRect(RRect.fromRectAndRadius(rect, const Radius.circular(3)));
+      Path()..addRRect(RRect.fromRectAndRadius(rect, Radius.circular(radius)));
   @override
   void paint(Canvas canvas, Rect rect, {TextDirection? textDirection}) => _dashed(
       canvas,
-      RRect.fromRectAndRadius(rect.deflate(0.5), const Radius.circular(3)),
+      RRect.fromRectAndRadius(rect.deflate(0.5), Radius.circular(radius)),
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1
