@@ -63,6 +63,7 @@ void main() {
   var aiOn = false;
   var createAnswer = false, generatorReady = true;
   var made = 0;
+  var settingUp = false;
 
   setUpAll(loadShotFonts);
 
@@ -71,6 +72,7 @@ void main() {
     createAnswer = false;
     generatorReady = true;
     made = 0;
+    settingUp = false;
     root = Directory.systemTemp.createTempSync('maprisma-ui-parity-');
     Directory('${root.path}/bin').createSync();
     final env = {'HOME': '${root.path}/home', 'XDG_RUNTIME_DIR': '${root.path}/run', 'PATH': '${root.path}/bin'};
@@ -144,7 +146,18 @@ void main() {
           : {'helpers': <Map>[], 'chosen': null, 'enabled': false};
     }
     if (m == 'create.status') {
-      return {'ready': generatorReady, 'playground': true, 'setting_up': false, 'download_bytes': generatorReady ? 0 : 11193150692};
+      return {
+        'ready': generatorReady,
+        'playground': true,
+        'setting_up': settingUp,
+        'fraction': .25,
+        'text': '(models)',
+        'download_bytes': generatorReady ? 0 : 11193150692,
+      };
+    }
+    if (m == 'create.setup' || m == 'create.cancel_setup') {
+      settingUp = m == 'create.setup';
+      return call('create.status');
     }
     if (m == 'create.make') {
       made++;
@@ -402,6 +415,16 @@ void main() {
     expect(find.text('Set up'), findsOneWidget);
     expect(find.textContaining('11.2 GB to download once'), findsOneWidget);
     await shoot(tester, key, 'wallhaven-setup-1300');
+    // Set up: progress and Cancel; Cancel stops it and offers Set up again.
+    await tester.tap(find.text('Set up'));
+    await settle(tester);
+    expect(find.textContaining('Setting up the picture generator'), findsOneWidget);
+    expect(find.text('Cancel'), findsOneWidget);
+    await shoot(tester, key, 'wallhaven-setting-up-1300');
+    await tester.tap(find.text('Cancel'));
+    await settle(tester);
+    expect(settingUp, isFalse);
+    expect(find.text('Set up'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

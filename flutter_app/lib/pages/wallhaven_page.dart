@@ -243,6 +243,14 @@ class _WallhavenPageState extends State<WallhavenPage> {
     _pollSetup();
   }
 
+  /// Stops the download; what came down stays and a later Set up goes on from there.
+  Future<void> cancelSetup() async {
+    try {
+      final st = await app.call('create.cancel_setup');
+      if (mounted) setState(() => generator = st);
+    } catch (_) {}
+  }
+
   void _pollSetup() {
     setupPoll?.cancel();
     setupPoll = Timer.periodic(const Duration(seconds: 1), (t) async {
@@ -700,10 +708,20 @@ class _WallhavenPageState extends State<WallhavenPage> {
     if (g['playground'] != true) {
       body = Text(tr("Making pictures needs Maprisma Playground's picture generator: install Maprisma Playground (Maprisma Manager), then ask again."));
     } else if (g['setting_up'] == true) {
-      body = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Text(trf("Setting up the picture generator… {0}", ['${g['text'] ?? ''}'])),
-        const SizedBox(height: 6),
-        LinearProgressIndicator(value: ((g['fraction'] as num?) ?? 0).toDouble()),
+      body = Row(children: [
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Text(trf("Setting up the picture generator… {0}", ['${g['text'] ?? ''}'])),
+            const SizedBox(height: 6),
+            LinearProgressIndicator(value: ((g['fraction'] as num?) ?? 0).toDouble()),
+          ]),
+        ),
+        const SizedBox(width: 8),
+        OutlinedButton.icon(
+          onPressed: cancelSetup,
+          icon: const Icon(Icons.close, size: 16),
+          label: Text(tr("Cancel")),
+        ),
       ]);
     } else {
       body = Row(children: [

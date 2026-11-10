@@ -627,6 +627,14 @@ class _AskPageState extends State<AskPage> {
     });
   }
 
+  /// Stops the download; what came down stays and a later Set up goes on from there.
+  Future<void> _cancelSetup() async {
+    try {
+      await app.call('create.cancel_setup');
+    } catch (_) {}
+    await _generatorStatus();
+  }
+
   Future<void> _setUpGenerator() async {
     try {
       final st = await app.call('create.setup');
@@ -1078,7 +1086,14 @@ class _AskPageState extends State<AskPage> {
     const tight = VisualDensity(horizontal: -4, vertical: -4);
     final g = generator;
     if (g != null && g['ready'] != true) {
-      if (g['playground'] != true || g['setting_up'] == true) return const SizedBox();
+      if (g['playground'] != true) return const SizedBox();
+      if (g['setting_up'] == true) {
+        return TextButton.icon(
+          onPressed: _cancelSetup,
+          icon: const Icon(Icons.close, size: 16),
+          label: Text(tr("Cancel")),
+        );
+      }
       return TextButton.icon(
         onPressed: _setUpGenerator,
         icon: const Icon(Icons.download, size: 16),
