@@ -5,6 +5,7 @@ import 'package:maprisma_theme_core/maprisma_theme_core.dart';
 import 'package:maprisma_theme_core/src/ask_ai.dart';
 import 'package:maprisma_theme_core/src/theme_ai.dart';
 import 'package:maprisma_theme_core/src/web_images.dart';
+import 'package:maprisma_theme_core/src/images.dart' show maxBackgroundBytes;
 import 'package:test/test.dart';
 
 import 'support.dart';
@@ -150,6 +151,44 @@ void main() {
       final added = await web.add('nord', 'https://img.example.com/Snowy%20Hill.jpg');
       expect(added, endsWith('/web-Snowy-Hill.png'));
       expect(File(added).existsSync(), isTrue);
+    });
+
+    test('the cache is a private folder; a link or an oversized file there is never used', () async {
+      final env = TestEnv.create();
+      addTearDown(env.dispose);
+      env.addTheme('nord', wallpapers: const []);
+      var fetches = 0;
+      final web = WebImages(env.core.ctx,
+          fetch: (url, a, max, t) async {
+            fetches++;
+            return _png;
+          },
+          resolve: (h) async => [_ip('93.184.216.34')]);
+      const url = 'https://img.example.com/a.jpg';
+      final path = await web.get(url);
+      expect(FileStat.statSync(web.cacheDir).mode & 511, 448, reason: '0700');
+      Process.runSync('chmod', ['755', web.cacheDir]);
+      expect(await web.get(url), path);
+      expect(FileStat.statSync(web.cacheDir).mode & 511, 448, reason: 'closed again');
+
+      final secret = File('${env.root.path}/secret.png')..writeAsBytesSync(_png);
+      File(path).deleteSync();
+      Link(path).createSync(secret.path);
+      final again = await web.get(url); // the link is not a cached picture: fetched again, stored as a file
+      expect(FileSystemEntity.typeSync(again, followLinks: false), FileSystemEntityType.file);
+      expect(fetches, 2);
+
+      File(path).deleteSync();
+      final big = File(path).openSync(mode: FileMode.write)..truncateSync(maxBackgroundBytes + 1);
+      big.closeSync();
+      expect(readCachedBytes(path, maxBackgroundBytes), isNull);
+      await web.get(url); // oversized: not used, fetched again
+      expect(fetches, 3);
+    });
+
+    test('curl uses no proxy, so the checked address is the one connected', () {
+      final source = File('lib/src/web_images.dart').readAsStringSync();
+      expect(source, contains("'--noproxy', '*', '--resolve'"));
     });
   });
 }

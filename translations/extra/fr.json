@@ -688,5 +688,6 @@
   "Theme's own": "Celle du thème",
   "Theme's own ({0})": "Celle du thème ({0})",
   "The quick brown fox jumps over the lazy dog": "Portez ce vieux whisky au juge blond qui fume",
-  "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Utilisé chaque fois que ce thème est appliqué ; les fichiers du thème restent tels quels. Les thèmes sans choix rendent vos polices et votre flou et montrent leur propre couleur de texte."
+  "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Utilisé chaque fois que ce thème est appliqué ; les fichiers du thème restent tels quels. Les thèmes sans choix rendent vos polices et votre flou et montrent leur propre couleur de texte.",
+  "the picture cache {0} is not your own folder": "le cache d’images {0} n’est pas votre propre dossier"
 }

@@ -1384,7 +1384,8 @@ const translationCatalogs = <String, Map<String, String>>{
     "Theme's own": "Theme's own",
     "Theme's own ({0})": "Theme's own ({0})",
     "The quick brown fox jumps over the lazy dog": "The quick brown fox jumps over the lazy dog",
-    "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour."
+    "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.",
+    "the picture cache {0} is not your own folder": "the picture cache {0} is not your own folder"
   },
   "de": {
     "A key that applies this theme from anywhere": "Eine Taste, die dieses Theme von überall anwendet",
@@ -2770,7 +2771,8 @@ const translationCatalogs = <String, Map<String, String>>{
     "Theme's own": "Vom Theme",
     "Theme's own ({0})": "Vom Theme ({0})",
     "The quick brown fox jumps over the lazy dog": "Zwölf Boxkämpfer jagen Viktor quer über den großen Sylter Deich",
-    "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Wird verwendet, wann immer dieses Theme angewendet wird; die Theme-Dateien bleiben unverändert. Themes ohne eigene Wahl geben deine Schriften und Unschärfe zurück und zeigen ihre eigene Textfarbe."
+    "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Wird verwendet, wann immer dieses Theme angewendet wird; die Theme-Dateien bleiben unverändert. Themes ohne eigene Wahl geben deine Schriften und Unschärfe zurück und zeigen ihre eigene Textfarbe.",
+    "the picture cache {0} is not your own folder": "der Bild-Cache {0} ist nicht dein eigener Ordner"
   },
   "fr": {
     "A key that applies this theme from anywhere": "Une touche qui applique ce thème de partout",
@@ -4156,7 +4158,8 @@ const translationCatalogs = <String, Map<String, String>>{
     "Theme's own": "Celle du thème",
     "Theme's own ({0})": "Celle du thème ({0})",
     "The quick brown fox jumps over the lazy dog": "Portez ce vieux whisky au juge blond qui fume",
-    "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Utilisé chaque fois que ce thème est appliqué ; les fichiers du thème restent tels quels. Les thèmes sans choix rendent vos polices et votre flou et montrent leur propre couleur de texte."
+    "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Utilisé chaque fois que ce thème est appliqué ; les fichiers du thème restent tels quels. Les thèmes sans choix rendent vos polices et votre flou et montrent leur propre couleur de texte.",
+    "the picture cache {0} is not your own folder": "le cache d’images {0} n’est pas votre propre dossier"
   },
   "es": {
     "A key that applies this theme from anywhere": "Una tecla que aplica este tema desde cualquier lugar",
@@ -5542,7 +5545,8 @@ const translationCatalogs = <String, Map<String, String>>{
     "Theme's own": "El del tema",
     "Theme's own ({0})": "El del tema ({0})",
     "The quick brown fox jumps over the lazy dog": "El veloz murciélago hindú comía feliz cardillo y kiwi",
-    "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Se usa siempre que se aplica este tema; los archivos del tema no cambian. Los temas sin elección devuelven tus fuentes y desenfoque y muestran su propio color de texto."
+    "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Se usa siempre que se aplica este tema; los archivos del tema no cambian. Los temas sin elección devuelven tus fuentes y desenfoque y muestran su propio color de texto.",
+    "the picture cache {0} is not your own folder": "la caché de imágenes {0} no es tu propia carpeta"
   },
   "it": {
     "A key that applies this theme from anywhere": "Un tasto che applica questo tema ovunque",
@@ -6928,7 +6932,8 @@ const translationCatalogs = <String, Map<String, String>>{
     "Theme's own": "Quello del tema",
     "Theme's own ({0})": "Quello del tema ({0})",
     "The quick brown fox jumps over the lazy dog": "Pranzo d’acqua fa volti sghembi",
-    "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Usato ogni volta che questo tema viene applicato; i file del tema restano invariati. I temi senza scelta restituiscono i tuoi font e la sfocatura e mostrano il proprio colore del testo."
+    "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Usato ogni volta che questo tema viene applicato; i file del tema restano invariati. I temi senza scelta restituiscono i tuoi font e la sfocatura e mostrano il proprio colore del testo.",
+    "the picture cache {0} is not your own folder": "la cache delle immagini {0} non è una tua cartella"
   },
   "pt": {
     "A key that applies this theme from anywhere": "Uma tecla que aplica este tema de qualquer lugar",
@@ -8314,7 +8319,8 @@ const translationCatalogs = <String, Map<String, String>>{
     "Theme's own": "A do tema",
     "Theme's own ({0})": "A do tema ({0})",
     "The quick brown fox jumps over the lazy dog": "Luís argüia à Júlia que «brações, fé, chá, óxido, pôr, zângão» eram palavras do português",
-    "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Usado sempre que este tema é aplicado; os ficheiros do tema ficam como estão. Temas sem escolha devolvem os seus tipos de letra e desfoque e mostram a sua própria cor de texto."
+    "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Usado sempre que este tema é aplicado; os ficheiros do tema ficam como estão. Temas sem escolha devolvem os seus tipos de letra e desfoque e mostram a sua própria cor de texto.",
+    "the picture cache {0} is not your own folder": "o cache de imagens {0} não é a sua própria pasta"
   },
   "nl": {
     "A key that applies this theme from anywhere": "Een toets die dit thema overal toepast",
@@ -9700,7 +9706,8 @@ const translationCatalogs = <String, Map<String, String>>{
     "Theme's own": "Van het thema",
     "Theme's own ({0})": "Van het thema ({0})",
     "The quick brown fox jumps over the lazy dog": "Pa’s wijze lynx bezag vroom het fikse aquaduct",
-    "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Gebruikt telkens wanneer dit thema wordt toegepast; de themabestanden blijven ongewijzigd. Thema’s zonder keuze geven je eigen lettertypen en vervaging terug en tonen hun eigen tekstkleur."
+    "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Gebruikt telkens wanneer dit thema wordt toegepast; de themabestanden blijven ongewijzigd. Thema’s zonder keuze geven je eigen lettertypen en vervaging terug en tonen hun eigen tekstkleur.",
+    "the picture cache {0} is not your own folder": "de afbeeldingencache {0} is niet je eigen map"
   },
   "pl": {
     "A key that applies this theme from anywhere": "Klawisz, który stosuje ten motyw z dowolnego miejsca",
@@ -11086,6 +11093,7 @@ const translationCatalogs = <String, Map<String, String>>{
     "Theme's own": "Z motywu",
     "Theme's own ({0})": "Z motywu ({0})",
     "The quick brown fox jumps over the lazy dog": "Pchnąć w tę łódź jeża lub ośm skrzyń fig",
-    "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Używane zawsze, gdy ten motyw jest stosowany; pliki motywu pozostają bez zmian. Motywy bez wyboru przywracają Twoje czcionki i rozmycie oraz pokazują własny kolor tekstu."
+    "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Używane zawsze, gdy ten motyw jest stosowany; pliki motywu pozostają bez zmian. Motywy bez wyboru przywracają Twoje czcionki i rozmycie oraz pokazują własny kolor tekstu.",
+    "the picture cache {0} is not your own folder": "pamięć podręczna obrazów {0} nie jest twoim folderem"
   }
 };

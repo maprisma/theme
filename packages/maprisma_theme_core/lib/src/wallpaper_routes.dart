@@ -9,6 +9,7 @@ import 'context.dart';
 import 'images.dart';
 import 'posix.dart';
 import 'themes.dart';
+import 'store.dart' show readCachedBytes;
 import 'trash.dart';
 import 'wallhaven.dart';
 import 'wallpapers.dart';
@@ -237,7 +238,8 @@ Map<String, Handler> wallpaperRoutes(Ctx ctx, {Fetch? fetch}) {
           FileSystemEntity.typeSync(path, followLinks: false) != FileSystemEntityType.file) {
         throw RouteError('bad_params', 'path');
       }
-      final added = addBackgroundBytes(ctx, theme.slug, File(path).readAsBytesSync(), baseName(path));
+      final bytes = readCachedBytes(path, maxBackgroundBytes) ?? (throw RouteError('bad_params', 'path'));
+      final added = addBackgroundBytes(ctx, theme.slug, bytes, baseName(path));
       var set = false;
       if (boolParam(p, 'set', fallback: false) && theme.slug == ctx.current.slug) set = await setBackground(ctx, added);
       return {'path': added, 'name': baseName(added), 'set': set};

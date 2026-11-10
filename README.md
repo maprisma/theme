@@ -23,7 +23,12 @@ and uses the same theme format (Omarchy's `colors.toml`), so themes move freely 
 - **Ask AI** (off by default): describe what you want and get up to three themes to look at, from Claude Code,
   Codex, pi or Hermes, or a local model. It runs only when you click Ask, without tools (Codex read-only in a jail), and gets only your
   words, the installed themes' names and colors, the names of up to 300 omarchy.org catalog themes and your
-  font names.
+  font names. **Ask AI for wallpapers** (on the wallpaper search page) sends your words and that theme's name
+  and colors; with **Search the web for wallpapers** on (Settings → Ask AI, on by default) a helper with web
+  tools (now Claude Code, with only its web search and fetch tools) may search the web for pictures. Those are
+  downloaded only from public `https` addresses (every address the name resolves to is checked, curl is pinned
+  to it with no proxy, no redirects, at most 50 MiB) into a private cache. Switch the setting off to keep Ask AI
+  without web tools.
 - **Interface languages**: English, Deutsch, Français, Español, Italiano, Português, Nederlands and Polski.
   Follow the system or choose one in **Settings → General → Language**; changes take effect immediately.
 - **Backup and restore** of all settings.

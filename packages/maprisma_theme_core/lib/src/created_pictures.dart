@@ -9,7 +9,8 @@ import 'package:crypto/crypto.dart';
 
 import 'context.dart';
 import 'images.dart';
-import 'store.dart' show chmodPath;
+import 'posix.dart';
+import 'store.dart' show chmodPath, ensurePrivateCache;
 
 /// Wallpapers made on this computer: Z-Image Turbo through stable-diffusion.cpp
 /// (Vulkan), all in Maprisma Theme's own folder ($XDG_DATA_HOME/maprisma-theme/
@@ -78,6 +79,8 @@ final class CurlDownloader implements Downloader {
     final process = await Process.start('curl', [
       '-fsSL', '--proto', '=https', '--proto-redir', '=https', '--max-redirs', '5',
       '--max-filesize', '$maxBytes', '--speed-limit', '1024', '--speed-time', '120',
+      // A whole deadline too: an hour plus the time the size needs at 256 KiB/s.
+      '--max-time', '${3600 + maxBytes ~/ (256 * 1024)}',
       if (from > 0) ...['-C', '$from'],
       '--', url,
     ], environment: environment);
@@ -485,7 +488,7 @@ final class CreatedPictures {
     final text = prompt.replaceAll(RegExp(r'[\x00-\x1f\x7f]'), ' ').split(RegExp(r'\s+')).where((w) => w.isNotEmpty).join(' ');
     if (text.isEmpty) throw RouteError('bad_params', 'prompt');
     final words = text.length > maxPicturePrompt ? text.substring(0, maxPicturePrompt) : text;
-    Directory(cacheDir).createSync(recursive: true);
+    ensurePrivateCache(cacheDir, uid: Posix.instance.uid, ownerOf: Posix.instance.owner);
     final out = '$cacheDir/created-${DateTime.now().millisecondsSinceEpoch}-${seed & 0x7fffffff}.png';
     _cancelled = false;
     final argv = [

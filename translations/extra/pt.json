@@ -688,5 +688,6 @@
   "Theme's own": "A do tema",
   "Theme's own ({0})": "A do tema ({0})",
   "The quick brown fox jumps over the lazy dog": "Luís argüia à Júlia que «brações, fé, chá, óxido, pôr, zângão» eram palavras do português",
-  "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Usado sempre que este tema é aplicado; os ficheiros do tema ficam como estão. Temas sem escolha devolvem os seus tipos de letra e desfoque e mostram a sua própria cor de texto."
+  "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Usado sempre que este tema é aplicado; os ficheiros do tema ficam como estão. Temas sem escolha devolvem os seus tipos de letra e desfoque e mostram a sua própria cor de texto.",
+  "the picture cache {0} is not your own folder": "o cache de imagens {0} não é a sua própria pasta"
 }

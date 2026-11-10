@@ -688,5 +688,6 @@
   "Theme's own": "Z motywu",
   "Theme's own ({0})": "Z motywu ({0})",
   "The quick brown fox jumps over the lazy dog": "Pchnąć w tę łódź jeża lub ośm skrzyń fig",
-  "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Używane zawsze, gdy ten motyw jest stosowany; pliki motywu pozostają bez zmian. Motywy bez wyboru przywracają Twoje czcionki i rozmycie oraz pokazują własny kolor tekstu."
+  "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Używane zawsze, gdy ten motyw jest stosowany; pliki motywu pozostają bez zmian. Motywy bez wyboru przywracają Twoje czcionki i rozmycie oraz pokazują własny kolor tekstu.",
+  "the picture cache {0} is not your own folder": "pamięć podręczna obrazów {0} nie jest twoim folderem"
 }

@@ -74,6 +74,20 @@ class _WallhavenPageState extends State<WallhavenPage> {
   Map? aiHelper;
   bool asking = false;
 
+  /// Each Ask (and Next's web ask) belongs to this number; a new search, another
+  /// helper or leaving the page moves it on, so an answer still on its way is
+  /// stale and never shown or acted on.
+  int askGen = 0;
+
+  /// The running Ask no longer fits: it is stopped, its answer is stale.
+  void dropAsk() {
+    askGen++;
+    if (asking) {
+      app.call('ask.cancel').ignore();
+      asking = false;
+    }
+  }
+
   /// The ready helpers (signed in) for the choice at the title's right, and
   /// whether Settings › Ask AI lets a helper search the web.
   List<Map> aiReady = [];
@@ -128,6 +142,7 @@ class _WallhavenPageState extends State<WallhavenPage> {
     final h = aiReady.where((h) => h['id'] == id).firstOrNull;
     if (h == null || h['id'] == aiHelper?['id']) return;
     setState(() {
+      dropAsk(); // the old helper's answer is not this helper's
       aiHelper = h;
       aiWeb = h['web'] == true && aiWebAllowed;
     });
@@ -169,6 +184,7 @@ class _WallhavenPageState extends State<WallhavenPage> {
     final words = aiField.text.trim();
     final helper = aiHelper;
     if (words.isEmpty || helper == null || asking) return;
+    final mine = ++askGen;
     setState(() {
       asking = true;
       aiSummary = '';
@@ -189,7 +205,7 @@ class _WallhavenPageState extends State<WallhavenPage> {
     } catch (e) {
       error = failText(e);
     }
-    if (!mounted) return;
+    if (!mounted || mine != askGen) return; // a new search, another helper: stale
     final queries = [for (final q in (r?['queries'] as List?) ?? const []) if (q is String) q];
     final pictures = [
       for (final (i, e) in ((r?['images'] as List?) ?? const []).indexed)
@@ -337,6 +353,7 @@ class _WallhavenPageState extends State<WallhavenPage> {
 
   Future<void> moreFromWeb() async {
     final helper = aiHelper!;
+    final mine = ++askGen;
     setState(() {
       asking = true;
       status = trf("Asking {0} for more pictures from the web…", [helper['name']]);
@@ -355,7 +372,7 @@ class _WallhavenPageState extends State<WallhavenPage> {
     } catch (e) {
       error = failText(e);
     }
-    if (!mounted) return;
+    if (!mounted || mine != askGen) return; // a new search, another helper: stale
     final fresh = [
       for (final (i, e) in ((r?['images'] as List?) ?? const []).indexed)
         if (e is Map && e['url'] is String && !webPictures.any((w) => w['url'] == e['url'])) webItem(e, webPictures.length + i),
@@ -376,13 +393,14 @@ class _WallhavenPageState extends State<WallhavenPage> {
 
   /// Shows the next batch of wallhaven results, loading pages as needed.
   Future<void> revealMore() async {
+    final gen = generation;
     final want = shownCount + count;
-    while (mounted && results.length < want && page < lastPage) {
+    while (mounted && gen == generation && results.length < want && page < lastPage) {
       final before = results.length;
       await loadMore();
       if (results.length == before) break;
     }
-    if (!mounted) return;
+    if (!mounted || gen != generation) return; // another search meanwhile: its own count
     setState(() {
       shownCount = math.min(want, results.length);
       status = trf("{0} of {1}+ wallpapers for “{2}”.{3}", [shownCount, results.length, query, moreResults ? tr(" Next shows more.") : '']);
@@ -423,6 +441,7 @@ class _WallhavenPageState extends State<WallhavenPage> {
   @override
   void dispose() {
     generation++;
+    askGen++;
     if (previewShown) app.call('wallpapers.preview_end').ignore();
     previewTimer?.cancel();
     field.dispose();
@@ -446,6 +465,7 @@ class _WallhavenPageState extends State<WallhavenPage> {
     final q = field.text.trim();
     if (q.isEmpty) return;
     generation++;
+    dropAsk(); // a new search: an Ask still on its way never starts its own
     _thumbQueue.removeWhere((x) => !isWeb(x));
     setState(() {
       query = q;
@@ -509,7 +529,10 @@ class _WallhavenPageState extends State<WallhavenPage> {
           path = null;
         }
         _thumbsRunning--;
-        if (!mounted || (gen != generation && !isWeb(item))) return;
+        if (!mounted) return;
+        // A wallhaven thumb of an older search, or a web picture no longer shown
+        // (a newer Ask replaced the list): nothing changes.
+        if (isWeb(item) ? !webPictures.contains(item) : gen != generation) return;
         setState(() {
           thumbs[item['id'] as String] = path;
           // A web link that is no usable picture (or not public) is left out.

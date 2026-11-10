@@ -32,7 +32,7 @@ Future<Uint8List?> fetchPinned(String url, InternetAddress address, int maxBytes
   final ip = address.type == InternetAddressType.IPv6 ? '[${address.address}]' : address.address;
   final data = await readBoundedBytes([
     'curl', '--silent', '--fail', '--proto', '=https', '--max-redirs', '0',
-    '--resolve', '$host:443:$ip',
+    '--noproxy', '*', '--resolve', '$host:443:$ip', // no proxy: the checked address is the one used
     '--max-time', '${timeout.inSeconds}', '--max-filesize', '$maxBytes', '--', url,
   ], maxBytes: maxBytes, timeout: timeout + const Duration(seconds: 2));
   return data == null || data.isEmpty ? null : data;
@@ -89,12 +89,24 @@ final class WebImages {
 
   String _key(String url) => sha256.convert(utf8.encode(url)).toString().substring(0, 32);
 
+  /// The cache folder, made or closed to others; throws when it is a link or
+  /// someone else's.
+  void _privateCache() {
+    try {
+      ensurePrivateCache(cacheDir, uid: Posix.instance.uid, ownerOf: Posix.instance.owner);
+    } on FileSystemException {
+      throw RouteError('io', trf("the picture cache {0} is not your own folder", [cacheDir]));
+    }
+  }
+
   String? _cached(String url) {
+    _privateCache();
     for (final ext in const ['.jpg', '.png', '.webp']) {
       final path = '$cacheDir/${_key(url)}$ext';
-      if (FileSystemEntity.typeSync(path, followLinks: false) == FileSystemEntityType.file) {
-        return imageSizeProblem(path) == null ? path : null;
-      }
+      final type = FileSystemEntity.typeSync(path, followLinks: false);
+      if (type == FileSystemEntityType.notFound) continue;
+      if (type != FileSystemEntityType.file || File(path).lengthSync() > maxBackgroundBytes) return null;
+      return imageSizeProblem(path) == null ? path : null;
     }
     return null;
   }
@@ -122,7 +134,9 @@ final class WebImages {
     final problem = imageBytesProblem(data);
     if (problem != null) throw RouteError('bad_image', problem);
     final path = '$cacheDir/${_key(url)}$ext';
-    writeAtomic(path, data);
+    _privateCache();
+    if (FileSystemEntity.typeSync(path, followLinks: false) == FileSystemEntityType.link) Link(path).deleteSync();
+    writeAtomic(path, data); // never through a link: a link there was removed first
     _prune();
     return path;
   }
@@ -140,7 +154,9 @@ final class WebImages {
   Future<String> add(String slug, Object? rawUrl) async {
     final path = await get(rawUrl);
     final url = checkUrl(rawUrl);
-    return addBackgroundBytes(ctx, slug, File(path).readAsBytesSync(), fileNameOf(url, path));
+    final bytes = readCachedBytes(path, maxBackgroundBytes) ??
+        (throw RouteError('bad_image', tr("the link is not a JPEG, PNG or WebP picture")));
+    return addBackgroundBytes(ctx, slug, bytes, fileNameOf(url, path));
   }
 
   void _prune() {

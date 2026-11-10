@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:ffi';
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
 
@@ -96,6 +97,37 @@ bool chmodPath(String path, int mode) {
 }
 
 void _chmod(String path, int mode) => chmodPath(path, mode);
+
+/// A cache folder of this account's, closed to others: made 0700 when
+/// missing, closed (0700) when it was open to others; a link or a folder of
+/// someone else's throws, so nothing is read from or written into it.
+void ensurePrivateCache(String dir, {required int uid, required int? Function(String) ownerOf}) {
+  if (FileSystemEntity.typeSync(dir, followLinks: false) == FileSystemEntityType.notFound) {
+    Directory(dir).createSync(recursive: true);
+  }
+  if (FileSystemEntity.typeSync(dir, followLinks: false) != FileSystemEntityType.directory || ownerOf(dir) != uid) {
+    throw FileSystemException('not a folder of yours', dir);
+  }
+  if (FileStat.statSync(dir).mode & 63 /* 077 */ != 0) _chmod(dir, 448 /* 0700 */);
+}
+
+/// The bytes of a cached picture: a regular file (no link), at most [limit]
+/// bytes, read bounded from the opened file; null otherwise.
+Uint8List? readCachedBytes(String path, int limit) {
+  try {
+    if (FileSystemEntity.typeSync(path, followLinks: false) != FileSystemEntityType.file) return null;
+    final raf = File(path).openSync();
+    try {
+      if (raf.lengthSync() > limit) return null;
+      final bytes = raf.readSync(limit + 1);
+      return bytes.length > limit ? null : bytes;
+    } finally {
+      raf.closeSync();
+    }
+  } on FileSystemException {
+    return null;
+  }
+}
 
 /// A JSON object file with typed access, re-read on every [load].
 final class JsonFile {

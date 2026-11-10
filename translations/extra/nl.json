@@ -688,5 +688,6 @@
   "Theme's own": "Van het thema",
   "Theme's own ({0})": "Van het thema ({0})",
   "The quick brown fox jumps over the lazy dog": "Pa’s wijze lynx bezag vroom het fikse aquaduct",
-  "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Gebruikt telkens wanneer dit thema wordt toegepast; de themabestanden blijven ongewijzigd. Thema’s zonder keuze geven je eigen lettertypen en vervaging terug en tonen hun eigen tekstkleur."
+  "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Gebruikt telkens wanneer dit thema wordt toegepast; de themabestanden blijven ongewijzigd. Thema’s zonder keuze geven je eigen lettertypen en vervaging terug en tonen hun eigen tekstkleur.",
+  "the picture cache {0} is not your own folder": "de afbeeldingencache {0} is niet je eigen map"
 }

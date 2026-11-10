@@ -688,5 +688,6 @@
   "Theme's own": "El del tema",
   "Theme's own ({0})": "El del tema ({0})",
   "The quick brown fox jumps over the lazy dog": "El veloz murciélago hindú comía feliz cardillo y kiwi",
-  "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Se usa siempre que se aplica este tema; los archivos del tema no cambian. Los temas sin elección devuelven tus fuentes y desenfoque y muestran su propio color de texto."
+  "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Se usa siempre que se aplica este tema; los archivos del tema no cambian. Los temas sin elección devuelven tus fuentes y desenfoque y muestran su propio color de texto.",
+  "the picture cache {0} is not your own folder": "la caché de imágenes {0} no es tu propia carpeta"
 }

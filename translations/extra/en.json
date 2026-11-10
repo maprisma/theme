@@ -688,5 +688,6 @@
   "Theme's own": "Theme's own",
   "Theme's own ({0})": "Theme's own ({0})",
   "The quick brown fox jumps over the lazy dog": "The quick brown fox jumps over the lazy dog",
-  "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour."
+  "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.",
+  "the picture cache {0} is not your own folder": "the picture cache {0} is not your own folder"
 }
