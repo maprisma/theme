@@ -856,21 +856,27 @@ class _WallhavenPageState extends State<WallhavenPage> {
       section: false,
       backTooltip: tr("Back to the wallpapers (Backspace or Esc)"),
       body: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Focus(
-          onKeyEvent: onFieldKey,
-          child: TextField(
-            controller: field,
-            focusNode: fieldFocus,
-            maxLength: 100,
-            textInputAction: TextInputAction.search,
-            decoration: InputDecoration(
-              prefixIcon: Icon(Icons.search, size: 18),
-              hintText: tr("Search, e.g. misty forest, neon city"),
-              counterText: '',
+        Row(children: [
+          Expanded(
+            child: Focus(
+              onKeyEvent: onFieldKey,
+              child: TextField(
+                controller: field,
+                focusNode: fieldFocus,
+                maxLength: 100,
+                textInputAction: TextInputAction.search,
+                decoration: InputDecoration(
+                  prefixIcon: Icon(Icons.search, size: 18),
+                  hintText: tr("Search, e.g. misty forest, neon city"),
+                  counterText: '',
+                ),
+                onSubmitted: (_) => search(),
+              ),
             ),
-            onSubmitted: (_) => search(),
           ),
-        ),
+          // Without Ask AI the batch size sits here; with it, next to Ask (one on screen).
+          if (aiHelper == null) ...[const SizedBox(width: 6), countChoice()],
+        ]),
         if (aiHelper != null) ...[
           const SizedBox(height: 8),
           aiRow(),

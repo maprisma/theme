@@ -473,4 +473,44 @@ void main() {
     expect(find.textContaining('Applied Fireside with Snow peak.'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('wallpapers: without Ask AI the batch size sits next to the search field', (tester) async {
+    tester.view.physicalSize = const Size(1300, 820);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.runAsync(() async {
+      await tester.pumpWidget(MaprismaThemeApp(call: call));
+    });
+    await settle(tester);
+    final app = tester.state<MaprismaThemeAppState>(find.byType(MaprismaThemeApp));
+    await tester.runAsync(() async {
+      app.navigator.currentState!.push(MaterialPageRoute<void>(
+          builder: (_) => const WallhavenPage(slug: 'kanagawa', themeName: 'Kanagawa', current: true)));
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      }
+    });
+    await settle(tester);
+    expect(find.text('Ask'), findsNothing);
+    expect(find.text('10 pictures'), findsOneWidget);
+    final field = tester.getRect(find.byType(TextField).first), choice = tester.getRect(find.text('10 pictures'));
+    expect((choice.center.dy - field.center.dy).abs(), lessThan(8), reason: 'on the search field\'s row');
+    await tester.tap(find.text('10 pictures'));
+    await settle(tester, 100);
+    await tester.tap(find.text('5 pictures').last);
+    await settle(tester, 100);
+    expect(find.text('5 pictures'), findsOneWidget);
+    await tester.enterText(find.byType(TextField).first, 'fjord');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await settle(tester);
+    expect(tester.widget<TileGrid>(find.byType(TileGrid)).count, 5);
+    await tester.drag(find.byType(ListView).last, const Offset(0, -3000));
+    await settle(tester, 100);
+    expect(find.text('Next 5'), findsOneWidget);
+    await tester.tap(find.text('Next 5'));
+    await settle(tester);
+    expect(tester.widget<TileGrid>(find.byType(TileGrid)).count, 10);
+    expect(tester.takeException(), isNull);
+  });
 }
