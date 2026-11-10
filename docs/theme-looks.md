@@ -100,3 +100,26 @@ pending was changed elsewhere (`looks.apply`).
 4. Flutter: the Font & effects dialog on theme cards and in the theme details.
 
 Codex reviews each step (read-only); findings are verified before fixing.
+
+## Text colour (added 2026-11-10)
+
+Asked: a **Text colour** in Font & effects, per theme like the fonts and blur.
+
+- `looks.json`: `"text_color": "#rrggbb"` (lower case); absent = the theme's own `foreground`.
+- Unlike fonts and blur it is one of the theme's colours, so it is applied *with* them: `applyTheme`
+  puts it in place of `foreground` in the resolved colours before the desktop's own theme
+  (COSMIC through the helper as Settings would, KDE's generated scheme), the desktop terminal
+  (Konsole/COSMIC Terminal) and the app templates (Alacritty, foot, kitty, ghostty, btop, Helix,
+  Neovim, VS Code…) are written. Only `foreground` changes; derived colours such as
+  `bright_foreground` stay the theme's.
+- Native schemes: a KDE theme's `kde.colors` is applied with `ForegroundNormal` set in its text
+  groups (View, Window, Button, Tooltip, Complementary, Header; Selection keeps its own); a native
+  COSMIC RON theme with a text colour goes through its colours (the RON has no single text colour).
+  The theme files never change and no theme copy is made.
+- No "own" value: every theme has a foreground, so a theme without a text colour simply shows its
+  own (there is nothing of the user's to bring back, unlike fonts and blur).
+- Pending/Reapply: the colour the last apply wrote is kept in `$state/look-applied.json`
+  (`{theme, text_color}`); a saved but not applied change on the theme in use is pending
+  (`text_color`), and Apply/Reapply applies the theme again with its current wallpaper.
+- The dialog shows a swatch (the editor's picker), "Theme's own", a preview on the theme's
+  background and a warning below WCAG 3:1 contrast.

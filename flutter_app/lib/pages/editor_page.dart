@@ -708,6 +708,10 @@ class _EditorPageState extends State<EditorPage> {
 
 /// A small HSV color picker: a saturation/value square, a hue bar, and a
 /// #rrggbb field. Pops the picked color as #rrggbb.
+/// The editor's colour picker for other dialogs (Font & effects): the chosen #rrggbb, or null.
+Future<String?> pickColor(BuildContext context, String initial, String label) =>
+    showDialog<String>(context: context, builder: (context) => _ColorPickerDialog(initial: initial, label: label));
+
 class _ColorPickerDialog extends StatefulWidget {
   const _ColorPickerDialog({required this.initial, required this.label});
   final String initial, label;

@@ -166,3 +166,25 @@ String konsoleProfile(String? existing, String profileName, String scheme) {
   }
   return text;
 }
+
+/// The scheme's colour groups whose main text is the theme's foreground
+/// (Selection keeps its own: text on the selection colour).
+const kdeTextGroups = [
+  'Colors:View', 'Colors:Window', 'Colors:Button', 'Colors:Tooltip',
+  'Colors:Complementary', 'Colors:Header', 'Colors:Header][Inactive',
+];
+
+/// [scheme] with [hex] (#rrggbb) as ForegroundNormal in every text group it has.
+String kdeWithForeground(String scheme, String hex) {
+  final m = RegExp(r'^#([0-9a-fA-F]{6})$').firstMatch(hex);
+  if (m == null) return scheme;
+  final v = int.parse(m[1]!, radix: 16);
+  final rgb = '${v >> 16 & 255},${v >> 8 & 255},${v & 255}';
+  var text = scheme;
+  for (final g in kdeTextGroups) {
+    if (RegExp('^\\[${RegExp.escape(g)}\\]\\s*\$', multiLine: true).hasMatch(text)) {
+      text = setIniValue(text, g, 'ForegroundNormal', rgb);
+    }
+  }
+  return text;
+}

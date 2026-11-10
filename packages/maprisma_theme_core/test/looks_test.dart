@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:maprisma_theme_core/maprisma_theme_core.dart';
+import 'package:maprisma_theme_core/src/apps.dart' show currentAppsDir;
+import 'package:maprisma_theme_core/src/kde_formats.dart' show kdeWithForeground;
 import 'package:test/test.dart';
 
 import 'support.dart';
@@ -264,5 +266,58 @@ void main() {
     data['files']['looks.json'] = {'nord': {'mono_font': 'x; y'}};
     File(file).writeAsStringSync(jsonEncode(data));
     await expectLater(call('backup.preview', {'path': file}), throwsA(anything));
+  });
+
+  test('text colour: in place of the foreground on the desktop, terminal and apps; pending until applied', () async {
+    File('../../templates/alacritty.toml.tpl').copySync('${env.paths.templates}/alacritty.toml.tpl');
+    final colorsToml = File('${env.paths.systemThemes}/nord/colors.toml').readAsStringSync();
+    await call('themes.apply', {'slug': 'nord'});
+    expect(env.desktop.lastColors!['foreground'], '#d8dee9');
+    expect(checkLook({'text_color': 'red'}), isNull);
+    expect(checkLook({'text_color': '#FF8800'}), {'text_color': '#ff8800'});
+
+    final r = await call('looks.set', {'slug': 'nord', 'look': {'text_color': '#FF8800'}, 'apply': false});
+    expect(r['pending'], ['text_color']);
+    expect(env.desktop.lastColors!['foreground'], '#d8dee9', reason: 'stored only');
+    expect((await call('looks.get', {'slug': 'nord'}))['look'], {'text_color': '#ff8800'});
+
+    final a = await call('looks.apply', {'slug': 'nord'});
+    expect(a['applied'], contains('text_color'));
+    expect(env.desktop.lastColors!['foreground'], '#ff8800');
+    expect(env.desktop.lastColors!['background'], '#2e3440', reason: 'only the foreground');
+    expect(env.desktop.lastTerminal!['foreground'], '#ff8800');
+    expect(File('${currentAppsDir(env.core.ctx)}/alacritty.toml').readAsStringSync(), contains('foreground = "#ff8800"'));
+    expect((await call('looks.get', {'slug': 'nord'}))['pending'], isEmpty);
+    expect(File('${env.paths.systemThemes}/nord/colors.toml').readAsStringSync(), colorsToml, reason: 'theme files unchanged');
+
+    // another theme shows its own text colour; back on nord the look comes again
+    await call('themes.apply', {'slug': 'mine'});
+    expect(env.desktop.lastColors!['foreground'], '#d8dee9');
+    await call('themes.apply', {'slug': 'nord'});
+    expect(env.desktop.lastColors!['foreground'], '#ff8800');
+
+    // Theme's own again, applied at once on the theme in use
+    final b = await call('looks.set', {'slug': 'nord', 'look': {}, 'apply': true});
+    expect(b['applied'], contains('text_color'));
+    expect(env.desktop.lastColors!['foreground'], '#d8dee9');
+    expect(b['pending'], isEmpty);
+    final info = await call('looks.get', {'slug': 'nord'});
+    expect(info['text_color'], {'theme': '#d8dee9', 'background': '#2e3440'});
+  });
+
+  test('text colour on a native KDE scheme: its text roles, the file itself unchanged', () async {
+    final kde = TestEnv.create(desktop: FakeDesktop(id: 'kde', name: 'KDE Plasma'));
+    addTearDown(kde.dispose);
+    final dir = kde.addTheme('breezy');
+    File('$dir/kde.colors').writeAsStringSync('[Colors:View]\nForegroundNormal=1,2,3\n');
+    await kde.core.call('looks.set', {'slug': 'breezy', 'look': {'text_color': '#102030'}});
+    await kde.core.call('themes.apply', {'slug': 'breezy'});
+    expect(kde.desktop.calls, contains('applyKdeScheme $dir/kde.colors foreground=#102030'));
+    expect(File('$dir/kde.colors').readAsStringSync(), contains('ForegroundNormal=1,2,3'));
+    final scheme = '[Colors:View]\nForegroundNormal=1,2,3\n[Colors:Selection]\nForegroundNormal=9,9,9\n[Colors:Window]\nForegroundNormal=4,5,6\n';
+    final out = kdeWithForeground(scheme, '#102030');
+    expect(out, contains('[Colors:View]\nForegroundNormal=16,32,48'));
+    expect(out, contains('[Colors:Window]\nForegroundNormal=16,32,48'));
+    expect(out, contains('[Colors:Selection]\nForegroundNormal=9,9,9'), reason: 'text on the selection stays');
   });
 }

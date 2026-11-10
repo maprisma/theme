@@ -680,5 +680,13 @@
   "{0} is not a plain file; remove it and try again": "{0} is not a plain file; remove it and try again",
   "Ask AI wants to make this picture on this computer. The picture generator is not set up yet: {0} GB to download once.": "Ask AI wants to make this picture on this computer. The picture generator is not set up yet: {0} GB to download once.",
   "(checking a copy found on this computer)": "(checking a copy found on this computer)",
-  "it is being set up already": "it is being set up already"
+  "it is being set up already": "it is being set up already",
+  "Choose a text colour": "Choose a text colour",
+  "Hard to read: contrast {0}:1 with the background (at least 3:1 is advised)": "Hard to read: contrast {0}:1 with the background (at least 3:1 is advised)",
+  "Text colour": "Text colour",
+  "The main text colour of the desktop, terminals and editors with this theme": "The main text colour of the desktop, terminals and editors with this theme",
+  "Theme's own": "Theme's own",
+  "Theme's own ({0})": "Theme's own ({0})",
+  "The quick brown fox jumps over the lazy dog": "The quick brown fox jumps over the lazy dog",
+  "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour."
 }

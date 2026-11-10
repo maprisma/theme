@@ -48,7 +48,10 @@ Future<Map<String, String>> themeColors(Ctx ctx, ThemeInfo theme) async {
 /// [wallpaper]: a file to show instead of the theme's start wallpaper.
 Future<Map<String, dynamic>> applyTheme(Ctx ctx, String slug, {String? wallpaper, bool remember = true}) async {
   final theme = ctx.theme(slug);
-  final resolved = await themeColors(ctx, theme);
+  // A look's text colour in place of the theme's foreground (theme files stay as they are).
+  final textColor = lookTextColor(ctx, theme);
+  var resolved = await themeColors(ctx, theme);
+  if (textColor != null) resolved = {...resolved, 'foreground': textColor};
   if (!isHex(resolved['background']) || !isHex(resolved['foreground'])) {
     throw RouteError('bad_theme', tr("the theme has no usable colors"));
   }
@@ -57,8 +60,9 @@ Future<Map<String, dynamic>> applyTheme(Ctx ctx, String slug, {String? wallpaper
   final done = <String>[];
   if (desktop.caps.contains(Cap.appearance)) {
     final ok = theme.kdeNative && desktop.caps.contains(Cap.kdeScheme)
-        ? await desktop.applyKdeScheme('${theme.dir}/kde.colors')
-        : theme.cosmicNative && desktop.caps.contains(Cap.ron)
+        ? await desktop.applyKdeScheme('${theme.dir}/kde.colors', foreground: textColor)
+        // a COSMIC RON theme with a text colour goes as its colours (the RON has no single text colour)
+        : theme.cosmicNative && desktop.caps.contains(Cap.ron) && textColor == null
         ? await desktop.applyRon('${theme.dir}/cosmic.ron')
         : await desktop.applyColors(object);
     if (!ok) {
@@ -85,6 +89,7 @@ Future<Map<String, dynamic>> applyTheme(Ctx ctx, String slug, {String? wallpaper
   }
   if (await ctx.desktop.setTerminal(object, theme.name)) done.add('terminal');
   done.addAll(await applyAppTemplates(ctx, theme, resolved));
+  markTextColorApplied(ctx, slug, textColor);
 
   if (remember) {
     ctx.lists.markUsed(slug, at: ctx.clock());

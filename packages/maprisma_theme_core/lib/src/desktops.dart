@@ -59,7 +59,7 @@ final class GenericDesktop extends DesktopBase {
   @override
   Future<bool> applyRon(String path) async => false;
   @override
-  Future<bool> applyKdeScheme(String path) async => false;
+  Future<bool> applyKdeScheme(String path, {String? foreground}) async => false;
   @override
   Future<Map<String, dynamic>?> current() async => null;
   @override

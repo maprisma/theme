@@ -1,13 +1,35 @@
 import '../i18n.dart';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../app.dart';
+import 'editor_page.dart' show pickColor;
+
+/// WCAG contrast ratio of two #rrggbb colours (1..21).
+double contrastRatio(String a, String b) {
+  double lum(String hex) {
+    final v = int.parse(hex.substring(1), radix: 16);
+    double ch(int c) {
+      final s = c / 255;
+      return s <= .03928 ? s / 12.92 : math.pow((s + .055) / 1.055, 2.4).toDouble();
+    }
+
+    return .2126 * ch(v >> 16 & 255) + .7152 * ch(v >> 8 & 255) + .0722 * ch(v & 255);
+  }
+
+  final x = lum(a), y = lum(b);
+  return (math.max(x, y) + .05) / (math.min(x, y) + .05);
+}
+
+/// Below this the text is hard to read on the theme's background.
+const minTextContrast = 3.0;
 
 /// Font & effects for any theme (docs/theme-looks.md): the monospace font,
-/// the interface font and blur, each "Theme default" or a value of its own.
+/// the interface font, blur and the text colour, each "Theme default" or a
+/// value of its own.
 /// Saved in looks.json, with Undo. One button, Apply (as in the Omarchy plugin):
 /// enabled once something changed; it stores the look, and the theme in use
 /// gets it on the desktop at once.
@@ -60,6 +82,9 @@ class _LookDialogState extends State<_LookDialog> {
   /// null: the theme's default; else {on, strength}.
   late Map<String, dynamic>? blur = widget.look['blur'] is Map ? Map<String, dynamic>.from(widget.look['blur'] as Map) : null;
 
+  /// null: the theme's own foreground; else #rrggbb.
+  late String? textColor = widget.look['text_color'] as String?;
+
   bool saving = false;
   final _menus = {'mono_font': MenuController(), 'ui_font': MenuController()};
   final _fields = {'mono_font': FocusNode(), 'ui_font': FocusNode()};
@@ -92,7 +117,82 @@ class _LookDialogState extends State<_LookDialog> {
     return false;
   }
 
-  Map<String, dynamic> get _edited => {if (mono != null) 'mono_font': mono, if (ui != null) 'ui_font': ui, if (blur != null) 'blur': blur};
+  Map<String, dynamic> get _edited => {
+    if (mono != null) 'mono_font': mono,
+    if (ui != null) 'ui_font': ui,
+    if (blur != null) 'blur': blur,
+    if (textColor != null) 'text_color': textColor,
+  };
+
+  Map get _textInfo => widget.data['text_color'] as Map? ?? const {};
+  String get _themeText => (_textInfo['theme'] as String?) ?? '#ffffff';
+  String get _background => (_textInfo['background'] as String?) ?? '#000000';
+  static Color _c(String hex) => Color(0xff000000 | int.parse(hex.substring(1), radix: 16));
+
+  /// Text colour: a swatch that opens the picker, Theme's own back, a contrast
+  /// warning, and a preview on the theme's background.
+  Widget _textColorRow(TextStyle? small) {
+    final shown = textColor ?? _themeText;
+    final ratio = contrastRatio(shown, _background);
+    final look = Theme.of(context);
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      _Row(
+        label: tr("Text colour"),
+        tip: tr("The main text colour of the desktop, terminals and editors with this theme"),
+        child: Row(children: [
+          Tooltip(
+            message: tr("Choose a text colour"),
+            child: InkWell(
+              key: const ValueKey('look-text-color'),
+              borderRadius: BorderRadius.circular(6),
+              onTap: () async {
+                final picked = await pickColor(context, shown, tr("Text colour"));
+                if (picked != null && mounted) setState(() => textColor = picked.toLowerCase() == _themeText.toLowerCase() ? null : picked.toLowerCase());
+              },
+              child: Container(
+                width: 36,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: _c(shown),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: look.colorScheme.outline),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(textColor == null ? trf("Theme's own ({0})", [_themeText]) : textColor!, style: small),
+          const SizedBox(width: 8),
+          if (textColor != null)
+            TextButton(
+              key: const ValueKey('look-text-color-reset'),
+              onPressed: () => setState(() => textColor = null),
+              child: Text(tr("Theme's own")),
+            ),
+        ]),
+      ),
+      Padding(
+        padding: const EdgeInsets.only(left: 160, bottom: 8),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Container(
+            key: const ValueKey('look-text-preview'),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(color: _c(_background), borderRadius: BorderRadius.circular(6)),
+            child: Text(tr("The quick brown fox jumps over the lazy dog"), style: TextStyle(color: _c(shown))),
+          ),
+          if (ratio < minTextContrast)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                trf("Hard to read: contrast {0}:1 with the background (at least 3:1 is advised)", [ratio.toStringAsFixed(1)]),
+                key: const ValueKey('look-text-contrast'),
+                style: small?.copyWith(color: look.colorScheme.error),
+              ),
+            ),
+        ]),
+      ),
+    ]);
+  }
 
   /// A field differs from the stored look.
   bool get _changed {
@@ -185,7 +285,7 @@ class _LookDialogState extends State<_LookDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                tr("Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back."),
+                tr("Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour."),
                 style: small,
               ),
               const SizedBox(height: 12),
@@ -249,6 +349,7 @@ class _LookDialogState extends State<_LookDialog> {
                   ),
               ],
               if (widget.caps.isEmpty) Text(tr("This desktop has no fonts or blur Maprisma Theme can change."), style: small),
+              _textColorRow(small),
             ],
           ),
         ),
@@ -262,7 +363,7 @@ class _LookDialogState extends State<_LookDialog> {
           child: FilledButton(
             key: const ValueKey('look-save'),
             focusNode: _saveFocus,
-            onPressed: widget.caps.isEmpty || saving || !_changed ? null : _submit,
+            onPressed: saving || !_changed ? null : _submit,
             child: Text(tr("Apply")),
           ),
         ),

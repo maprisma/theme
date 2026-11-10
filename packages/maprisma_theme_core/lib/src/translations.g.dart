@@ -1376,7 +1376,15 @@ const translationCatalogs = <String, Map<String, String>>{
     "{0} is not a plain file; remove it and try again": "{0} is not a plain file; remove it and try again",
     "Ask AI wants to make this picture on this computer. The picture generator is not set up yet: {0} GB to download once.": "Ask AI wants to make this picture on this computer. The picture generator is not set up yet: {0} GB to download once.",
     "(checking a copy found on this computer)": "(checking a copy found on this computer)",
-    "it is being set up already": "it is being set up already"
+    "it is being set up already": "it is being set up already",
+    "Choose a text colour": "Choose a text colour",
+    "Hard to read: contrast {0}:1 with the background (at least 3:1 is advised)": "Hard to read: contrast {0}:1 with the background (at least 3:1 is advised)",
+    "Text colour": "Text colour",
+    "The main text colour of the desktop, terminals and editors with this theme": "The main text colour of the desktop, terminals and editors with this theme",
+    "Theme's own": "Theme's own",
+    "Theme's own ({0})": "Theme's own ({0})",
+    "The quick brown fox jumps over the lazy dog": "The quick brown fox jumps over the lazy dog",
+    "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour."
   },
   "de": {
     "A key that applies this theme from anywhere": "Eine Taste, die dieses Theme von überall anwendet",
@@ -2754,7 +2762,15 @@ const translationCatalogs = <String, Map<String, String>>{
     "{0} is not a plain file; remove it and try again": "{0} ist keine normale Datei; entfernen und erneut versuchen",
     "Ask AI wants to make this picture on this computer. The picture generator is not set up yet: {0} GB to download once.": "Ask AI möchte dieses Bild auf diesem Computer erstellen. Der Bildgenerator ist noch nicht eingerichtet: einmalig {0} GB herunterladen.",
     "(checking a copy found on this computer)": "(prüfe eine auf diesem Computer gefundene Kopie)",
-    "it is being set up already": "wird bereits eingerichtet"
+    "it is being set up already": "wird bereits eingerichtet",
+    "Choose a text colour": "Textfarbe wählen",
+    "Hard to read: contrast {0}:1 with the background (at least 3:1 is advised)": "Schwer lesbar: Kontrast {0}:1 zum Hintergrund (mindestens 3:1 empfohlen)",
+    "Text colour": "Textfarbe",
+    "The main text colour of the desktop, terminals and editors with this theme": "Die Haupttextfarbe von Desktop, Terminals und Editoren mit diesem Theme",
+    "Theme's own": "Vom Theme",
+    "Theme's own ({0})": "Vom Theme ({0})",
+    "The quick brown fox jumps over the lazy dog": "Zwölf Boxkämpfer jagen Viktor quer über den großen Sylter Deich",
+    "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Wird verwendet, wann immer dieses Theme angewendet wird; die Theme-Dateien bleiben unverändert. Themes ohne eigene Wahl geben deine Schriften und Unschärfe zurück und zeigen ihre eigene Textfarbe."
   },
   "fr": {
     "A key that applies this theme from anywhere": "Une touche qui applique ce thème de partout",
@@ -4132,7 +4148,15 @@ const translationCatalogs = <String, Map<String, String>>{
     "{0} is not a plain file; remove it and try again": "{0} n’est pas un fichier ordinaire ; supprimez-le et réessayez",
     "Ask AI wants to make this picture on this computer. The picture generator is not set up yet: {0} GB to download once.": "Ask AI veut créer cette image sur cet ordinateur. Le générateur d’images n’est pas encore installé : {0} Go à télécharger une fois.",
     "(checking a copy found on this computer)": "(vérification d’une copie trouvée sur cet ordinateur)",
-    "it is being set up already": "installation déjà en cours"
+    "it is being set up already": "installation déjà en cours",
+    "Choose a text colour": "Choisir une couleur de texte",
+    "Hard to read: contrast {0}:1 with the background (at least 3:1 is advised)": "Peu lisible : contraste {0}:1 avec le fond (au moins 3:1 conseillé)",
+    "Text colour": "Couleur du texte",
+    "The main text colour of the desktop, terminals and editors with this theme": "La couleur principale du texte du bureau, des terminaux et des éditeurs avec ce thème",
+    "Theme's own": "Celle du thème",
+    "Theme's own ({0})": "Celle du thème ({0})",
+    "The quick brown fox jumps over the lazy dog": "Portez ce vieux whisky au juge blond qui fume",
+    "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Utilisé chaque fois que ce thème est appliqué ; les fichiers du thème restent tels quels. Les thèmes sans choix rendent vos polices et votre flou et montrent leur propre couleur de texte."
   },
   "es": {
     "A key that applies this theme from anywhere": "Una tecla que aplica este tema desde cualquier lugar",
@@ -5510,7 +5534,15 @@ const translationCatalogs = <String, Map<String, String>>{
     "{0} is not a plain file; remove it and try again": "{0} no es un archivo normal; elimínalo e inténtalo de nuevo",
     "Ask AI wants to make this picture on this computer. The picture generator is not set up yet: {0} GB to download once.": "Ask AI quiere crear esta imagen en este equipo. El generador de imágenes aún no está instalado: {0} GB para descargar una vez.",
     "(checking a copy found on this computer)": "(comprobando una copia encontrada en este equipo)",
-    "it is being set up already": "ya se está instalando"
+    "it is being set up already": "ya se está instalando",
+    "Choose a text colour": "Elegir un color de texto",
+    "Hard to read: contrast {0}:1 with the background (at least 3:1 is advised)": "Difícil de leer: contraste {0}:1 con el fondo (se recomienda al menos 3:1)",
+    "Text colour": "Color del texto",
+    "The main text colour of the desktop, terminals and editors with this theme": "El color principal del texto del escritorio, terminales y editores con este tema",
+    "Theme's own": "El del tema",
+    "Theme's own ({0})": "El del tema ({0})",
+    "The quick brown fox jumps over the lazy dog": "El veloz murciélago hindú comía feliz cardillo y kiwi",
+    "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Se usa siempre que se aplica este tema; los archivos del tema no cambian. Los temas sin elección devuelven tus fuentes y desenfoque y muestran su propio color de texto."
   },
   "it": {
     "A key that applies this theme from anywhere": "Un tasto che applica questo tema ovunque",
@@ -6888,7 +6920,15 @@ const translationCatalogs = <String, Map<String, String>>{
     "{0} is not a plain file; remove it and try again": "{0} non è un file normale; rimuovilo e riprova",
     "Ask AI wants to make this picture on this computer. The picture generator is not set up yet: {0} GB to download once.": "Ask AI vuole creare questa immagine su questo computer. Il generatore di immagini non è ancora installato: {0} GB da scaricare una volta.",
     "(checking a copy found on this computer)": "(controllo di una copia trovata su questo computer)",
-    "it is being set up already": "installazione già in corso"
+    "it is being set up already": "installazione già in corso",
+    "Choose a text colour": "Scegli un colore del testo",
+    "Hard to read: contrast {0}:1 with the background (at least 3:1 is advised)": "Difficile da leggere: contrasto {0}:1 con lo sfondo (consigliato almeno 3:1)",
+    "Text colour": "Colore del testo",
+    "The main text colour of the desktop, terminals and editors with this theme": "Il colore principale del testo di desktop, terminali ed editor con questo tema",
+    "Theme's own": "Quello del tema",
+    "Theme's own ({0})": "Quello del tema ({0})",
+    "The quick brown fox jumps over the lazy dog": "Pranzo d’acqua fa volti sghembi",
+    "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Usato ogni volta che questo tema viene applicato; i file del tema restano invariati. I temi senza scelta restituiscono i tuoi font e la sfocatura e mostrano il proprio colore del testo."
   },
   "pt": {
     "A key that applies this theme from anywhere": "Uma tecla que aplica este tema de qualquer lugar",
@@ -8266,7 +8306,15 @@ const translationCatalogs = <String, Map<String, String>>{
     "{0} is not a plain file; remove it and try again": "{0} não é um ficheiro normal; remova-o e tente de novo",
     "Ask AI wants to make this picture on this computer. The picture generator is not set up yet: {0} GB to download once.": "O Ask AI quer criar esta imagem neste computador. O gerador de imagens ainda não está instalado: {0} GB para transferir uma vez.",
     "(checking a copy found on this computer)": "(a verificar uma cópia encontrada neste computador)",
-    "it is being set up already": "já está a ser instalado"
+    "it is being set up already": "já está a ser instalado",
+    "Choose a text colour": "Escolher uma cor de texto",
+    "Hard to read: contrast {0}:1 with the background (at least 3:1 is advised)": "Difícil de ler: contraste {0}:1 com o fundo (recomenda-se pelo menos 3:1)",
+    "Text colour": "Cor do texto",
+    "The main text colour of the desktop, terminals and editors with this theme": "A cor principal do texto do ambiente de trabalho, terminais e editores com este tema",
+    "Theme's own": "A do tema",
+    "Theme's own ({0})": "A do tema ({0})",
+    "The quick brown fox jumps over the lazy dog": "Luís argüia à Júlia que «brações, fé, chá, óxido, pôr, zângão» eram palavras do português",
+    "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Usado sempre que este tema é aplicado; os ficheiros do tema ficam como estão. Temas sem escolha devolvem os seus tipos de letra e desfoque e mostram a sua própria cor de texto."
   },
   "nl": {
     "A key that applies this theme from anywhere": "Een toets die dit thema overal toepast",
@@ -9644,7 +9692,15 @@ const translationCatalogs = <String, Map<String, String>>{
     "{0} is not a plain file; remove it and try again": "{0} is geen gewoon bestand; verwijder het en probeer opnieuw",
     "Ask AI wants to make this picture on this computer. The picture generator is not set up yet: {0} GB to download once.": "Ask AI wil deze afbeelding op deze computer maken. De afbeeldingsgenerator is nog niet ingesteld: eenmalig {0} GB downloaden.",
     "(checking a copy found on this computer)": "(een kopie op deze computer controleren)",
-    "it is being set up already": "wordt al ingesteld"
+    "it is being set up already": "wordt al ingesteld",
+    "Choose a text colour": "Een tekstkleur kiezen",
+    "Hard to read: contrast {0}:1 with the background (at least 3:1 is advised)": "Slecht leesbaar: contrast {0}:1 met de achtergrond (minstens 3:1 aangeraden)",
+    "Text colour": "Tekstkleur",
+    "The main text colour of the desktop, terminals and editors with this theme": "De hoofdtekstkleur van bureaublad, terminals en editors met dit thema",
+    "Theme's own": "Van het thema",
+    "Theme's own ({0})": "Van het thema ({0})",
+    "The quick brown fox jumps over the lazy dog": "Pa’s wijze lynx bezag vroom het fikse aquaduct",
+    "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Gebruikt telkens wanneer dit thema wordt toegepast; de themabestanden blijven ongewijzigd. Thema’s zonder keuze geven je eigen lettertypen en vervaging terug en tonen hun eigen tekstkleur."
   },
   "pl": {
     "A key that applies this theme from anywhere": "Klawisz, który stosuje ten motyw z dowolnego miejsca",
@@ -11022,6 +11078,14 @@ const translationCatalogs = <String, Map<String, String>>{
     "{0} is not a plain file; remove it and try again": "{0} nie jest zwykłym plikiem; usuń go i spróbuj ponownie",
     "Ask AI wants to make this picture on this computer. The picture generator is not set up yet: {0} GB to download once.": "Ask AI chce utworzyć ten obraz na tym komputerze. Generator obrazów nie jest jeszcze skonfigurowany: jednorazowo {0} GB do pobrania.",
     "(checking a copy found on this computer)": "(sprawdzam kopię znalezioną na tym komputerze)",
-    "it is being set up already": "konfiguracja już trwa"
+    "it is being set up already": "konfiguracja już trwa",
+    "Choose a text colour": "Wybierz kolor tekstu",
+    "Hard to read: contrast {0}:1 with the background (at least 3:1 is advised)": "Trudne do odczytania: kontrast {0}:1 z tłem (zalecane co najmniej 3:1)",
+    "Text colour": "Kolor tekstu",
+    "The main text colour of the desktop, terminals and editors with this theme": "Główny kolor tekstu pulpitu, terminali i edytorów z tym motywem",
+    "Theme's own": "Z motywu",
+    "Theme's own ({0})": "Z motywu ({0})",
+    "The quick brown fox jumps over the lazy dog": "Pchnąć w tę łódź jeża lub ośm skrzyń fig",
+    "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Używane zawsze, gdy ten motyw jest stosowany; pliki motywu pozostają bez zmian. Motywy bez wyboru przywracają Twoje czcionki i rozmycie oraz pokazują własny kolor tekstu."
   }
 };

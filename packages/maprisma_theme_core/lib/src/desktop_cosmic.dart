@@ -26,7 +26,7 @@ final class CosmicDesktop extends DesktopBase {
   Set<Cap> get caps => Cap.values.toSet().difference({Cap.kdeScheme, Cap.animations});
 
   @override
-  Future<bool> applyKdeScheme(String path) async => false;
+  Future<bool> applyKdeScheme(String path, {String? foreground}) async => false;
 
   String get _cosmic => paths.cosmicConfig;
   String get _bgDir => '$_cosmic/com.system76.CosmicBackground/v1';

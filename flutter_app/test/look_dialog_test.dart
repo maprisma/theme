@@ -241,4 +241,63 @@ void main() {
     expect(find.text('Interface font'), findsNothing);
     expect(find.text('Blur'), findsNothing);
   });
+
+  testWidgets('text colour: preview, contrast warning, picker, Theme\'s own', (tester) async {
+    tester.view.physicalSize = const Size(1000, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    Future<Map<String, dynamic>> call(String m, [Map<String, dynamic> p = const {}]) => core.call(m, p);
+    await tester.runAsync(() async {
+      await core.call('looks.set', {'slug': 'nord', 'look': {'text_color': '#30363f'}, 'apply': false});
+    });
+    final shot = GlobalKey();
+    await tester.runAsync(() async {
+      await tester.pumpWidget(RepaintBoundary(key: shot, child: MaprismaThemeApp(call: call)));
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    });
+    final state = tester.state<MaprismaThemeAppState>(find.byType(MaprismaThemeApp));
+    lookDialog(state.navigator.currentContext!, state, 'nord');
+    await settle(tester, 300);
+
+    expect(find.text('Text colour'), findsOneWidget);
+    expect(find.text('#30363f'), findsOneWidget);
+    expect(find.byKey(const ValueKey('look-text-preview')), findsOneWidget);
+    final preview = tester.widget<Text>(find.descendant(of: find.byKey(const ValueKey('look-text-preview')), matching: find.byType(Text)));
+    expect(preview.style!.color, const Color(0xff30363f));
+    expect(find.byKey(const ValueKey('look-text-contrast')), findsOneWidget, reason: 'too close to #2e3440');
+    await tester.runAsync(() async {
+      await saveShot(shot.currentContext!.findRenderObject()! as RenderRepaintBoundary, 'look-dialog-text-colour');
+    });
+
+    // the picker: a readable colour, the warning goes
+    await tester.tap(find.byKey(const ValueKey('look-text-color')));
+    await settle(tester);
+    await tester.enterText(find.byType(TextField).last, '#ffcc00');
+    await tester.pump();
+    await tester.tap(find.text('Use for text colour'));
+    await settle(tester);
+    expect(find.text('#ffcc00'), findsOneWidget);
+    expect(find.byKey(const ValueKey('look-text-contrast')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('look-save')));
+    for (var i = 0; i < 4; i++) {
+      await settle(tester);
+    }
+    late Map<String, dynamic> saved;
+    await tester.runAsync(() async => saved = await core.call('looks.get', {'slug': 'nord'}));
+    expect(saved['look'], {'text_color': '#ffcc00'});
+
+    // Theme's own again
+    lookDialog(state.navigator.currentContext!, state, 'nord');
+    await settle(tester, 300);
+    await tester.tap(find.byKey(const ValueKey('look-text-color-reset')));
+    await settle(tester);
+    expect(find.text("Theme's own (#d8dee9)"), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('look-save')));
+    for (var i = 0; i < 4; i++) {
+      await settle(tester);
+    }
+    await tester.runAsync(() async => saved = await core.call('looks.get', {'slug': 'nord'}));
+    expect(saved['look'], isEmpty);
+    expect(tester.takeException(), isNull);
+  });
 }

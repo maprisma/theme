@@ -80,8 +80,10 @@ abstract interface class Desktop {
   /// Applies a COSMIC ThemeBuilder RON file (only with [Cap.ron]).
   Future<bool> applyRon(String path);
 
-  /// Applies a Plasma color scheme file as it is (only with [Cap.kdeScheme]).
-  Future<bool> applyKdeScheme(String path);
+  /// Applies a Plasma color scheme file as it is (only with [Cap.kdeScheme]);
+  /// [foreground]: the text colour of a theme look instead of the file's own
+  /// (the main text roles; the file itself never changes).
+  Future<bool> applyKdeScheme(String path, {String? foreground});
 
   /// The colors a COSMIC ThemeBuilder RON file stands for, or null (any
   /// backend: the helper only parses the file).
@@ -380,8 +382,8 @@ final class FakeDesktop implements Desktop {
   }
 
   @override
-  Future<bool> applyKdeScheme(String path) async {
-    calls.add('applyKdeScheme $path');
+  Future<bool> applyKdeScheme(String path, {String? foreground}) async {
+    calls.add('applyKdeScheme $path${foreground == null ? '' : ' foreground=$foreground'}');
     return true;
   }
 
@@ -423,9 +425,13 @@ final class FakeDesktop implements Desktop {
     return true;
   }
 
+  /// The colours the terminal got last.
+  Map<String, String>? lastTerminal;
+
   @override
   Future<bool> setTerminal(Map<String, String> colors, String name) async {
     calls.add('terminal $name');
+    lastTerminal = colors;
     return true;
   }
 

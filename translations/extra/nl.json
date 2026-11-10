@@ -680,5 +680,13 @@
   "{0} is not a plain file; remove it and try again": "{0} is geen gewoon bestand; verwijder het en probeer opnieuw",
   "Ask AI wants to make this picture on this computer. The picture generator is not set up yet: {0} GB to download once.": "Ask AI wil deze afbeelding op deze computer maken. De afbeeldingsgenerator is nog niet ingesteld: eenmalig {0} GB downloaden.",
   "(checking a copy found on this computer)": "(een kopie op deze computer controleren)",
-  "it is being set up already": "wordt al ingesteld"
+  "it is being set up already": "wordt al ingesteld",
+  "Choose a text colour": "Een tekstkleur kiezen",
+  "Hard to read: contrast {0}:1 with the background (at least 3:1 is advised)": "Slecht leesbaar: contrast {0}:1 met de achtergrond (minstens 3:1 aangeraden)",
+  "Text colour": "Tekstkleur",
+  "The main text colour of the desktop, terminals and editors with this theme": "De hoofdtekstkleur van bureaublad, terminals en editors met dit thema",
+  "Theme's own": "Van het thema",
+  "Theme's own ({0})": "Van het thema ({0})",
+  "The quick brown fox jumps over the lazy dog": "Pa’s wijze lynx bezag vroom het fikse aquaduct",
+  "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Gebruikt telkens wanneer dit thema wordt toegepast; de themabestanden blijven ongewijzigd. Thema’s zonder keuze geven je eigen lettertypen en vervaging terug en tonen hun eigen tekstkleur."
 }

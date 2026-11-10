@@ -680,5 +680,13 @@
   "{0} is not a plain file; remove it and try again": "{0} ist keine normale Datei; entfernen und erneut versuchen",
   "Ask AI wants to make this picture on this computer. The picture generator is not set up yet: {0} GB to download once.": "Ask AI möchte dieses Bild auf diesem Computer erstellen. Der Bildgenerator ist noch nicht eingerichtet: einmalig {0} GB herunterladen.",
   "(checking a copy found on this computer)": "(prüfe eine auf diesem Computer gefundene Kopie)",
-  "it is being set up already": "wird bereits eingerichtet"
+  "it is being set up already": "wird bereits eingerichtet",
+  "Choose a text colour": "Textfarbe wählen",
+  "Hard to read: contrast {0}:1 with the background (at least 3:1 is advised)": "Schwer lesbar: Kontrast {0}:1 zum Hintergrund (mindestens 3:1 empfohlen)",
+  "Text colour": "Textfarbe",
+  "The main text colour of the desktop, terminals and editors with this theme": "Die Haupttextfarbe von Desktop, Terminals und Editoren mit diesem Theme",
+  "Theme's own": "Vom Theme",
+  "Theme's own ({0})": "Vom Theme ({0})",
+  "The quick brown fox jumps over the lazy dog": "Zwölf Boxkämpfer jagen Viktor quer über den großen Sylter Deich",
+  "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Wird verwendet, wann immer dieses Theme angewendet wird; die Theme-Dateien bleiben unverändert. Themes ohne eigene Wahl geben deine Schriften und Unschärfe zurück und zeigen ihre eigene Textfarbe."
 }

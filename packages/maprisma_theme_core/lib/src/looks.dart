@@ -1,11 +1,13 @@
-/// Theme looks (docs/theme-looks.md): the user's own fonts and blur for any
-/// theme, kept in looks.json beside the settings; theme files never change.
+/// Theme looks (docs/theme-looks.md): the user's own fonts, blur and text
+/// colour for any theme, kept in looks.json beside the settings; theme files
+/// never change.
 library;
 
 import 'i18n.dart';
 
 import 'dart:convert';
 
+import 'apply.dart' show applyTheme, themeColors;
 import 'auto.dart' show autoLocked, validSlug;
 import 'context.dart';
 import 'custom.dart' show fontRe;
@@ -44,7 +46,8 @@ enum FontRole {
 /// The setting key that keeps the user's own monospace font.
 String ownFontKey(Desktop d) => FontRole.mono.ownKey(d);
 
-const lookKeys = {'mono_font', 'ui_font', 'blur'};
+const lookKeys = {'mono_font', 'ui_font', 'blur', 'text_color'};
+final _hexColor = RegExp(r'^#[0-9a-f]{6}$');
 const blurStrengths = (min: 1, max: 15);
 
 /// A look as stored, or null when it does not fit (unknown keys, a bad
@@ -58,6 +61,11 @@ Map<String, dynamic>? checkLook(Object? v) {
         if (e.value == null) continue;
         if (e.value is! String || !fontRe.hasMatch(e.value as String)) return null;
         out[e.key as String] = e.value;
+      case 'text_color':
+        if (e.value == null) continue;
+        final c = e.value is String ? (e.value as String).toLowerCase() : null;
+        if (c == null || !_hexColor.hasMatch(c)) return null;
+        out['text_color'] = c;
       case 'blur':
         if (e.value == null) continue;
         final b = e.value;
@@ -111,6 +119,27 @@ final class Looks {
     final m = all();
     if (m.remove(slug) != null) writeJson(file, m);
   }
+}
+
+/// The text colour a theme's look puts in place of its foreground; null =
+/// the theme's own. Unlike fonts and blur it is part of the theme's colours,
+/// so it is applied with them (applyTheme) and needs no "own" value: a theme
+/// without one shows its own foreground.
+String? lookTextColor(Ctx ctx, ThemeInfo theme, {Map<String, dynamic>? look}) {
+  final c = (look ?? Looks(ctx).of(theme.slug))['text_color'];
+  return c is String ? c : null;
+}
+
+String _appliedFile(Ctx ctx) => '${ctx.paths.state}/look-applied.json';
+
+/// The text colour the last theme apply wrote (null: the theme's own).
+void markTextColorApplied(Ctx ctx, String slug, String? color) =>
+    writeJson(_appliedFile(ctx), {'theme': slug, 'text_color': color});
+
+bool _textColorPending(Ctx ctx, ThemeInfo theme, Map<String, dynamic> look) {
+  final applied = readJsonMap(_appliedFile(ctx));
+  final was = applied['theme'] == theme.slug ? applied['text_color'] : null;
+  return (look['text_color'] as String?) != (was is String ? was : null);
 }
 
 /// The font a theme brings for [role]: its look, else its own; null = none.
@@ -257,6 +286,10 @@ Future<Map<String, dynamic>> lookData(Ctx ctx, String slug) async {
         'theme': themeBlur(ctx, theme, look: const {}),
       },
     },
+    'text_color': {
+      'theme': (await themeColors(ctx, theme))['foreground'],
+      'background': (await themeColors(ctx, theme))['background'],
+    },
     'in_use': ctx.current.slug == slug,
     'pending': await lookPending(ctx, theme),
   };
@@ -291,14 +324,26 @@ Future<List<String>> lookPending(Ctx ctx, ThemeInfo theme) async {
       out.add('blur');
     }
   }
+  if (_textColorPending(ctx, theme, look)) out.add('text_color');
   return out;
+}
+
+/// The look onto the theme in use: a changed text colour applies the theme
+/// again (its colours carry it), else only fonts and blur.
+Future<List<String>> _applyLookNow(Ctx ctx, ThemeInfo theme) async {
+  if (!_textColorPending(ctx, theme, Looks(ctx).of(theme.slug))) return applyLook(ctx, theme);
+  final r = await applyTheme(ctx, theme.slug, wallpaper: ctx.current.wallpaper, remember: false);
+  return [
+    'text_color',
+    for (final k in (r['done'] as List).cast<String>()) if (k == 'font' || k == 'ui_font' || k == 'blur') k == 'font' ? 'mono_font' : k,
+  ];
 }
 
 /// `looks.apply {slug}`: the theme in use gets its look (fonts, blur) now.
 Future<Map<String, dynamic>> reapplyLook(Ctx ctx, String slug) async {
   final theme = ctx.theme(slug);
   if (ctx.current.slug != slug) throw RouteError('not_current', trf("{0} is not the theme in use", [slug]));
-  return autoLocked(ctx, () async => {'applied': await applyLook(ctx, theme)});
+  return autoLocked(ctx, () async => {'applied': await _applyLookNow(ctx, theme)});
 }
 
 Future<Map<String, dynamic>> setLook(Ctx ctx, String slug, Object? raw, {bool restore = false, bool apply = true}) async {
@@ -315,7 +360,7 @@ Future<Map<String, dynamic>> setLook(Ctx ctx, String slug, Object? raw, {bool re
   // one change at a time with theme applies (the daemon's workspace themes too)
   return autoLocked(ctx, () async {
     final previous = Looks(ctx).set(slug, look);
-    final done = apply && ctx.current.slug == slug ? await applyLook(ctx, theme) : <String>[];
+    final done = apply && ctx.current.slug == slug ? await _applyLookNow(ctx, theme) : <String>[];
     return {'done': true, 'previous': previous, 'look': look, 'applied': done, 'pending': await lookPending(ctx, theme)};
   });
 }

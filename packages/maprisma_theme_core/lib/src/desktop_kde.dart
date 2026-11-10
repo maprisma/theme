@@ -467,11 +467,12 @@ final class KdeDesktop extends DesktopBase {
 
   /// A KDE Store scheme as it came, under Maprisma's alternating name.
   @override
-  Future<bool> applyKdeScheme(String path) => _serial(() async {
+  Future<bool> applyKdeScheme(String path, {String? foreground}) => _serial(() async {
     final original = readSmall(path, limit: 256 * 1024);
     if (original == null) return false;
     final name = _nextSchemeName();
-    var text = setIniValue(original, 'General', 'ColorScheme', name);
+    var text = foreground == null ? original : kdeWithForeground(original, foreground);
+    text = setIniValue(text, 'General', 'ColorScheme', name);
     text = setIniValue(text, 'General', 'Name', name);
     return _applyScheme(name, text);
   });
