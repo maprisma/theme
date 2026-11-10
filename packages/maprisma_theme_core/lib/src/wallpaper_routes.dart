@@ -13,6 +13,7 @@ import 'trash.dart';
 import 'wallhaven.dart';
 import 'wallpapers.dart';
 import 'web_images.dart';
+import 'created_pictures.dart';
 
 /// The name a drop offers in its type (`application/octet-stream;name="x.jpg"`,
 /// how Chromium offers a dragged picture), or ''.
@@ -31,6 +32,7 @@ Map<String, Handler> wallpaperRoutes(Ctx ctx, {Fetch? fetch}) {
   final receipts = ReceiptBook();
   final web = Wallhaven(ctx, fetch: fetch);
   final pictures = WebImages(ctx);
+  final created = CreatedPictures(ctx);
   var previewing = false;
   Object? beforePreview;
 
@@ -212,5 +214,33 @@ Map<String, Handler> wallpaperRoutes(Ctx ctx, {Fetch? fetch}) {
       return {'path': path, 'name': baseName(path), 'set': set};
     },
     'webimg.open': (p) async => {'opened': await openWebPage(ctx, p['page'])},
+    // Wallpapers made here with Maprisma Playground's picture generator.
+    'create.status': (p) async => created.status(),
+    'create.setup': (p) async => created.startSetup(),
+    'create.cancel_setup': (p) async {
+      created.cancelSetup();
+      return created.status();
+    },
+    'create.make': (p) async {
+      final seed = p['seed'] is int ? p['seed'] as int : DateTime.now().microsecondsSinceEpoch;
+      return {'path': await created.make(str(p, 'prompt'), seed), 'seed': seed & 0x7fffffff};
+    },
+    'create.cancel': (p) async {
+      created.cancel();
+      return {'cancelled': true};
+    },
+    'create.add': (p) async {
+      final theme = themeOf(p);
+      final path = str(p, 'path');
+      // Only a picture made here: a plain file right in the cache folder.
+      if (!path.startsWith('${created.cacheDir}/') || path.substring(created.cacheDir.length + 1).contains('/') ||
+          FileSystemEntity.typeSync(path, followLinks: false) != FileSystemEntityType.file) {
+        throw RouteError('bad_params', 'path');
+      }
+      final added = addBackgroundBytes(ctx, theme.slug, File(path).readAsBytesSync(), baseName(path));
+      var set = false;
+      if (boolParam(p, 'set', fallback: false) && theme.slug == ctx.current.slug) set = await setBackground(ctx, added);
+      return {'path': added, 'name': baseName(added), 'set': set};
+    },
   };
 }

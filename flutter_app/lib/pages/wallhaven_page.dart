@@ -1,6 +1,7 @@
 import '../i18n.dart';
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -41,7 +42,25 @@ class _WallhavenPageState extends State<WallhavenPage> {
 
   /// Pictures Ask AI found on the web (kind `web`), shown before the wallhaven results.
   List<Map<String, dynamic>> webPictures = [];
-  List<Map<String, dynamic>> get shown => [...webPictures, ...results];
+
+  /// Pictures made here from Ask AI's description (kind `created`), shown first.
+  List<Map<String, dynamic>> created = [];
+
+  /// Wallhaven results shown so far: a batch at a time (Next shows more).
+  int shownCount = 0;
+  List<Map<String, dynamic>> get shown => [...created, ...webPictures, ...results.take(shownCount)];
+
+  /// Pictures per batch (Settings key wallpaper_count: 5, 10 or 20).
+  late int count;
+
+  // Making pictures (Maprisma Playground's generator).
+  String? picturePrompt;
+  Map<String, dynamic>? generator;
+  bool making = false, stopMaking = false;
+  int madeInBatch = 0, batchSize = 0;
+  Timer? setupPoll;
+  String lastRequest = '';
+  bool moreWeb = false;
   final thumbs = <String, String?>{};
   String query = '', status = '';
   int page = 0, lastPage = 1, generation = 0, selected = 0, columns = 3;
@@ -70,9 +89,8 @@ class _WallhavenPageState extends State<WallhavenPage> {
   void initState() {
     super.initState();
     app = AppScope.read(context);
-    scroll.addListener(() {
-      if (scroll.position.pixels > scroll.position.maxScrollExtent - 400) loadMore();
-    });
+    final saved = app.settings['wallpaper_count'];
+    count = saved is int && const {5, 10, 20}.contains(saved) ? saved : 10;
     WidgetsBinding.instance.addPostFrameCallback((_) => fieldFocus.requestFocus());
     loadHelper();
   }
@@ -114,6 +132,7 @@ class _WallhavenPageState extends State<WallhavenPage> {
         'request': words,
         'slug': widget.slug,
         'rejected': aiSearched.take(20).toList(),
+        'count': count,
       });
     } catch (e) {
       error = failText(e);
@@ -124,25 +143,190 @@ class _WallhavenPageState extends State<WallhavenPage> {
       for (final (i, e) in ((r?['images'] as List?) ?? const []).indexed)
         if (e is Map && e['url'] is String) webItem(e, i),
     ];
+    final prompt = r?['picture_prompt'];
     setState(() {
       asking = false;
+      lastRequest = words;
+      moreWeb = pictures.isNotEmpty;
       webPictures = pictures;
+      created = [];
+      picturePrompt = prompt is String && prompt.isNotEmpty ? prompt : null;
       for (final w in pictures) {
         if (!_thumbQueue.contains(w)) _thumbQueue.add(w);
       }
-      if (r == null || (queries.isEmpty && pictures.isEmpty)) {
+      if (r == null || (queries.isEmpty && pictures.isEmpty && picturePrompt == null)) {
         status = trf("Ask AI failed: {0}", [error ?? tr("no usable search words in the answer")]);
         return;
       }
       aiQueries = queries;
       aiSummary = '${r['summary'] ?? ''}';
     });
+    if (picturePrompt != null) makePictures();
     if (queries.isNotEmpty) {
       searchFor(queries.first);
-    } else {
+    } else if (picturePrompt == null) {
       setState(() => status = trf("{0} pictures from the web.", [pictures.length]));
-      _pumpThumbs(generation);
     }
+    _pumpThumbs(generation);
+  }
+
+  // --- made here ------------------------------------------------------------------
+
+  /// Makes a batch of pictures from Ask AI's description (new seeds each time);
+  /// when the generator is not set up yet, the banner offers it.
+  Future<void> makePictures() async {
+    final prompt = picturePrompt;
+    if (prompt == null || making) return;
+    Map<String, dynamic> st;
+    try {
+      st = await app.call('create.status');
+    } catch (e) {
+      if (mounted) setState(() => status = trf("No picture generator: {0}", [failText(e)]));
+      return;
+    }
+    if (!mounted) return;
+    setState(() => generator = st);
+    if (st['ready'] != true) {
+      if (st['setting_up'] == true) _pollSetup();
+      return;
+    }
+    setState(() {
+      making = true;
+      stopMaking = false;
+      madeInBatch = 0;
+      batchSize = count;
+    });
+    final random = math.Random();
+    var failed = false;
+    for (var i = 0; i < batchSize && !stopMaking && mounted; i++) {
+      setState(() => status = trf("Making picture {0} of {1} on this computer…", [i + 1, batchSize]));
+      try {
+        final r = await app.call('create.make', {'prompt': prompt, 'seed': random.nextInt(1 << 31)});
+        if (!mounted || picturePrompt != prompt) break;
+        final path = r['path'] as String;
+        final item = {'kind': 'created', 'id': 'made${created.length}:$path', 'path': path, 'file_name': trf("Created picture {0}", [created.length + 1])};
+        setState(() {
+          thumbs[item['id'] as String] = path;
+          created.add(item);
+          madeInBatch++;
+        });
+      } catch (e) {
+        failed = true;
+        if (mounted && !stopMaking) setState(() => status = trf("Could not make the picture: {0}", [failText(e)]));
+        break;
+      }
+    }
+    if (!mounted) return;
+    setState(() {
+      making = false;
+      if (!failed) {
+        status = trf("{0} pictures made on this computer. Next makes {1} more.", [created.length, count]);
+      }
+    });
+  }
+
+  Future<void> stopMakingPictures() async {
+    setState(() => stopMaking = true);
+    try {
+      await app.call('create.cancel');
+    } catch (_) {}
+  }
+
+  Future<void> setUpGenerator() async {
+    try {
+      final st = await app.call('create.setup');
+      if (mounted) setState(() => generator = st);
+    } catch (e) {
+      if (mounted) setState(() => status = trf("Could not set up the picture generator: {0}", [failText(e)]));
+      return;
+    }
+    _pollSetup();
+  }
+
+  void _pollSetup() {
+    setupPoll?.cancel();
+    setupPoll = Timer.periodic(const Duration(seconds: 1), (t) async {
+      Map<String, dynamic> st;
+      try {
+        st = await app.call('create.status');
+      } catch (_) {
+        return;
+      }
+      if (!mounted) return t.cancel();
+      setState(() => generator = st);
+      if (st['setting_up'] != true) {
+        t.cancel();
+        if (st['ready'] == true) makePictures();
+      }
+    });
+  }
+
+  // --- next batch -----------------------------------------------------------------
+
+  bool get moreResults => query.isNotEmpty && (results.length > shownCount || page < lastPage);
+  bool get canNext => !asking && !making && (picturePrompt != null || (moreWeb && aiHelper != null) || moreResults);
+
+  /// The next batch of each kind on the page: pictures made here (no tokens),
+  /// pictures from the web (asks the helper again, without the ones shown),
+  /// wallhaven results (no tokens).
+  Future<void> next() async {
+    if (picturePrompt != null && generator?['ready'] == true) makePictures();
+    if (moreWeb && aiHelper != null && lastRequest.isNotEmpty) moreFromWeb();
+    if (moreResults) revealMore();
+  }
+
+  Future<void> moreFromWeb() async {
+    final helper = aiHelper!;
+    setState(() {
+      asking = true;
+      status = trf("Asking {0} for more pictures from the web…", [helper['name']]);
+    });
+    Map<String, dynamic>? r;
+    String? error;
+    try {
+      r = await app.call('ask.wallpapers', {
+        'helper': helper['id'],
+        'request': lastRequest,
+        'slug': widget.slug,
+        'rejected': aiSearched.take(20).toList(),
+        'count': count,
+        'seen': [for (final w in webPictures) w['url']].take(60).toList(),
+      });
+    } catch (e) {
+      error = failText(e);
+    }
+    if (!mounted) return;
+    final fresh = [
+      for (final (i, e) in ((r?['images'] as List?) ?? const []).indexed)
+        if (e is Map && e['url'] is String && !webPictures.any((w) => w['url'] == e['url'])) webItem(e, webPictures.length + i),
+    ];
+    setState(() {
+      asking = false;
+      webPictures.addAll(fresh);
+      _thumbQueue.addAll(fresh);
+      moreWeb = fresh.isNotEmpty;
+      status = r == null
+          ? trf("Ask AI failed: {0}", [error])
+          : fresh.isEmpty
+              ? tr("No more pictures from the web.")
+              : trf("{0} more pictures from the web.", [fresh.length]);
+    });
+    _pumpThumbs(generation);
+  }
+
+  /// Shows the next batch of wallhaven results, loading pages as needed.
+  Future<void> revealMore() async {
+    final want = shownCount + count;
+    while (mounted && results.length < want && page < lastPage) {
+      final before = results.length;
+      await loadMore();
+      if (results.length == before) break;
+    }
+    if (!mounted) return;
+    setState(() {
+      shownCount = math.min(want, results.length);
+      status = trf("{0} of {1}+ wallpapers for “{2}”.{3}", [shownCount, results.length, query, moreResults ? tr(" Next shows more.") : '']);
+    });
   }
 
   /// A picture from the web as a tile: its link, the page it is on, a caption.
@@ -162,6 +346,7 @@ class _WallhavenPageState extends State<WallhavenPage> {
   }
 
   static bool isWeb(Map item) => item['kind'] == 'web';
+  static bool isMade(Map item) => item['kind'] == 'created';
 
   Future<void> stopAsking() async {
     try {
@@ -185,6 +370,8 @@ class _WallhavenPageState extends State<WallhavenPage> {
     aiField.dispose();
     aiFocus.dispose();
     if (asking) app.call('ask.cancel').ignore();
+    if (making) app.call('create.cancel').ignore();
+    setupPoll?.cancel();
     gridFocus.dispose();
     scroll.dispose();
     super.dispose();
@@ -205,10 +392,11 @@ class _WallhavenPageState extends State<WallhavenPage> {
       page = 0;
       lastPage = 1;
       results = [];
+      shownCount = 0;
       selected = 0;
       loading = false;
     });
-    await loadMore();
+    await revealMore();
   }
 
   Future<void> loadMore() async {
@@ -245,10 +433,6 @@ class _WallhavenPageState extends State<WallhavenPage> {
       }
     });
     _pumpThumbs(gen);
-    // A first page that does not fill the window cannot be scrolled: load on.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && gen == generation && scroll.hasClients && scroll.position.maxScrollExtent < 50) loadMore();
-    });
   }
 
   void _pumpThumbs(int gen) {
@@ -281,7 +465,9 @@ class _WallhavenPageState extends State<WallhavenPage> {
   Future<void> add(Map<String, dynamic> item, {bool set = false}) async {
     setState(() => status = trf("Downloading {0}…", [item['file_name']]));
     try {
-      final r = isWeb(item)
+      final r = isMade(item)
+          ? await app.call('create.add', {'slug': widget.slug, 'path': item['path'], 'set': set})
+          : isWeb(item)
           ? await app.call('webimg.add', {'slug': widget.slug, 'url': item['url'], 'set': set})
           : await app.call('wallhaven.add', {'slug': widget.slug, 'item': _plain(item), 'set': set});
       if (!mounted) return;
@@ -311,7 +497,9 @@ class _WallhavenPageState extends State<WallhavenPage> {
     setState(() => status = trf("Loading a preview of {0}…", [item['file_name']]));
     String? path;
     try {
-      path = isWeb(item)
+      path = isMade(item)
+          ? item['path'] as String
+          : isWeb(item)
           ? (await app.call('webimg.get', {'url': item['url']}))['path'] as String?
           : (await app.call('wallhaven.preview', {'item': _plain(item)}))['path'] as String?;
     } catch (_) {
@@ -361,9 +549,11 @@ class _WallhavenPageState extends State<WallhavenPage> {
     if (app.can('wallpaper'))
       item(Icons.visibility_outlined, tr("Preview on desktop"), () => preview(w, seconds: previewSeconds),
           tooltip: trf("Loads the full image and shows it for {0} seconds; or hold Space on the tile", [previewSeconds])),
-    menuLine(),
-    item(Icons.open_in_browser, trf("Open on {0}", [isWeb(w) ? w['host'] : _source]), () => openPage(w),
-        tooltip: '${w['page'] ?? w['url']}'),
+    if (!isMade(w)) ...[
+      menuLine(),
+      item(Icons.open_in_browser, trf("Open on {0}", [isWeb(w) ? w['host'] : _source]), () => openPage(w),
+          tooltip: '${w['page'] ?? w['url']}'),
+    ],
   ];
 
   PopupMenuItem<VoidCallback> item_(IconData icon, String label, VoidCallback? action) =>
@@ -376,7 +566,6 @@ class _WallhavenPageState extends State<WallhavenPage> {
     setState(() => selected = i.clamp(0, shown.length - 1));
     final ctx = _tileKeys['${shown[selected]['id']}']?.currentContext;
     if (ctx != null) Scrollable.ensureVisible(ctx, alignment: .5, duration: const Duration(milliseconds: 120));
-    if (selected >= shown.length - columns) loadMore();
   }
 
   KeyEventResult onGridKey(FocusNode node, KeyEvent e) {
@@ -468,9 +657,74 @@ class _WallhavenPageState extends State<WallhavenPage> {
       menu: TileMenuButton(menuKey: menuKey, tooltip: tr("Wallpaper actions (Enter)"), menu: () => menuFor(item)),
       bottomLeft: [
         if (isWeb(item)) TileBadge(tr("web"), tooltip: '${item['url']}'),
+        if (isMade(item)) TileBadge(tr("made here"), tooltip: picturePrompt),
         if (item['added'] == true) TileBadge(tr("added")),
       ],
-      captionText: isWeb(item) ? '${item['file_name']}' : '${item['resolution']}'.replaceAll('x', ' × '),
+      captionText: isWeb(item) || isMade(item) ? '${item['file_name']}' : '${item['resolution']}'.replaceAll('x', ' × '),
+    );
+  }
+
+  /// Pictures per batch: 5, 10 or 20 (remembered).
+  Widget countChoice() {
+    final scheme = Theme.of(context).colorScheme;
+    return Tooltip(
+      message: tr("Pictures per batch: from the web, made here and from wallhaven.cc; Next shows the next batch"),
+      child: Container(
+        padding: const EdgeInsets.only(left: 10, right: 4),
+        decoration: BoxDecoration(color: scheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(cornerSizes(context).control)),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<int>(
+            value: count,
+            isDense: true,
+            borderRadius: BorderRadius.circular(cornerSizes(context).control),
+            items: [for (final n in const [5, 10, 20]) DropdownMenuItem(value: n, child: Text(trf("{0} pictures", [n])))],
+            onChanged: (v) async {
+              if (v == null) return;
+              setState(() => count = v);
+              await app.run('settings.set', {'key': 'wallpaper_count', 'value': v}, tr("Could not save the setting"));
+              app.changed();
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Ask AI wants a picture made: the generator is Maprisma Playground's;
+  /// set it up here once (shared), or install Playground first.
+  Widget generatorBanner() {
+    final look = Look.of(context);
+    final g = generator!;
+    final gb = ((g['download_bytes'] as num?) ?? 0) / 1e9;
+    final Widget body;
+    if (g['playground'] != true) {
+      body = Text(tr("Making pictures needs Maprisma Playground's picture generator: install Maprisma Playground (Maprisma Manager), then ask again."));
+    } else if (g['setting_up'] == true) {
+      body = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Text(trf("Setting up the picture generator… {0}", ['${g['text'] ?? ''}'])),
+        const SizedBox(height: 6),
+        LinearProgressIndicator(value: ((g['fraction'] as num?) ?? 0).toDouble()),
+      ]);
+    } else {
+      body = Row(children: [
+        Expanded(
+          child: Text([
+            trf("Ask AI wants to make this picture on this computer. That uses Maprisma Playground's picture generator, which is not set up yet: {0} GB to download once, shared with Playground.", [gb.toStringAsFixed(1)]),
+            if ('${g['error'] ?? ''}'.isNotEmpty) trf("Last try: {0}", [g['error']]),
+          ].join(' ')),
+        ),
+        const SizedBox(width: 8),
+        FilledButton.icon(onPressed: setUpGenerator, icon: const Icon(Icons.download, size: 16), label: Text(tr("Set up"))),
+      ]);
+    }
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: look.fg.withValues(alpha: .06),
+        border: Border.all(color: look.accent.withValues(alpha: .5)),
+        borderRadius: BorderRadius.circular(corners(context)),
+      ),
+      child: DefaultTextStyle.merge(style: const TextStyle(fontSize: 13), child: body),
     );
   }
 
@@ -503,14 +757,22 @@ class _WallhavenPageState extends State<WallhavenPage> {
           ),
         ),
         const SizedBox(width: 6),
+        countChoice(),
+        const SizedBox(width: 6),
         // As the Ask AI page: a filled Ask (Stop while asking); corners from the theme.
-        asking
+        making
+            ? FilledButton.icon(onPressed: stopMakingPictures, icon: const Icon(Icons.stop, size: 16), label: Text(tr("Stop")))
+            : asking
             ? FilledButton.icon(onPressed: stopAsking, icon: const Icon(Icons.stop, size: 16), label: Text(tr("Stop")))
             : Tooltip(
                 message: trf("Ask {0} for search words: it gets your words and this theme's name and colors; the search itself uses no tokens", [helper['name']]),
                 child: FilledButton.icon(onPressed: askAi, icon: const Icon(Icons.send, size: 16), label: Text(tr("Ask"))),
               ),
       ]),
+      if (picturePrompt != null && generator != null && generator!['ready'] != true) ...[
+        const SizedBox(height: 6),
+        generatorBanner(),
+      ],
       if (aiQueries.isNotEmpty) ...[
         const SizedBox(height: 6),
         Wrap(spacing: 6, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
@@ -555,7 +817,7 @@ class _WallhavenPageState extends State<WallhavenPage> {
         ],
         const SizedBox(height: 6),
         // Busy: Ask AI is thinking or a search is loading (fixed height, no jump).
-        SizedBox(height: 2, child: asking || loading ? const LinearProgressIndicator() : null),
+        SizedBox(height: 2, child: asking || loading || making ? const LinearProgressIndicator() : null),
         const SizedBox(height: 6),
         Text(hint, style: hintStyle(context)),
         const SizedBox(height: 8),
@@ -570,7 +832,25 @@ class _WallhavenPageState extends State<WallhavenPage> {
                 controller: scroll,
                 count: shown.length,
                 columns: columns,
-                footer: loading ? const Padding(padding: EdgeInsets.all(12), child: Center(child: CircularProgressIndicator())) : null,
+                footer: loading
+                    ? const Padding(padding: EdgeInsets.all(12), child: Center(child: CircularProgressIndicator()))
+                    : canNext
+                        ? Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Center(
+                              child: OutlineAction(
+                                icon: Icons.navigate_next,
+                                label: trf("Next {0}", [count]),
+                                tooltip: [
+                                  if (picturePrompt != null) trf("{0} more pictures made on this computer (no tokens)", [count]),
+                                  if (moreWeb && aiHelper != null) trf("{0} more from the web (asks {1} again)", [count, aiHelper!['name']]),
+                                  if (moreResults) trf("{0} more from {1}", [count, _source]),
+                                ].join(' · '),
+                                onPressed: next,
+                              ),
+                            ),
+                          )
+                        : null,
                 builder: (context, i) {
                   final item = shown[i];
                   return KeyedSubtree(

@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'ask_ai.dart';
 import 'context.dart';
+import 'created_pictures.dart';
 import 'posix.dart';
 import 'theme_ai.dart';
 
@@ -86,8 +87,9 @@ Map<String, Handler> askRoutes(Ctx ctx) {
           if (r is String && r.isNotEmpty) plainText(r, 80),
       ];
       final web = searchesWeb(helper);
+      final canCreate = CreatedPictures(ctx).playgroundCore != null;
       final prompt = buildPrompt(request, themes, catalog, fonts,
-          previous: parent == null ? null : forRefine(parent), rejected: rejected, web: web);
+          previous: parent == null ? null : forRefine(parent), rejected: rejected, web: web, canCreate: canCreate);
       String text;
       try {
         text = await runner.run(helper, prompt, web: web);
@@ -98,7 +100,7 @@ Map<String, Handler> askRoutes(Ctx ctx) {
       if (json == null) throw RouteError('bad_answer', tr("no JSON object in the answer"));
       final limit = parent == null || wantsOptions(request) ? maxCandidates : 1;
       final (summary, candidates) = verify(json, themes, catalog, fonts,
-          parent: parent, limit: limit, current: ctx.current.slug, web: web);
+          parent: parent, limit: limit, current: ctx.current.slug, web: web, canCreate: canCreate);
       return {
         'summary': summary,
         'candidates': candidates,
@@ -124,18 +126,33 @@ Map<String, Handler> askRoutes(Ctx ctx) {
           if (r is String && r.isNotEmpty) plainText(r, 80),
       ];
       final web = searchesWeb(helper);
+      final saved = ctx.settings.get('wallpaper_count');
+      final count = (p['count'] is int ? p['count'] as int : (saved is int ? saved : 10)).clamp(1, 20);
+      final seen = [
+        for (final u in p['seen'] is List ? (p['seen'] as List).take(60) : const []) ?publicHttpsUrl(u),
+      ];
+      // Pictures can be made here when Maprisma Playground is installed (its generator, set up on first use).
+      final canCreate = CreatedPictures(ctx).playgroundCore != null;
       String text;
       try {
-        text = await runner.run(helper, buildWallpaperPrompt(request, theme, rejected: rejected, web: web), web: web);
+        text = await runner.run(
+            helper,
+            buildWallpaperPrompt(request, theme, rejected: rejected, web: web, count: count, seen: seen, canCreate: canCreate),
+            web: web);
       } on AskError catch (e) {
         throw RouteError(e.message == 'cancelled' ? 'cancelled' : 'helper_failed', e.message == 'cancelled' ? tr('Cancelled') : e.message);
       }
       final json = firstJson(text);
       if (json == null) throw RouteError('bad_answer', tr("no JSON object in the answer"));
       final (summary, queries) = verifyWallpaperAnswer(json);
-      final images = web ? verifyWallpaperImages(json) : const <Map<String, String>>[];
-      if (queries.isEmpty && images.isEmpty) throw RouteError('bad_answer', tr("no usable search words in the answer"));
-      return {'summary': summary, 'queries': queries, 'images': images, 'web': web};
+      final images = web
+          ? [for (final i in verifyWallpaperImages(json, limit: 20)) if (!seen.contains(i['url'])) i].take(count).toList()
+          : const <Map<String, String>>[];
+      final picturePrompt = canCreate ? verifyPicturePrompt(json) : null;
+      if (queries.isEmpty && images.isEmpty && picturePrompt == null) {
+        throw RouteError('bad_answer', tr("no usable search words in the answer"));
+      }
+      return {'summary': summary, 'queries': queries, 'images': images, 'web': web, 'picture_prompt': picturePrompt};
     },
     'ask.cancel': (p) async {
       runner.cancel();

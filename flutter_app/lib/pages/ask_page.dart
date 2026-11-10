@@ -1,6 +1,7 @@
 import '../i18n.dart';
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -46,7 +47,7 @@ final class _Card {
   List<Map> walls = const [];
   int wall = 0;
   String? wallNote;
-  bool searching = false, refining = false, loadingPicture = false;
+  bool searching = false, refining = false, loadingPicture = false, making = false;
 
   /// A catalog theme is not installed: its colors (and, while it has no
   /// search phrase, its wallpaper) come from its omarchy.org preview.
@@ -70,6 +71,12 @@ class _AskPageState extends State<AskPage> {
   Timer? _ticker;
   final cards = <_Card>[];
   final rejected = <String>[];
+
+  /// Maprisma Playground's picture generator (create.status), for cards whose
+  /// wallpaper is to be made; pictures are made one after another.
+  Map<String, dynamic>? generator;
+  Timer? _setupPoll;
+  Future<void> _makeChain = Future.value();
   List<Map>? catalog;
   StreamSubscription? _hidden;
   late MaprismaThemeAppState _app;
@@ -108,6 +115,7 @@ class _AskPageState extends State<AskPage> {
   @override
   void dispose() {
     _ticker?.cancel();
+    _setupPoll?.cancel();
     _hidden?.cancel();
     _release(); // Ask AI left: the memory of the models it loaded back
     request.dispose();
@@ -423,6 +431,7 @@ class _AskPageState extends State<AskPage> {
       });
       for (final card in found) {
         _searchWalls(card);
+        if (card.c['picture_prompt'] is String) _makeFor(card);
         if (card.c['kind'] == 'catalog') _catalogLook(card);
       }
     } catch (e) {
@@ -473,7 +482,7 @@ class _AskPageState extends State<AskPage> {
     if (query == null || query.isEmpty) {
       if (web.isEmpty) return;
       setState(() {
-        card.walls = web;
+        card.walls = [...card.walls.where((w) => w['kind'] == 'created'), ...web];
         card.wall = 0;
         card.wallNote = null;
       });
@@ -513,7 +522,7 @@ class _AskPageState extends State<AskPage> {
     }
     if (!mounted || card.token != token) return;
     // The web's pictures first: chosen for this suggestion.
-    results = [...web, ...results];
+    results = [...card.walls.where((w) => w['kind'] == 'created'), ...web, ...results];
     setState(() {
       card.searching = false;
       card.walls = results;
@@ -575,6 +584,69 @@ class _AskPageState extends State<AskPage> {
     } catch (_) {
       // offline: the card shows the font line only
     }
+  }
+
+  // --- wallpapers made here (Maprisma Playground's generator) -------------------------
+
+  Future<Map<String, dynamic>?> _generatorStatus() async {
+    try {
+      final st = await app.call('create.status');
+      if (mounted) setState(() => generator = st);
+      return st;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Makes one wallpaper from the card's description and shows it first;
+  /// waits its turn (one picture at a time). Not set up: the card offers it.
+  Future<void> _makeFor(_Card card) async {
+    final st = await _generatorStatus();
+    if (st == null || st['ready'] != true || !mounted) return;
+    final prompt = card.c['picture_prompt'] as String;
+    setState(() => card.making = true);
+    _makeChain = _makeChain.then((_) async {
+      if (!mounted || !cards.contains(card)) return;
+      try {
+        final r = await app.call('create.make', {'prompt': prompt, 'seed': math.Random().nextInt(1 << 31)});
+        if (!mounted) return;
+        final path = r['path'] as String;
+        setState(() {
+          card.walls = [
+            {'kind': 'created', 'id': 'made${card.walls.length}:$path', 'path': path, 'thumb_path': path},
+            ...card.walls,
+          ];
+          card.wall = 0;
+          card.wallNote = null;
+        });
+      } catch (e) {
+        if (mounted) setState(() => card.wallNote = trf("Could not make the picture: {0}", [_why(e)]));
+      } finally {
+        if (mounted) setState(() => card.making = false);
+      }
+    });
+  }
+
+  Future<void> _setUpGenerator() async {
+    try {
+      final st = await app.call('create.setup');
+      if (mounted) setState(() => generator = st);
+    } catch (e) {
+      if (mounted) setState(() => status = trf("Could not set up the picture generator: {0}", [_why(e)]));
+      return;
+    }
+    _setupPoll?.cancel();
+    _setupPoll = Timer.periodic(const Duration(seconds: 1), (t) async {
+      final st = await _generatorStatus();
+      if (!mounted) return t.cancel();
+      if (st == null || st['setting_up'] == true) return;
+      t.cancel();
+      if (st['ready'] == true) {
+        for (final card in [...cards]) {
+          if (card.c['picture_prompt'] is String && !card.walls.any((w) => w['kind'] == 'created')) _makeFor(card);
+        }
+      }
+    });
   }
 
   void _stepWall(_Card card, int by) {
@@ -668,7 +740,9 @@ class _AskPageState extends State<AskPage> {
   /// Adds the card's wallpaper to [slug]; shown right away when [slug] is the
   /// theme in use (the core only sets it then).
   Future<void> _addWall(String slug, Map<String, dynamic> wall) async {
-    if (wall['kind'] == 'web') {
+    if (wall['kind'] == 'created') {
+      await app.run('create.add', {'slug': slug, 'path': wall['path'], 'set': true}, tr("Could not add the wallpaper"));
+    } else if (wall['kind'] == 'web') {
       await app.run('webimg.add', {'slug': slug, 'url': wall['url'], 'set': true}, tr("Could not add the wallpaper"));
     } else {
       await app.run('wallhaven.add', {'slug': slug, 'item': wall, 'set': true}, tr("Could not add the wallpaper"));
@@ -730,6 +804,7 @@ class _AskPageState extends State<AskPage> {
     if (card.refining) return trf("Refining with {0}…", [chosen?['name'] ?? tr("the helper")]);
     if (card.loadingPicture) return tr("Loading the picture…");
     if (card.searching) return tr("Searching wallpapers…");
+    if (card.making) return tr("Making the wallpaper on this computer…");
     return null;
   }
 
@@ -769,6 +844,8 @@ class _AskPageState extends State<AskPage> {
                 _LookAlike(colors: colors, wallpaper: picture),
                 if (_webWall(card) case final w?)
                   Positioned(left: 6, bottom: 6, child: TileBadge(tr("web"), tooltip: '${w['url']}')),
+                if (_madeWall(card))
+                  Positioned(left: 6, bottom: 6, child: TileBadge(tr("made here"), tooltip: '${c['picture_prompt'] ?? ''}')),
                 if (busy != null)
                   Center(
                     child: Container(
@@ -792,7 +869,7 @@ class _AskPageState extends State<AskPage> {
           const SizedBox(height: 6),
           _strip(c, colors, scheme, card),
           if (card.search != null) ...[const SizedBox(height: 4), _searchRow(card)],
-          if (c['wallpaper_query'] is String || card.walls.isNotEmpty) _wallRow(card, scheme),
+          if (c['wallpaper_query'] is String || card.walls.isNotEmpty || c['picture_prompt'] is String) _wallRow(card, scheme),
           if (reason.isNotEmpty) ...[const SizedBox(height: 4), Text(reason, style: hint)],
           const SizedBox(height: 8),
           Wrap(
@@ -923,6 +1000,9 @@ class _AskPageState extends State<AskPage> {
     return w['kind'] == 'web' ? w : null;
   }
 
+  static bool _madeWall(_Card card) =>
+      card.walls.isNotEmpty && card.wall >= 0 && card.wall < card.walls.length && card.walls[card.wall]['kind'] == 'created';
+
   static String _hostOf(Map w) => Uri.tryParse('${w['page'] ?? w['url']}')?.host ?? '';
 
   Future<void> _openWebPage(Map w) async {
@@ -940,9 +1020,13 @@ class _AskPageState extends State<AskPage> {
     final label = card.wallNote ??
         (web != null
             ? '${'${web['title'] ?? ''}'.trim().isEmpty ? _hostOf(web) : web['title']} · ${tr("web")} · $count'
-            : c['wallpaper_query'] is String
-                ? '“${c['wallpaper_query']}” · $count'
-                : count);
+            : _madeWall(card)
+                ? '${tr("made here")} · $count'
+                : c['wallpaper_query'] is String
+                    ? '“${c['wallpaper_query']}” · $count'
+                    : card.walls.isEmpty
+                        ? (c['picture_prompt'] is String ? _generatorNote() : '')
+                        : count);
     return Row(
       children: [
         IconButton(
@@ -960,6 +1044,7 @@ class _AskPageState extends State<AskPage> {
             style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
           ),
         ),
+        if (c['picture_prompt'] is String) _makeButton(card),
         if (web != null)
           IconButton(
             tooltip: trf("Open on {0}", [_hostOf(web)]),
@@ -974,6 +1059,37 @@ class _AskPageState extends State<AskPage> {
           icon: const Icon(Icons.chevron_right, size: 20),
         ),
       ],
+    );
+  }
+
+  /// The generator's state for a card whose wallpaper is to be made.
+  String _generatorNote() {
+    final g = generator;
+    if (g == null || g['ready'] == true) return '';
+    if (g['playground'] != true) return tr("Making it needs Maprisma Playground");
+    if (g['setting_up'] == true) {
+      return trf("Setting up the picture generator… {0} %", [(((g['fraction'] as num?) ?? 0) * 100).round()]);
+    }
+    return trf("Picture generator not set up ({0} GB once)", [(((g['download_bytes'] as num?) ?? 0) / 1e9).toStringAsFixed(1)]);
+  }
+
+  /// Make another wallpaper; or set the generator up first (shared with Playground).
+  Widget _makeButton(_Card card) {
+    const tight = VisualDensity(horizontal: -4, vertical: -4);
+    final g = generator;
+    if (g != null && g['ready'] != true) {
+      if (g['playground'] != true || g['setting_up'] == true) return const SizedBox();
+      return TextButton.icon(
+        onPressed: _setUpGenerator,
+        icon: const Icon(Icons.download, size: 16),
+        label: Text(tr("Set up")),
+      );
+    }
+    return IconButton(
+      tooltip: tr("Make another wallpaper on this computer (no tokens)"),
+      visualDensity: tight,
+      onPressed: card.making ? null : () => _makeFor(card),
+      icon: const Icon(Icons.auto_awesome_outlined, size: 18),
     );
   }
 

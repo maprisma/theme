@@ -11,6 +11,7 @@ import 'package:maprisma_theme/pages/info_page.dart';
 import 'package:maprisma_theme/pages/settings_page.dart';
 import 'package:maprisma_theme/pages/wallhaven_page.dart';
 import 'package:maprisma_theme/pages/wallpapers_page.dart';
+import 'package:maprisma_theme/widgets.dart' show TileGrid;
 import 'package:maprisma_theme_core/maprisma_theme_core.dart';
 
 import 'page_shots.dart';
@@ -60,10 +61,16 @@ void main() {
   late CoreService core;
   final shots = shotsDir;
   var aiOn = false;
+  var createAnswer = false, generatorReady = true;
+  var made = 0;
 
   setUpAll(loadShotFonts);
 
   setUp(() async {
+    aiOn = false;
+    createAnswer = false;
+    generatorReady = true;
+    made = 0;
     root = Directory.systemTemp.createTempSync('maprisma-ui-parity-');
     Directory('${root.path}/bin').createSync();
     final env = {'HOME': '${root.path}/home', 'XDG_RUNTIME_DIR': '${root.path}/run', 'PATH': '${root.path}/bin'};
@@ -96,10 +103,10 @@ void main() {
     if (m == 'wallhaven.search') {
       return {
         'results': [
-          for (var i = 0; i < 6; i++)
+          for (var i = 0; i < (p['query'] == 'fjord' ? 24 : 6); i++)
             {
-              'id': 'abc$i',
-              'page': 'https://wallhaven.cc/w/abc$i',
+              'id': 'abc${p['page'] ?? 1}x$i',
+              'page': 'https://wallhaven.cc/w/abc${p['page'] ?? 1}x$i',
               'thumb': 'https://th.wallhaven.cc/small/ab/abc$i.jpg',
               'full': 'https://w.wallhaven.cc/full/ab/wallhaven-abc$i.jpg',
               'resolution': '2560x1440',
@@ -108,8 +115,8 @@ void main() {
               'added': i == 1,
             },
         ],
-        'page': 1,
-        'last_page': 1,
+        'page': p['page'] ?? 1,
+        'last_page': p['query'] == 'fjord' ? 2 : 1,
       };
     }
     if (m == 'wallhaven.thumb') return {'path': null};
@@ -135,6 +142,16 @@ void main() {
               'web': true,
             }
           : {'helpers': <Map>[], 'chosen': null, 'enabled': false};
+    }
+    if (m == 'create.status') {
+      return {'ready': generatorReady, 'playground': true, 'setting_up': false, 'download_bytes': generatorReady ? 0 : 11193150692};
+    }
+    if (m == 'create.make') {
+      made++;
+      return {'path': '${core.ctx.paths.systemThemes}/kanagawa/backgrounds/2-kanagawa.png', 'seed': p['seed']};
+    }
+    if (m == 'ask.wallpapers' && createAnswer) {
+      return {'summary': 'A fjord, made for you.', 'queries': ['fjord'], 'images': <Map>[], 'web': true, 'picture_prompt': 'A misty fjord at dawn'};
     }
     if (m == 'ask.wallpapers') {
       return {
@@ -306,6 +323,85 @@ void main() {
     expect(find.text('Broken'), findsNothing, reason: 'a link that is no picture is left out');
     expect(find.text('web'), findsOneWidget);
     await shoot(tester, key, 'wallhaven-ai-1300');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('wallpapers: Ask AI makes pictures, a batch at a time, Next for more', (tester) async {
+    aiOn = true;
+    createAnswer = true;
+    tester.view.physicalSize = const Size(1300, 820);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final key = GlobalKey();
+    await tester.runAsync(() async {
+      await tester.pumpWidget(RepaintBoundary(key: key, child: MaprismaThemeApp(call: call)));
+    });
+    await settle(tester);
+    final app = tester.state<MaprismaThemeAppState>(find.byType(MaprismaThemeApp));
+    await core.call('settings.set', {'key': 'wallpaper_count', 'value': 5});
+    app.settings = {...app.settings, 'wallpaper_count': 5};
+    await tester.runAsync(() async {
+      app.navigator.currentState!.push(MaterialPageRoute<void>(
+          builder: (_) => const WallhavenPage(slug: 'kanagawa', themeName: 'Kanagawa', current: true, askAi: true)));
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      }
+    });
+    await settle(tester);
+    expect(find.text('5 pictures'), findsOneWidget);
+    await tester.enterText(find.byType(TextField).at(1), 'paint me a fjord');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    for (var i = 0; i < 4; i++) {
+      await settle(tester, 150);
+    }
+    expect(made, 5);
+    expect(find.text('made here'), findsNWidgets(5));
+    await tester.drag(find.byType(ListView).last, const Offset(0, -3000));
+    await settle(tester, 100);
+    expect(find.text('Next 5'), findsOneWidget);
+    await shoot(tester, key, 'wallhaven-made-1300');
+    await tester.tap(find.text('Next 5'));
+    for (var i = 0; i < 4; i++) {
+      await settle(tester, 150);
+    }
+    expect(made, 10, reason: 'Next makes the next batch');
+    // 10 made + 10 wallhaven results shown (5 per batch), not all 24.
+    await tester.drag(find.byType(ListView).last, const Offset(0, -6000));
+    await settle(tester, 100);
+    expect(tester.widget<TileGrid>(find.byType(TileGrid)).count, 20);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('wallpapers: making pictures offers the generator setup first', (tester) async {
+    aiOn = true;
+    createAnswer = true;
+    generatorReady = false;
+    tester.view.physicalSize = const Size(1300, 820);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final key = GlobalKey();
+    await tester.runAsync(() async {
+      await tester.pumpWidget(RepaintBoundary(key: key, child: MaprismaThemeApp(call: call)));
+    });
+    await settle(tester);
+    final app = tester.state<MaprismaThemeAppState>(find.byType(MaprismaThemeApp));
+    await tester.runAsync(() async {
+      app.navigator.currentState!.push(MaterialPageRoute<void>(
+          builder: (_) => const WallhavenPage(slug: 'kanagawa', themeName: 'Kanagawa', current: true, askAi: true)));
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      }
+    });
+    await settle(tester);
+    await tester.enterText(find.byType(TextField).at(1), 'paint me a fjord');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await settle(tester);
+    expect(made, 0);
+    expect(find.text('Set up'), findsOneWidget);
+    expect(find.textContaining('11.2 GB to download once'), findsOneWidget);
+    await shoot(tester, key, 'wallhaven-setup-1300');
     expect(tester.takeException(), isNull);
   });
 }
