@@ -1,7 +1,7 @@
 name: maprisma_theme
 description: "Maprisma Theme: every theme in one place, for COSMIC."
 publish_to: 'none'
-version: 0.2.0+2
+version: 0.3.0+3
 
 environment:
   sdk: ^3.13.5

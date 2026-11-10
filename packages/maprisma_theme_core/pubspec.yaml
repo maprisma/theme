@@ -1,7 +1,7 @@
 name: maprisma_theme_core
 description: Maprisma Theme's core in pure Dart (themes, wallpapers, COSMIC, automation).
 publish_to: none
-version: 0.2.0
+version: 0.3.0
 environment:
   sdk: '>=3.8.0 <4.0.0'
 dependencies:
