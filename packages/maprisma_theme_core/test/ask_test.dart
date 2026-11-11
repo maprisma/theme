@@ -385,7 +385,7 @@ void main() {
       expect((m.host, m.port), ('127.0.0.1', 8080));
     });
 
-    test('Codex runs in a jail: empty home, its folder as an overlay, no session bus', () async {
+    test('Codex runs in a jail: empty home, a new empty .codex with only its sign-in, no tools, no session bus', () async {
       _exe('$bin/codex', 'exit 0');
       _exe('$bin/bwrap', 'exit 0');
       Directory('$home/.codex').createSync();
@@ -395,8 +395,16 @@ void main() {
       final argv = await jailArgv(codex, ['codex', 'exec', '-'], work.path, home, {'PATH': bin});
       final s = argv.join(' ');
       expect(s, contains('--tmpfs $home'));
-      expect(s, contains('--overlay-src $home/.codex --overlay ${work.path}/.layers/0/up'));
-      expect(s, contains('--bind $home/.codex/auth.json $home/.codex/auth.json'));
+      // none of the real ~/.codex (sessions, config, MCP servers): a new folder, the sign-in bound in after it
+      expect(s, isNot(contains('--overlay')));
+      expect(s, isNot(contains('$home/.codex $home/.codex')));
+      expect(s, contains('--perms 0700 --dir $home/.codex'));
+      expect(s.indexOf('--dir $home/.codex'), lessThan(s.indexOf('--bind $home/.codex/auth.json $home/.codex/auth.json')));
+      // its own flags: nothing saved, no user config, no web, no tools
+      final flags = codex.argv.join(' ');
+      for (final f in ['--sandbox read-only', '--ephemeral', '--ignore-user-config', '--ignore-rules', 'web_search="disabled"', '--disable shell_tool', '--disable unified_exec', '--disable computer_use', '--disable browser_use']) {
+        expect(flags, contains(f));
+      }
       expect(s, contains('--unsetenv DBUS_SESSION_BUS_ADDRESS'));
       expect(s, isNot(contains('--bind $home $home')));
       expect(s, isNot(contains('--ro-bind $home ')));
