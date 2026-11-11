@@ -28,10 +28,11 @@ if (( build )); then
   mkdir -p "$bundle/bin"
   (cd "$root/packages/maprisma_theme_core" && dart compile exe bin/maprisma_theme_core.dart -o "$bundle/bin/maprisma-theme-core" >/dev/null)
   install -m755 "$root/cosmic/target/release/maprisma-theme-helper" "$root/cosmic/target/release/maprisma-theme-applet" "$bundle/bin/"
+  install -m755 "$root/hyprland/maprisma-caelestia-bridge" "$bundle/bin/"   # Hyprland/Caelestia backend
   rm -rf "$bundle/share" && mkdir -p "$bundle/share/maprisma-theme"
   cp -a "$root/themes" "$root/templates" "$bundle/share/maprisma-theme/"
 fi
-for f in maprisma-theme bin/maprisma-theme-core bin/maprisma-theme-helper bin/maprisma-theme-applet share/maprisma-theme/themes; do
+for f in maprisma-theme bin/maprisma-theme-core bin/maprisma-theme-helper bin/maprisma-theme-applet bin/maprisma-caelestia-bridge share/maprisma-theme/themes; do
   [[ -e $bundle/$f ]] || { echo "missing in the build: $f" >&2; exit 1; }
 done
 
@@ -91,8 +92,8 @@ exe=${exe//\\/\\\\}; exe=${exe//\"/\\\"}; exe=${exe//\`/\\\`}; exe=${exe//\$/\\\
 # …then the desktop file value layer: every backslash doubled again, % as %%.
 exe=${exe//\\/\\\\}; exe=${exe//\%/%%}
 { grep -v '^Exec=' "$root/packaging/com.maprisma.Theme.Daemon.desktop"; printf 'Exec="%s" daemon\n' "$exe"; } > "$autostart/com.maprisma.Theme.Daemon.desktop"
-# The daemon was stopped with the other running copies: start it again in a Plasma session.
-if [[ ":${XDG_CURRENT_DESKTOP:-}:" == *:KDE:* ]]; then
+# The daemon was stopped with the other running copies: start it again in a Plasma or Hyprland session.
+if [[ ":${XDG_CURRENT_DESKTOP:-}:" == *:KDE:* || ":${XDG_CURRENT_DESKTOP:-}:" == *:Hyprland:* ]]; then
   setsid -f "$bin/maprisma-theme-core" daemon >/dev/null 2>&1 < /dev/null || true
 fi
 echo "Installed Maprisma Theme into $lib"

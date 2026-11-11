@@ -18,6 +18,6 @@ Comment[nl]=Systeemvakpictogram en automatisering van Maprisma Theme (bureaublad
 Comment[pl]=Ikona zasobnika i automatyzacja Maprisma Theme (pulpity bez jego apletu)
 Exec=maprisma-theme-core daemon
 Icon=com.maprisma.Theme
-OnlyShowIn=KDE;
+OnlyShowIn=KDE;Hyprland;
 NoDisplay=true
 X-KDE-autostart-phase=2

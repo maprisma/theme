@@ -5,12 +5,13 @@ import 'i18n.dart';
 
 import 'desktop.dart';
 import 'desktop_cosmic.dart';
+import 'desktop_hyprland.dart';
 import 'desktop_kde.dart';
 import 'paths.dart';
 import 'shortcuts.dart';
 
 /// The backend ids `MAPRISMA_THEME_DESKTOP` accepts.
-const desktopIds = ['cosmic', 'kde', 'generic'];
+const desktopIds = ['cosmic', 'kde', 'hyprland', 'generic'];
 
 /// The backend for this session: `MAPRISMA_THEME_DESKTOP` when set and not
 /// blank (an unknown id is an [ArgumentError], never a silent fallback; a
@@ -24,6 +25,7 @@ Desktop selectDesktop(Paths paths, Map<String, String> environment) {
     return switch (override) {
       'cosmic' => CosmicDesktop(paths, environment),
       'kde' => KdeDesktop(paths, environment),
+      'hyprland' => HyprlandDesktop(paths, environment),
       'generic' => GenericDesktop(paths, environment),
       _ => throw ArgumentError.value(override, 'MAPRISMA_THEME_DESKTOP', trf("one of {0}", [desktopIds.join(', ')])),
     };
@@ -34,6 +36,8 @@ Desktop selectDesktop(Paths paths, Map<String, String> environment) {
         return CosmicDesktop(paths, environment);
       case 'KDE':
         return KdeDesktop(paths, environment);
+      case 'HYPRLAND':
+        return HyprlandDesktop(paths, environment);
     }
   }
   return GenericDesktop(paths, environment);

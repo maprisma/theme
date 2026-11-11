@@ -152,7 +152,7 @@ Started by an XDG autostart entry.
   StatusNotifierItem tray icon + com.canonical.dbusmenu menu (favorites, Next wallpaper, Open); the
   applet's automation ported (queue ≤ 64 with coalescing, minute tick, workspace themes, window limits
   with the applet's overflow rule, autostart once per session). Started by
-  `~/.config/autostart/com.maprisma.Theme.Daemon.desktop` (`OnlyShowIn=KDE;`) and by the installer.
+  `~/.config/autostart/com.maprisma.Theme.Daemon.desktop` (`OnlyShowIn=KDE;Hyprland;`) and by the installer.
 - All D-Bus use goes through the backend's own environment (`DBUS_SESSION_BUS_ADDRESS`); tests have
   none, so they never reach the real session.
 - KDE caps: appearance, kdeScheme, wallpaper, terminal, fonts, icons, workspaces, windows, shortcuts,
@@ -170,3 +170,22 @@ Started by an XDG autostart entry.
 
 Claude: Dart core + Flutter (steps 1–3), commits. Codex: plan review, KWin script and Konsole/Plasma
 format checks (step 2/4), read-only crosscheck of every step. Findings are verified before fixing.
+
+## Hyprland with Caelestia (2026-11-11)
+
+`HyprlandDesktop` (desktop_hyprland.dart, id `hyprland`, picked for `XDG_CURRENT_DESKTOP=Hyprland`)
+has the caps `appearance` and `wallpaper`. Both go through `hyprland/maprisma-caelestia-bridge`, a
+Python script run with `python3 -I` that imports caelestia-cli's own modules:
+
+- `apply <colors.json>`: a Material scheme seeded from the accent (tonalspot), with the theme's own
+  background, text, surfaces (mixed from background and text), terminal colours and named colours
+  laid over it; saved as Caelestia's `scheme.json` and applied with Caelestia's `apply_colours`
+  (shell, Hyprland borders, terminals, btop, fuzzel, …, as `cli.json` enables them).
+- The scheme is saved under Caelestia's name `dynamic`. Caelestia only knows schemes shipped in its
+  package, and any other name would make its own wallpaper picker or mode switch crash. With
+  `dynamic`, those keep working and recolour from the wallpaper.
+- `wallpaper <path>` writes Caelestia's wallpaper state (path.txt, the `current` link, the
+  thumbnail) without recolouring; `current` and `wallpaper-get` read it back.
+
+Not done yet on Hyprland: fonts, icons, blur, terminal schemes of their own, windows/workspaces
+(`wm`) and shortcuts. Their caps are missing, so the UI hides them.
