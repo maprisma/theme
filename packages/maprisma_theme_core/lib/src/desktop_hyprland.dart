@@ -21,8 +21,13 @@ final class HyprlandDesktop extends DesktopBase {
   String get name => 'Hyprland';
   @override
   String? get terminalName => null;
+  /// Only with Caelestia's CLI installed: plain Hyprland (Omarchy, for one) has
+  /// nothing the bridge can apply to, so there it is as [GenericDesktop] (themes,
+  /// wallpaper files and app templates still work).
   @override
-  Set<Cap> get caps => const {Cap.appearance, Cap.wallpaper};
+  late final Set<Cap> caps = findProgram(paths, environment, 'caelestia') != null
+      ? const {Cap.appearance, Cap.wallpaper}
+      : const {};
 
   /// The bridge: MAPRISMA_THEME_CAELESTIA_BRIDGE, next to the running
   /// program (bin/ of the installed bundle), else PATH.

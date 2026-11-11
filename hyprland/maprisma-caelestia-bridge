@@ -123,9 +123,15 @@ def build_colours(colors, generator):
         c["outline"] = muted
         c["subtext0"] = muted
     c["onSurfaceVariant"] = c["subtext1"] = mix(fg, bg, 0.25)
+    # Caelestia's terminals take the cursor and the selection background from
+    # the one colour "secondary": the selection wins (a cursor-bright selection
+    # would hide the selected text), as "current" reads it back.
     sel = hexval(colors.get("selection"))
+    cursor = hexval(colors.get("cursor"))
     if sel:
         c["secondaryContainer"] = sel
+    if cursor or sel:
+        c["secondary"] = sel or cursor
 
     # Terminal colours exactly as the theme has them.
     for i, key in enumerate(TERM_KEYS):
@@ -159,15 +165,32 @@ def cmd_apply(path):
         fail("bad_colors", "expected a JSON object")
     colours, mode = build_colours(colors, generator)
     # apply_colours silently does nothing while another theme change holds
-    # Caelestia's lock: wait (up to 10 s) until it is free, so the saved
-    # scheme and what is applied belong together.
-    if not wait_for_theme_lock(paths):
-        fail("busy", "another Caelestia theme change is running")
-    paths.atomic_dump(paths.scheme_path, {
-        "name": "dynamic", "flavour": "default", "mode": mode,
-        "variant": "tonalspot", "colours": colours,
-    })
-    theme.apply_colours(colours, mode)
+    # Caelestia's lock (it returns before reading its config): wait until the
+    # lock is free, apply, and try again (up to 10 s) when it was taken in
+    # between, so the saved scheme and what is applied belong together.
+    import time
+    end = time.monotonic() + 10.0
+    ran = []
+    get_config = theme.get_config
+
+    def tracked_get_config(*args, **kwargs):
+        ran.append(True)
+        return get_config(*args, **kwargs)
+
+    theme.get_config = tracked_get_config
+    while True:
+        if not wait_for_theme_lock(paths, max(0.0, end - time.monotonic())):
+            fail("busy", "another Caelestia theme change is running")
+        paths.atomic_dump(paths.scheme_path, {
+            "name": "dynamic", "flavour": "default", "mode": mode,
+            "variant": "tonalspot", "colours": colours,
+        })
+        theme.apply_colours(colours, mode)
+        if ran:
+            break
+        if time.monotonic() >= end:
+            fail("busy", "another Caelestia theme change is running")
+        time.sleep(0.2)
     out({"applied": True, "mode": mode})
 
 

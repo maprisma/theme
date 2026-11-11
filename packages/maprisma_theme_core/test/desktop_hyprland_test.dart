@@ -33,9 +33,15 @@ elif args[0] == "wallpaper" and args[1].endswith("bad.png"):
 else:
     print(json.dumps({"set": True}))
 ''');
+    // A fake caelestia CLI: the caps need it installed.
+    final bin = Directory('${root.path}/bin')..createSync();
+    File('${bin.path}/caelestia')
+      ..writeAsStringSync('#!/bin/sh\n')
+      ..setLastModifiedSync(DateTime.now());
+    Process.runSync('chmod', ['+x', '${bin.path}/caelestia']);
     env = {
       'HOME': home,
-      'PATH': Platform.environment['PATH'] ?? '/usr/bin',
+      'PATH': '${bin.path}:${Platform.environment['PATH'] ?? '/usr/bin'}',
       'XDG_RUNTIME_DIR': '${root.path}/run',
       'MAPRISMA_THEME_CAELESTIA_BRIDGE': bridge.path,
     };
@@ -47,6 +53,11 @@ else:
     final d = HyprlandDesktop(paths, env);
     expect(d.id, 'hyprland');
     expect(d.caps, {Cap.appearance, Cap.wallpaper});
+  });
+
+  test('caps: none without Caelestia (plain Hyprland, Omarchy)', () {
+    final d = HyprlandDesktop(paths, {...env, 'PATH': '/nonexistent'});
+    expect(d.caps, isEmpty);
   });
 
   test('applyColors hands the colours to the bridge in a temporary file it then deletes', () async {
