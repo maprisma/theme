@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:maprisma_theme_core/maprisma_theme_core.dart' show flipDelayChoices, normalizeFlipDelay;
 
 import '../app.dart';
 import '../theme.dart';
@@ -387,6 +388,40 @@ class _SettingsPageState extends State<SettingsPage> {
           ('name', tr("By name")),
           ('recent', tr("Recently used first")),
         ], (v) => set('sort', v)),
+      ),
+      _Row(
+        'themes',
+        tr("3D flip to wallpaper on hover"),
+        tr("Hovering a theme card flips its preview in 3D to show the theme's wallpaper."),
+        _switch(
+          settings['preview_flip_3d'] != false,
+          (on) => set('preview_flip_3d', on),
+          key: const ValueKey('setting-preview-flip-3d'),
+        ),
+      ),
+      _Row(
+        'themes',
+        tr("3D rotation delay"),
+        tr("Seconds before a selected theme card starts rotating. 0 keeps the preview and shows left/right arrows immediately."),
+        _dropdown<num>(
+          settings['preview_flip_delay'] is num ? normalizeFlipDelay(settings['preview_flip_delay'] as num) : 1,
+          [
+            for (final s in flipDelayChoices)
+              (s, s == 0 ? tr("0 s (arrows only)") : trf("{0} s", [s])),
+          ],
+          (v) => set('preview_flip_delay', v),
+          key: const ValueKey('setting-preview-flip-delay'),
+        ),
+      ),
+      _Row(
+        'themes',
+        tr("Apply theme when pinning wallpaper"),
+        tr("On: pinning a wallpaper on another theme switches to that theme immediately. Off: only saves it as that theme’s current wallpaper."),
+        _switch(
+          settings['preview_pin_apply_theme'] != false,
+          (on) => set('preview_pin_apply_theme', on),
+          key: const ValueKey('setting-preview-pin-apply-theme'),
+        ),
       ),
       for (final a in apps)
         _Row(

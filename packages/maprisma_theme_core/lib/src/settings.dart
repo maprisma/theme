@@ -12,6 +12,9 @@ const defaultSettings = <String, dynamic>{
   'workspace_themes': false,
   'corners': 'windows', // windows, slight (6 px), rounded (12 px), square
   'sort': 'name', // name, recent
+  'preview_flip_3d': true,
+  'preview_flip_delay': 1,
+  'preview_pin_apply_theme': true,
   'slideshow_minutes': 0, // 0 = never, else 5..120
   'schedule': {'enabled': false, 'day': '', 'night': '', 'day_at': '07:00', 'night_at': '19:00'},
   'screenshot_key': true,
@@ -34,7 +37,10 @@ const defaultSettings = <String, dynamic>{
 };
 
 const slideshowChoices = [0, 5, 10, 15, 30, 60, 120];
+const flipDelayChoices = <num>[0, 0.5, 1, 1.5, 2, 3, 5, 10];
 final _time = RegExp(r'^([01]\d|2[0-3]):[0-5]\d$');
+
+num normalizeFlipDelay(num v) => v == v.roundToDouble() ? v.round() : v.toDouble();
 
 /// The settings with defaults filled in and every value checked.
 final class Settings {
@@ -46,7 +52,8 @@ final class Settings {
     final out = <String, dynamic>{};
     for (final e in defaultSettings.entries) {
       final v = raw.containsKey(e.key) ? raw[e.key] : e.value;
-      out[e.key] = check(e.key, v) ? v : e.value;
+      final checked = check(e.key, v) ? v : e.value;
+      out[e.key] = e.key == 'preview_flip_delay' && checked is num ? normalizeFlipDelay(checked) : checked;
     }
     if (out['schedule'] is Map) {
       final s = Map<String, dynamic>.from(defaultSettings['schedule'] as Map)..addAll(Map<String, dynamic>.from(out['schedule']));
@@ -63,7 +70,7 @@ final class Settings {
       throw ArgumentError.value(value, key);
     }
     final raw = readJsonMap(paths.settingsFile);
-    raw[key] = value;
+    raw[key] = key == 'preview_flip_delay' && value is num ? normalizeFlipDelay(value) : value;
     writeJson(paths.settingsFile, raw);
     return load();
   }
@@ -91,8 +98,17 @@ final class Settings {
   static bool check(String key, dynamic v) => switch (key) {
     'language' => v is String && const {'auto', 'en', 'de', 'fr', 'es', 'it', 'pt', 'nl', 'pl'}.contains(v),
     'size' => v == null || (v is List && v.length == 2 && v.every((e) => e is int && e >= 320 && e <= 10000)),
-    'workspace_wallpapers' || 'workspace_themes' || 'screenshot_key' || 'ask_ai' || 'ask_ai_web' || 'maprisma_hints' || 'show_hidden' =>
+    'workspace_wallpapers' ||
+    'workspace_themes' ||
+    'screenshot_key' ||
+    'ask_ai' ||
+    'ask_ai_web' ||
+    'maprisma_hints' ||
+    'show_hidden' ||
+    'preview_flip_3d' ||
+    'preview_pin_apply_theme' =>
       v is bool,
+    'preview_flip_delay' => v is num && !v.isNaN && flipDelayChoices.any((c) => c.toDouble() == v.toDouble()),
     'wallpaper_count' => v is int && const {5, 10, 20}.contains(v),
     'corners' => v is String && const {'windows', 'slight', 'rounded', 'square'}.contains(v),
     'sort' => v is String && const {'name', 'recent'}.contains(v),

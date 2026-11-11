@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../app.dart';
+import '../flip_picture.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import '../window.dart';
@@ -35,6 +36,7 @@ class _ThemesPageState extends State<ThemesPage> {
   bool showHidden = false, loading = true;
   String filter = '';
   String? selected;
+  String? currentWallpaper;
   int columns = 2;
   final focus = FocusNode();
   final scroll = ScrollController();
@@ -74,6 +76,7 @@ class _ThemesPageState extends State<ThemesPage> {
     if (!mounted || r == null) return;
     setState(() {
       themes = [for (final t in r['themes'] as List) Map<String, dynamic>.from(t as Map)];
+      currentWallpaper = r['current_wallpaper'] as String?;
       showHidden = r['show_hidden'] == true;
       loading = false;
       shortcutLabels = {
@@ -133,6 +136,27 @@ class _ThemesPageState extends State<ThemesPage> {
     if (r == null) return;
     app.notify(trf("Theme applied: {0}", [t['name']]));
     app.changed();
+  }
+
+  Future<bool> pinWallpaper(Map t, String wpPath) async {
+    final slug = t['slug'] as String;
+    if (t['current'] == true) {
+      final r = await app.run('wallpapers.set', {'slug': slug, 'path': wpPath}, tr("Could not set background"));
+      if (r == null) return false;
+      if (mounted) setState(() => currentWallpaper = wpPath);
+      return true;
+    }
+    if (app.settings['preview_pin_apply_theme'] == false) {
+      final r = await app.run('wallpapers.set', {'slug': slug, 'path': wpPath}, tr("Could not set background"));
+      return r != null;
+    }
+    if (t['hidden'] == true) await app.run('themes.hide', {'slug': slug, 'hidden': false});
+    app.notify(trf("Applying {0}…", [t['name']]), duration: const Duration(seconds: 20));
+    final r = await app.run('themes.apply', {'slug': slug, 'wallpaper': wpPath});
+    if (r == null) return false;
+    app.notify(trf("Theme applied: {0}", [t['name']]));
+    app.changed();
+    return true;
   }
 
   /// The theme in use gets its stored fonts and blur now.
@@ -433,6 +457,10 @@ class _ThemesPageState extends State<ThemesPage> {
       ),
     );
     final showFooter = list.isEmpty || (hiddenCount > 0 && filter.isEmpty);
+    final routeActive = ModalRoute.of(context)?.isCurrent ?? true;
+    final flip3d = app.settings['preview_flip_3d'] != false;
+    final flipDelay = (app.settings['preview_flip_delay'] as num?)?.toDouble() ?? 1.0;
+    final pinApplyTheme = app.settings['preview_pin_apply_theme'] != false;
     return Focus(
       focusNode: focus,
       autofocus: true,
@@ -457,6 +485,14 @@ class _ThemesPageState extends State<ThemesPage> {
                       child: ThemeTile(
                         theme: t,
                         selected: slug == selected,
+                        flipActive: routeActive && slug == selected,
+                        pageVisible: routeActive,
+                        flip3d: flip3d,
+                        flipDelay: flipDelay,
+                        pinApplyTheme: pinApplyTheme,
+                        canPin: app.can('wallpaper'),
+                        currentWallpaper: currentWallpaper,
+                        onPin: (wp) => pinWallpaper(t, wp),
                         shortcuts: app.can('shortcuts') ? shortcutLabels['apply:$slug'] ?? const [] : const [],
                         workspaces: [if (app.can('workspaces')) for (final e in workspaceThemes.entries) if (e.value == slug) e.key]..sort(),
                         menuKey: _menuKeys.putIfAbsent(slug, () => GlobalKey()),
@@ -492,16 +528,32 @@ class ThemeTile extends StatefulWidget {
     required this.menu,
     this.menuKey,
     this.onHover,
+    this.onPin,
     this.selected = false,
+    this.flipActive = false,
+    this.pageVisible = true,
+    this.flip3d = true,
+    this.flipDelay = 1.0,
+    this.pinApplyTheme = true,
+    this.canPin = true,
+    this.currentWallpaper,
     this.shortcuts = const [],
     this.workspaces = const [],
   });
   final Map<String, dynamic> theme;
   final VoidCallback onApply;
   final VoidCallback? onHover;
+  final Future<bool> Function(String path)? onPin;
   final List<PopupMenuEntry<VoidCallback>> Function() menu;
   final GlobalKey<PopupMenuButtonState<VoidCallback>>? menuKey;
   final bool selected;
+  final bool flipActive;
+  final bool pageVisible;
+  final bool flip3d;
+  final double flipDelay;
+  final bool pinApplyTheme;
+  final bool canPin;
+  final String? currentWallpaper;
   final List<String> shortcuts;
   final List<int> workspaces;
 
@@ -518,22 +570,70 @@ class _ThemeTileState extends State<ThemeTile> {
     final look = Look.of(context);
     final r = corners(context);
     final t = widget.theme;
+    final slug = t['slug'] as String;
     final colors = (t['colors'] as Map?) ?? const {};
     final preview = t['preview'] as String?;
+    final wallpapers = [
+      for (final w in (t['wallpapers'] as List?) ?? const [])
+        if (w is String) w,
+    ];
     final hidden = t['hidden'] == true;
+    final isCurrent = t['current'] == true;
     final text = widget.selected ? look.selectionFg : look.fg;
     final key = widget.shortcuts.firstOrNull;
-    final picture = preview != null
-        ? Image.file(File(preview),
-            fit: BoxFit.cover, cacheWidth: 640, errorBuilder: (_, _, _) => ColorPreview(colors: colors))
-        : ColorPreview(colors: colors);
+    final innerRadius = r == 0 ? 0.0 : math.max(2.0, r - 4.0);
+    final badges = Wrap(spacing: 4, runSpacing: 4, children: [
+      if (isCurrent) TileBadge(tr("current"), kind: BadgeKind.current),
+      if (t['scope'] == 'system') TileBadge(tr("system")),
+      if (hidden) TileBadge(tr("hidden")),
+      if (widget.workspaces.isNotEmpty)
+        TileBadge(trf("ws {0}", [widget.workspaces.join(' · ')]),
+            tooltip: trf("Used on workspace {0}", [widget.workspaces.join(', ')])),
+    ]);
+    final menuButton = TileMenuButton(menuKey: widget.menuKey, tooltip: tr("Theme actions (Menu key)"), menu: widget.menu);
+    final Widget media;
+    if (widget.flip3d && preview != null && wallpapers.isNotEmpty) {
+      media = FlipPicture(
+        key: ValueKey('flip-$slug'),
+        slug: slug,
+        preview: preview,
+        wallpapers: wallpapers,
+        colors: colors,
+        borderRadius: innerRadius,
+        active: widget.flipActive,
+        pageVisible: widget.pageVisible,
+        themeCurrent: isCurrent,
+        pinApplyTheme: widget.pinApplyTheme,
+        delaySeconds: widget.flipDelay,
+        canPin: widget.canPin,
+        activeWallpaper: isCurrent
+            ? (widget.currentWallpaper ?? wallpapers.first)
+            : (!widget.pinApplyTheme ? wallpapers.first : null),
+        badges: badges,
+        menuButton: menuButton,
+        onPin: widget.onPin,
+      );
+    } else {
+      final picture = preview != null
+          ? Image.file(File(preview),
+              fit: BoxFit.cover, cacheWidth: 640, errorBuilder: (_, _, _) => ColorPreview(colors: colors))
+          : ColorPreview(colors: colors);
+      media = ClipRRect(
+        borderRadius: BorderRadius.circular(innerRadius),
+        child: Stack(fit: StackFit.expand, children: [
+          picture,
+          Positioned(left: 6, right: 40, bottom: 6, child: badges),
+          Positioned(top: 0, right: 0, child: menuButton),
+        ]),
+      );
+    }
     final tile = Container(
-      padding: EdgeInsets.all(t['current'] == true ? 2 : 3), // the wider border keeps the tile's size
+      padding: EdgeInsets.all(isCurrent ? 2 : 3), // the wider border keeps the tile's size
       decoration: BoxDecoration(
         color: look.fg.withValues(alpha: .08),
         // The theme in use: its own green (its accent without one), a little wider,
         // also under the pointer; the desktop's palette may carry no green (KDE).
-        border: t['current'] == true
+        border: isCurrent
             ? Border.all(color: hexColor(colors, 'green') ?? hexColor(colors, 'accent') ?? look.accent, width: 2)
             : Border.all(color: hover ? look.accent : look.fg.withValues(alpha: .22)),
         borderRadius: BorderRadius.circular(r),
@@ -541,30 +641,7 @@ class _ThemeTileState extends State<ThemeTile> {
       child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         AspectRatio(
           aspectRatio: 16 / 9,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(r == 0 ? 0 : math.max(2, r - 4)),
-            child: Stack(fit: StackFit.expand, children: [
-              picture,
-              Positioned(
-                left: 6,
-                right: 40,
-                bottom: 6,
-                child: Wrap(spacing: 4, runSpacing: 4, children: [
-                  if (t['current'] == true) TileBadge(tr("current"), kind: BadgeKind.current),
-                  if (t['scope'] == 'system') TileBadge(tr("system")),
-                  if (hidden) TileBadge(tr("hidden")),
-                  if (widget.workspaces.isNotEmpty)
-                    TileBadge(trf("ws {0}", [widget.workspaces.join(' · ')]),
-                        tooltip: trf("Used on workspace {0}", [widget.workspaces.join(', ')])),
-                ]),
-              ),
-              Positioned(
-                top: 0,
-                right: 0,
-                child: TileMenuButton(menuKey: widget.menuKey, tooltip: tr("Theme actions (Menu key)"), menu: widget.menu),
-              ),
-            ]),
-          ),
+          child: media,
         ),
         const SizedBox(height: 4),
         Padding(

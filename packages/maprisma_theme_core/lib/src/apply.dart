@@ -5,6 +5,7 @@ import 'apps.dart';
 import 'colors.dart';
 import 'context.dart';
 import 'desktop.dart';
+import 'images.dart';
 import 'looks.dart';
 import 'store.dart';
 import 'themes.dart';
@@ -18,6 +19,50 @@ Map<String, String> chosenWallpapers(Ctx ctx) => {
 void rememberWallpaper(Ctx ctx, String slug, String name) {
   final m = chosenWallpapers(ctx)..[slug] = name;
   writeJson('${ctx.paths.state}/theme-backgrounds.json', m);
+}
+
+bool _sameFile(String a, String b) {
+  if (a == b) return true;
+  try {
+    return File(a).resolveSymbolicLinksSync() == File(b).resolveSymbolicLinksSync();
+  } on FileSystemException {
+    return false;
+  }
+}
+
+/// The visible wallpapers cycled on a theme card's 3D flip: rotated so the
+/// active desktop wallpaper comes first when [isCurrent], or the theme's
+/// remembered wallpaper comes first otherwise.
+List<String> flipWallpapers(
+  Ctx ctx,
+  ThemeInfo theme, {
+  required bool isCurrent,
+  Map<String, Set<String>>? hidden,
+  Map<String, String>? chosen,
+  String? currentBg,
+}) {
+  var visible = [
+    for (final w in listBackgrounds(ctx.paths, theme, hidden: hidden))
+      if (!w.hidden && imageSizeProblem(w.path) == null) w.path,
+  ];
+  if (visible.isEmpty) return const [];
+  if (isCurrent) {
+    final bg = currentBg ?? ctx.desktop.wallpaper() ?? ctx.current.wallpaper;
+    if (bg != null) {
+      final index = visible.indexWhere((p) => p == bg || baseName(p) == baseName(bg));
+      if (index > 0) visible = [...visible.sublist(index), ...visible.sublist(0, index)];
+    }
+  } else {
+    final remembered = (chosen ?? chosenWallpapers(ctx))[theme.slug];
+    if (remembered != null && remembered.isNotEmpty) {
+      final index = visible.indexWhere((p) => baseName(p) == remembered);
+      if (index > 0) visible = [...visible.sublist(index), ...visible.sublist(0, index)];
+    }
+  }
+  if (visible.length == 1 && theme.preview != null && _sameFile(theme.preview!, visible.first)) {
+    return const [];
+  }
+  return visible;
 }
 
 /// The wallpaper a theme starts with: the one chosen last, else the first visible.

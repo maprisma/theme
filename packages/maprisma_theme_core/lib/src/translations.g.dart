@@ -1385,7 +1385,19 @@ const translationCatalogs = <String, Map<String, String>>{
     "Theme's own ({0})": "Theme's own ({0})",
     "The quick brown fox jumps over the lazy dog": "The quick brown fox jumps over the lazy dog",
     "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.",
-    "the picture cache {0} is not your own folder": "the picture cache {0} is not your own folder"
+    "the picture cache {0} is not your own folder": "the picture cache {0} is not your own folder",
+    "3D flip to wallpaper on hover": "3D flip to wallpaper on hover",
+    "Hovering a theme card flips its preview in 3D to show the theme's wallpaper.": "Hovering a theme card flips its preview in 3D to show the theme's wallpaper.",
+    "Current background": "Current background",
+    "Apply theme with this wallpaper": "Apply theme with this wallpaper",
+    "3D rotation delay": "3D rotation delay",
+    "Seconds before a selected theme card starts rotating. 0 keeps the preview and shows left/right arrows immediately.": "Seconds before a selected theme card starts rotating. 0 keeps the preview and shows left/right arrows immediately.",
+    "0 s (arrows only)": "0 s (arrows only)",
+    "{0} s": "{0} s",
+    "Apply theme when pinning wallpaper": "Apply theme when pinning wallpaper",
+    "On: pinning a wallpaper on another theme switches to that theme immediately. Off: only saves it as that theme’s current wallpaper.": "On: pinning a wallpaper on another theme switches to that theme immediately. Off: only saves it as that theme’s current wallpaper.",
+    "Current wallpaper for this theme": "Current wallpaper for this theme",
+    "Set as wallpaper for this theme": "Set as wallpaper for this theme"
   },
   "de": {
     "A key that applies this theme from anywhere": "Eine Taste, die dieses Theme von überall anwendet",
@@ -2772,7 +2784,19 @@ const translationCatalogs = <String, Map<String, String>>{
     "Theme's own ({0})": "Vom Theme ({0})",
     "The quick brown fox jumps over the lazy dog": "Zwölf Boxkämpfer jagen Viktor quer über den großen Sylter Deich",
     "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Wird verwendet, wann immer dieses Theme angewendet wird; die Theme-Dateien bleiben unverändert. Themes ohne eigene Wahl geben deine Schriften und Unschärfe zurück und zeigen ihre eigene Textfarbe.",
-    "the picture cache {0} is not your own folder": "der Bild-Cache {0} ist nicht dein eigener Ordner"
+    "the picture cache {0} is not your own folder": "der Bild-Cache {0} ist nicht dein eigener Ordner",
+    "3D flip to wallpaper on hover": "3D-Drehung zum Hintergrund beim Überfahren",
+    "Hovering a theme card flips its preview in 3D to show the theme's wallpaper.": "Beim Überfahren einer Theme-Karte dreht sich ihre Vorschau in 3D und zeigt den Hintergrund des Themes.",
+    "Current background": "Aktueller Hintergrund",
+    "Apply theme with this wallpaper": "Theme mit diesem Hintergrund anwenden",
+    "3D rotation delay": "Verzögerung der 3D-Drehung",
+    "Seconds before a selected theme card starts rotating. 0 keeps the preview and shows left/right arrows immediately.": "Sekunden, bis sich eine ausgewählte Theme-Karte zu drehen beginnt. 0 behält die Vorschau und zeigt sofort Links-/Rechtspfeile.",
+    "0 s (arrows only)": "0 s (nur Pfeile)",
+    "{0} s": "{0} s",
+    "Apply theme when pinning wallpaper": "Theme beim Anpinnen eines Hintergrunds anwenden",
+    "On: pinning a wallpaper on another theme switches to that theme immediately. Off: only saves it as that theme’s current wallpaper.": "Ein: Das Anpinnen eines Hintergrunds bei einem anderen Theme wechselt sofort zu diesem Theme. Aus: Speichert ihn nur als aktuellen Hintergrund dieses Themes.",
+    "Current wallpaper for this theme": "Aktueller Hintergrund dieses Themes",
+    "Set as wallpaper for this theme": "Als Hintergrund dieses Themes festlegen"
   },
   "fr": {
     "A key that applies this theme from anywhere": "Une touche qui applique ce thème de partout",
@@ -4159,7 +4183,19 @@ const translationCatalogs = <String, Map<String, String>>{
     "Theme's own ({0})": "Celle du thème ({0})",
     "The quick brown fox jumps over the lazy dog": "Portez ce vieux whisky au juge blond qui fume",
     "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Utilisé chaque fois que ce thème est appliqué ; les fichiers du thème restent tels quels. Les thèmes sans choix rendent vos polices et votre flou et montrent leur propre couleur de texte.",
-    "the picture cache {0} is not your own folder": "le cache d’images {0} n’est pas votre propre dossier"
+    "the picture cache {0} is not your own folder": "le cache d’images {0} n’est pas votre propre dossier",
+    "3D flip to wallpaper on hover": "Rotation 3D vers le fond d'écran au survol",
+    "Hovering a theme card flips its preview in 3D to show the theme's wallpaper.": "Au survol d'une carte de thème, son aperçu pivote en 3D pour montrer le fond d'écran du thème.",
+    "Current background": "Fond d'écran actuel",
+    "Apply theme with this wallpaper": "Appliquer le thème avec ce fond d'écran",
+    "3D rotation delay": "Délai de rotation 3D",
+    "Seconds before a selected theme card starts rotating. 0 keeps the preview and shows left/right arrows immediately.": "Secondes avant que la carte du thème sélectionné commence à pivoter. 0 garde l’aperçu et affiche aussitôt les flèches gauche/droite.",
+    "0 s (arrows only)": "0 s (flèches seules)",
+    "{0} s": "{0} s",
+    "Apply theme when pinning wallpaper": "Appliquer le thème lors de l’épinglage d’un fond d’écran",
+    "On: pinning a wallpaper on another theme switches to that theme immediately. Off: only saves it as that theme’s current wallpaper.": "Activé : épingler un fond d’écran sur un autre thème bascule aussitôt vers ce thème. Désactivé : l’enregistre seulement comme fond actuel de ce thème.",
+    "Current wallpaper for this theme": "Fond d’écran actuel de ce thème",
+    "Set as wallpaper for this theme": "Définir comme fond d’écran de ce thème"
   },
   "es": {
     "A key that applies this theme from anywhere": "Una tecla que aplica este tema desde cualquier lugar",
@@ -5546,7 +5582,19 @@ const translationCatalogs = <String, Map<String, String>>{
     "Theme's own ({0})": "El del tema ({0})",
     "The quick brown fox jumps over the lazy dog": "El veloz murciélago hindú comía feliz cardillo y kiwi",
     "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Se usa siempre que se aplica este tema; los archivos del tema no cambian. Los temas sin elección devuelven tus fuentes y desenfoque y muestran su propio color de texto.",
-    "the picture cache {0} is not your own folder": "la caché de imágenes {0} no es tu propia carpeta"
+    "the picture cache {0} is not your own folder": "la caché de imágenes {0} no es tu propia carpeta",
+    "3D flip to wallpaper on hover": "Giro 3D al fondo al pasar el ratón",
+    "Hovering a theme card flips its preview in 3D to show the theme's wallpaper.": "Al pasar el ratón sobre la tarjeta de un tema, su vista previa gira en 3D para mostrar el fondo del tema.",
+    "Current background": "Fondo actual",
+    "Apply theme with this wallpaper": "Aplicar tema con este fondo",
+    "3D rotation delay": "Retardo del giro 3D",
+    "Seconds before a selected theme card starts rotating. 0 keeps the preview and shows left/right arrows immediately.": "Segundos antes de que la tarjeta del tema seleccionado empiece a girar. 0 mantiene la vista previa y muestra enseguida las flechas izquierda/derecha.",
+    "0 s (arrows only)": "0 s (solo flechas)",
+    "{0} s": "{0} s",
+    "Apply theme when pinning wallpaper": "Aplicar el tema al fijar un fondo",
+    "On: pinning a wallpaper on another theme switches to that theme immediately. Off: only saves it as that theme’s current wallpaper.": "Activado: fijar un fondo en otro tema cambia enseguida a ese tema. Desactivado: solo lo guarda como fondo actual de ese tema.",
+    "Current wallpaper for this theme": "Fondo actual de este tema",
+    "Set as wallpaper for this theme": "Establecer como fondo de este tema"
   },
   "it": {
     "A key that applies this theme from anywhere": "Un tasto che applica questo tema ovunque",
@@ -6933,7 +6981,19 @@ const translationCatalogs = <String, Map<String, String>>{
     "Theme's own ({0})": "Quello del tema ({0})",
     "The quick brown fox jumps over the lazy dog": "Pranzo d’acqua fa volti sghembi",
     "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Usato ogni volta che questo tema viene applicato; i file del tema restano invariati. I temi senza scelta restituiscono i tuoi font e la sfocatura e mostrano il proprio colore del testo.",
-    "the picture cache {0} is not your own folder": "la cache delle immagini {0} non è una tua cartella"
+    "the picture cache {0} is not your own folder": "la cache delle immagini {0} non è una tua cartella",
+    "3D flip to wallpaper on hover": "Rotazione 3D verso lo sfondo al passaggio",
+    "Hovering a theme card flips its preview in 3D to show the theme's wallpaper.": "Passando il puntatore sulla scheda di un tema, la sua anteprima ruota in 3D per mostrare lo sfondo del tema.",
+    "Current background": "Sfondo attuale",
+    "Apply theme with this wallpaper": "Applica tema con questo sfondo",
+    "3D rotation delay": "Ritardo rotazione 3D",
+    "Seconds before a selected theme card starts rotating. 0 keeps the preview and shows left/right arrows immediately.": "Secondi prima che la scheda del tema selezionato inizi a ruotare. 0 mantiene l’anteprima e mostra subito le frecce sinistra/destra.",
+    "0 s (arrows only)": "0 s (solo frecce)",
+    "{0} s": "{0} s",
+    "Apply theme when pinning wallpaper": "Applica il tema fissando uno sfondo",
+    "On: pinning a wallpaper on another theme switches to that theme immediately. Off: only saves it as that theme’s current wallpaper.": "Attivo: fissare uno sfondo su un altro tema passa subito a quel tema. Disattivo: lo salva solo come sfondo attuale di quel tema.",
+    "Current wallpaper for this theme": "Sfondo attuale di questo tema",
+    "Set as wallpaper for this theme": "Imposta come sfondo di questo tema"
   },
   "pt": {
     "A key that applies this theme from anywhere": "Uma tecla que aplica este tema de qualquer lugar",
@@ -8320,7 +8380,19 @@ const translationCatalogs = <String, Map<String, String>>{
     "Theme's own ({0})": "A do tema ({0})",
     "The quick brown fox jumps over the lazy dog": "Luís argüia à Júlia que «brações, fé, chá, óxido, pôr, zângão» eram palavras do português",
     "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Usado sempre que este tema é aplicado; os ficheiros do tema ficam como estão. Temas sem escolha devolvem os seus tipos de letra e desfoque e mostram a sua própria cor de texto.",
-    "the picture cache {0} is not your own folder": "o cache de imagens {0} não é a sua própria pasta"
+    "the picture cache {0} is not your own folder": "o cache de imagens {0} não é a sua própria pasta",
+    "3D flip to wallpaper on hover": "Rotação 3D para o papel de parede ao passar o rato",
+    "Hovering a theme card flips its preview in 3D to show the theme's wallpaper.": "Ao passar o rato sobre o cartão de um tema, a pré-visualização roda em 3D para mostrar o papel de parede do tema.",
+    "Current background": "Papel de parede atual",
+    "Apply theme with this wallpaper": "Aplicar tema com este papel de parede",
+    "3D rotation delay": "Atraso da rotação 3D",
+    "Seconds before a selected theme card starts rotating. 0 keeps the preview and shows left/right arrows immediately.": "Segundos até o cartão do tema selecionado começar a rodar. 0 mantém a pré-visualização e mostra logo as setas esquerda/direita.",
+    "0 s (arrows only)": "0 s (só setas)",
+    "{0} s": "{0} s",
+    "Apply theme when pinning wallpaper": "Aplicar o tema ao fixar um papel de parede",
+    "On: pinning a wallpaper on another theme switches to that theme immediately. Off: only saves it as that theme’s current wallpaper.": "Ligado: fixar um papel de parede noutro tema muda logo para esse tema. Desligado: guarda-o apenas como papel de parede atual desse tema.",
+    "Current wallpaper for this theme": "Papel de parede atual deste tema",
+    "Set as wallpaper for this theme": "Definir como papel de parede deste tema"
   },
   "nl": {
     "A key that applies this theme from anywhere": "Een toets die dit thema overal toepast",
@@ -9707,7 +9779,19 @@ const translationCatalogs = <String, Map<String, String>>{
     "Theme's own ({0})": "Van het thema ({0})",
     "The quick brown fox jumps over the lazy dog": "Pa’s wijze lynx bezag vroom het fikse aquaduct",
     "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Gebruikt telkens wanneer dit thema wordt toegepast; de themabestanden blijven ongewijzigd. Thema’s zonder keuze geven je eigen lettertypen en vervaging terug en tonen hun eigen tekstkleur.",
-    "the picture cache {0} is not your own folder": "de afbeeldingencache {0} is niet je eigen map"
+    "the picture cache {0} is not your own folder": "de afbeeldingencache {0} is niet je eigen map",
+    "3D flip to wallpaper on hover": "3D-draai naar achtergrond bij aanwijzen",
+    "Hovering a theme card flips its preview in 3D to show the theme's wallpaper.": "Wanneer je een themakaart aanwijst, draait het voorbeeld in 3D om de achtergrond van het thema te tonen.",
+    "Current background": "Huidige achtergrond",
+    "Apply theme with this wallpaper": "Thema met deze achtergrond toepassen",
+    "3D rotation delay": "Vertraging voor 3D-draai",
+    "Seconds before a selected theme card starts rotating. 0 keeps the preview and shows left/right arrows immediately.": "Seconden voordat een geselecteerde themakaart begint te draaien. 0 behoudt het voorbeeld en toont direct pijl-links/rechts.",
+    "0 s (arrows only)": "0 s (alleen pijlen)",
+    "{0} s": "{0} s",
+    "Apply theme when pinning wallpaper": "Thema toepassen bij vastzetten van achtergrond",
+    "On: pinning a wallpaper on another theme switches to that theme immediately. Off: only saves it as that theme’s current wallpaper.": "Aan: een achtergrond vastzetten op een ander thema schakelt direct naar dat thema. Uit: slaat die alleen op als huidige achtergrond van dat thema.",
+    "Current wallpaper for this theme": "Huidige achtergrond van dit thema",
+    "Set as wallpaper for this theme": "Instellen als achtergrond van dit thema"
   },
   "pl": {
     "A key that applies this theme from anywhere": "Klawisz, który stosuje ten motyw z dowolnego miejsca",
@@ -11094,6 +11178,18 @@ const translationCatalogs = <String, Map<String, String>>{
     "Theme's own ({0})": "Z motywu ({0})",
     "The quick brown fox jumps over the lazy dog": "Pchnąć w tę łódź jeża lub ośm skrzyń fig",
     "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Używane zawsze, gdy ten motyw jest stosowany; pliki motywu pozostają bez zmian. Motywy bez wyboru przywracają Twoje czcionki i rozmycie oraz pokazują własny kolor tekstu.",
-    "the picture cache {0} is not your own folder": "pamięć podręczna obrazów {0} nie jest twoim folderem"
+    "the picture cache {0} is not your own folder": "pamięć podręczna obrazów {0} nie jest twoim folderem",
+    "3D flip to wallpaper on hover": "Obrót 3D do tapety po najechaniu",
+    "Hovering a theme card flips its preview in 3D to show the theme's wallpaper.": "Po najechaniu na kartę motywu jej podgląd obraca się w 3D, pokazując tapetę motywu.",
+    "Current background": "Bieżące tło",
+    "Apply theme with this wallpaper": "Zastosuj motyw z tą tapetą",
+    "3D rotation delay": "Opóźnienie obrotu 3D",
+    "Seconds before a selected theme card starts rotating. 0 keeps the preview and shows left/right arrows immediately.": "Sekundy do rozpoczęcia obrotu wybranej karty motywu. 0 zachowuje podgląd i od razu pokazuje strzałki w lewo/prawo.",
+    "0 s (arrows only)": "0 s (tylko strzałki)",
+    "{0} s": "{0} s",
+    "Apply theme when pinning wallpaper": "Zastosuj motyw przy przypinaniu tapety",
+    "On: pinning a wallpaper on another theme switches to that theme immediately. Off: only saves it as that theme’s current wallpaper.": "Włączone: przypięcie tapety w innym motywie od razu przełącza na ten motyw. Wyłączone: zapisuje ją tylko jako bieżącą tapetę tego motywu.",
+    "Current wallpaper for this theme": "Bieżąca tapeta tego motywu",
+    "Set as wallpaper for this theme": "Ustaw jako tapetę tego motywu"
   }
 };

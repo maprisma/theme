@@ -689,5 +689,17 @@
   "Theme's own ({0})": "Quello del tema ({0})",
   "The quick brown fox jumps over the lazy dog": "Pranzo d’acqua fa volti sghembi",
   "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Usato ogni volta che questo tema viene applicato; i file del tema restano invariati. I temi senza scelta restituiscono i tuoi font e la sfocatura e mostrano il proprio colore del testo.",
-  "the picture cache {0} is not your own folder": "la cache delle immagini {0} non è una tua cartella"
+  "the picture cache {0} is not your own folder": "la cache delle immagini {0} non è una tua cartella",
+  "3D flip to wallpaper on hover": "Rotazione 3D verso lo sfondo al passaggio",
+  "Hovering a theme card flips its preview in 3D to show the theme's wallpaper.": "Passando il puntatore sulla scheda di un tema, la sua anteprima ruota in 3D per mostrare lo sfondo del tema.",
+  "Current background": "Sfondo attuale",
+  "Apply theme with this wallpaper": "Applica tema con questo sfondo",
+  "3D rotation delay": "Ritardo rotazione 3D",
+  "Seconds before a selected theme card starts rotating. 0 keeps the preview and shows left/right arrows immediately.": "Secondi prima che la scheda del tema selezionato inizi a ruotare. 0 mantiene l’anteprima e mostra subito le frecce sinistra/destra.",
+  "0 s (arrows only)": "0 s (solo frecce)",
+  "{0} s": "{0} s",
+  "Apply theme when pinning wallpaper": "Applica il tema fissando uno sfondo",
+  "On: pinning a wallpaper on another theme switches to that theme immediately. Off: only saves it as that theme’s current wallpaper.": "Attivo: fissare uno sfondo su un altro tema passa subito a quel tema. Disattivo: lo salva solo come sfondo attuale di quel tema.",
+  "Current wallpaper for this theme": "Sfondo attuale di questo tema",
+  "Set as wallpaper for this theme": "Imposta come sfondo di questo tema"
 }

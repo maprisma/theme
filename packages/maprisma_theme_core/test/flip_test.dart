@@ -1,0 +1,143 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:maprisma_theme_core/maprisma_theme_core.dart';
+import 'package:test/test.dart';
+
+import 'support.dart';
+
+void main() {
+  late TestEnv env;
+  Future<Map<String, dynamic>> call(String m, [Map<String, dynamic> p = const {}]) => env.core.call(m, p);
+
+  setUp(() {
+    env = TestEnv.create();
+  });
+  tearDown(() => env.dispose());
+
+  test('3D flip settings: defaults, validation, normalization and reset', () async {
+    final initial = (await call('settings.get'))['settings'] as Map<String, dynamic>;
+    expect(initial['preview_flip_3d'], isTrue);
+    expect(initial['preview_flip_delay'], 1);
+    expect(initial['preview_pin_apply_theme'], isTrue);
+
+    for (final choice in [0, 0.5, 1, 1.5, 2, 3, 5, 10]) {
+      final s = (await call('settings.set', {'key': 'preview_flip_delay', 'value': choice}))['settings'] as Map;
+      expect(s['preview_flip_delay'], choice);
+    }
+    final fromFloat = (await call('settings.set', {'key': 'preview_flip_delay', 'value': 2.0}))['settings'] as Map;
+    expect(fromFloat['preview_flip_delay'], 2);
+
+    await call('settings.set', {'key': 'preview_flip_3d', 'value': false});
+    await call('settings.set', {'key': 'preview_pin_apply_theme', 'value': false});
+    final updated = (await call('settings.get'))['settings'] as Map;
+    expect(updated['preview_flip_3d'], isFalse);
+    expect(updated['preview_pin_apply_theme'], isFalse);
+
+    for (final (k, bad) in [
+      ('preview_flip_3d', 'yes'),
+      ('preview_pin_apply_theme', 1),
+      ('preview_flip_delay', -1),
+      ('preview_flip_delay', 4),
+      ('preview_flip_delay', true),
+    ]) {
+      expect(() => call('settings.set', {'key': k, 'value': bad}), throwsA(isA<RouteError>()), reason: '$k=$bad');
+    }
+
+    final afterReset = (await call('settings.reset'))['settings'] as Map;
+    expect(afterReset['preview_flip_3d'], isTrue);
+    expect(afterReset['preview_flip_delay'], 1);
+    expect(afterReset['preview_pin_apply_theme'], isTrue);
+  });
+
+  test('backup preview and restore validate 3D flip settings', () async {
+    final file = '${env.root.path}/flip-backup.json';
+    File(file).writeAsStringSync(jsonEncode({
+      'format': 'theme-manager-backup',
+      'version': 1,
+      'files': {
+        'settings.json': {
+          'preview_flip_3d': false,
+          'preview_flip_delay': 0.5,
+          'preview_pin_apply_theme': false,
+        },
+      },
+    }));
+    await call('backup.restore', {'path': file});
+    final s = (await call('settings.get'))['settings'] as Map;
+    expect(s['preview_flip_3d'], isFalse);
+    expect(s['preview_flip_delay'], 0.5);
+    expect(s['preview_pin_apply_theme'], isFalse);
+
+    for (final bad in [
+      {'preview_flip_3d': 'false'},
+      {'preview_flip_delay': 7},
+      {'preview_pin_apply_theme': null},
+    ]) {
+      File(file).writeAsStringSync(jsonEncode({
+        'format': 'maprisma-theme-backup',
+        'version': 1,
+        'files': {'settings.json': bad},
+      }));
+      expect(() => call('backup.preview', {'path': file}), throwsA(isA<RouteError>()), reason: '$bad');
+    }
+  });
+
+  test('themes.list flip wallpapers: active first on current, remembered first on others, samefile skipped', () async {
+    final kanagawaDir = env.addTheme('kanagawa', wallpapers: ['1-a.png', '2-b.png', '3-c.png']);
+    File('$kanagawaDir/preview.png').writeAsBytesSync(tinyPng);
+
+    final nordDir = env.addTheme('nord', wallpapers: ['1-n.png', '2-n.png', '3-n.png']);
+    File('$nordDir/preview.png').writeAsBytesSync(tinyPng);
+
+    env.addTheme('no-preview', wallpapers: ['1.png', '2.png']);
+
+    final sameDir = env.addTheme('same-file', wallpapers: ['only.png']);
+    Link('$sameDir/preview.png').createSync('$sameDir/backgrounds/only.png');
+
+    await call('themes.apply', {'slug': 'kanagawa'});
+    // Active wallpaper on current theme moves to index 0.
+    await call('wallpapers.set', {'slug': 'kanagawa', 'path': '$kanagawaDir/backgrounds/3-c.png'});
+    // Pinning/remembering wallpaper on non-active theme moves to index 0 without switching current theme.
+    final rem = await call('wallpapers.set', {'slug': 'nord', 'path': '$nordDir/backgrounds/2-n.png'});
+    expect(rem['set'], isFalse);
+    expect(rem['remembered'], isTrue);
+    expect(env.core.ctx.current.slug, 'kanagawa');
+
+    final listed = await call('themes.list');
+    expect(listed['current'], 'kanagawa');
+    expect(listed['current_wallpaper'], '$kanagawaDir/backgrounds/3-c.png');
+    final bySlug = {for (final t in listed['themes'] as List) (t as Map)['slug'] as String: t};
+
+    expect(
+      (bySlug['kanagawa']!['wallpapers'] as List).map((p) => (p as String).split('/').last).toList(),
+      ['3-c.png', '1-a.png', '2-b.png'],
+    );
+    expect(
+      (bySlug['nord']!['wallpapers'] as List).map((p) => (p as String).split('/').last).toList(),
+      ['2-n.png', '3-n.png', '1-n.png'],
+    );
+    expect(bySlug['no-preview']!['wallpapers'], isEmpty);
+    expect(bySlug['same-file']!['wallpapers'], isEmpty);
+
+    // Applying nord without an explicit wallpaper uses its remembered 2-n.png.
+    await call('themes.apply', {'slug': 'nord'});
+    expect(env.core.ctx.current.slug, 'nord');
+    expect(env.core.ctx.current.wallpaper, '$nordDir/backgrounds/2-n.png');
+  });
+
+  test('themes.apply with wallpaper remembers and applies that wallpaper directly', () async {
+    final dir = env.addTheme('fireside', wallpapers: ['1-f.png', '2-f.png']);
+    File('$dir/preview.png').writeAsBytesSync(tinyPng);
+
+    await call('themes.apply', {'slug': 'fireside', 'wallpaper': '$dir/backgrounds/2-f.png'});
+    expect(env.core.ctx.current.slug, 'fireside');
+    expect(env.core.ctx.current.wallpaper, '$dir/backgrounds/2-f.png');
+    expect(chosenWallpapers(env.core.ctx)['fireside'], '2-f.png');
+
+    expect(
+      () => call('themes.apply', {'slug': 'fireside', 'wallpaper': '$dir/backgrounds/missing.png'}),
+      throwsA(isA<RouteError>()),
+    );
+  });
+}

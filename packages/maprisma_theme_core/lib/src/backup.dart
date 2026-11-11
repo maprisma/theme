@@ -113,7 +113,7 @@ Map<String, dynamic> _validateSettings(Map value) {
       }
     }
     if (!Settings.check(key, e.value)) throw FormatException(tr("invalid settings"));
-    out[key] = e.value;
+    out[key] = key == 'preview_flip_delay' && e.value is num ? normalizeFlipDelay(e.value as num) : e.value;
   }
   return out;
 }

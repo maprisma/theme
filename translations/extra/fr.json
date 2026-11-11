@@ -689,5 +689,17 @@
   "Theme's own ({0})": "Celle du thème ({0})",
   "The quick brown fox jumps over the lazy dog": "Portez ce vieux whisky au juge blond qui fume",
   "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Utilisé chaque fois que ce thème est appliqué ; les fichiers du thème restent tels quels. Les thèmes sans choix rendent vos polices et votre flou et montrent leur propre couleur de texte.",
-  "the picture cache {0} is not your own folder": "le cache d’images {0} n’est pas votre propre dossier"
+  "the picture cache {0} is not your own folder": "le cache d’images {0} n’est pas votre propre dossier",
+  "3D flip to wallpaper on hover": "Rotation 3D vers le fond d'écran au survol",
+  "Hovering a theme card flips its preview in 3D to show the theme's wallpaper.": "Au survol d'une carte de thème, son aperçu pivote en 3D pour montrer le fond d'écran du thème.",
+  "Current background": "Fond d'écran actuel",
+  "Apply theme with this wallpaper": "Appliquer le thème avec ce fond d'écran",
+  "3D rotation delay": "Délai de rotation 3D",
+  "Seconds before a selected theme card starts rotating. 0 keeps the preview and shows left/right arrows immediately.": "Secondes avant que la carte du thème sélectionné commence à pivoter. 0 garde l’aperçu et affiche aussitôt les flèches gauche/droite.",
+  "0 s (arrows only)": "0 s (flèches seules)",
+  "{0} s": "{0} s",
+  "Apply theme when pinning wallpaper": "Appliquer le thème lors de l’épinglage d’un fond d’écran",
+  "On: pinning a wallpaper on another theme switches to that theme immediately. Off: only saves it as that theme’s current wallpaper.": "Activé : épingler un fond d’écran sur un autre thème bascule aussitôt vers ce thème. Désactivé : l’enregistre seulement comme fond actuel de ce thème.",
+  "Current wallpaper for this theme": "Fond d’écran actuel de ce thème",
+  "Set as wallpaper for this theme": "Définir comme fond d’écran de ce thème"
 }

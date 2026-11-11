@@ -689,5 +689,17 @@
   "Theme's own ({0})": "Theme's own ({0})",
   "The quick brown fox jumps over the lazy dog": "The quick brown fox jumps over the lazy dog",
   "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.",
-  "the picture cache {0} is not your own folder": "the picture cache {0} is not your own folder"
+  "the picture cache {0} is not your own folder": "the picture cache {0} is not your own folder",
+  "3D flip to wallpaper on hover": "3D flip to wallpaper on hover",
+  "Hovering a theme card flips its preview in 3D to show the theme's wallpaper.": "Hovering a theme card flips its preview in 3D to show the theme's wallpaper.",
+  "Current background": "Current background",
+  "Apply theme with this wallpaper": "Apply theme with this wallpaper",
+  "3D rotation delay": "3D rotation delay",
+  "Seconds before a selected theme card starts rotating. 0 keeps the preview and shows left/right arrows immediately.": "Seconds before a selected theme card starts rotating. 0 keeps the preview and shows left/right arrows immediately.",
+  "0 s (arrows only)": "0 s (arrows only)",
+  "{0} s": "{0} s",
+  "Apply theme when pinning wallpaper": "Apply theme when pinning wallpaper",
+  "On: pinning a wallpaper on another theme switches to that theme immediately. Off: only saves it as that theme’s current wallpaper.": "On: pinning a wallpaper on another theme switches to that theme immediately. Off: only saves it as that theme’s current wallpaper.",
+  "Current wallpaper for this theme": "Current wallpaper for this theme",
+  "Set as wallpaper for this theme": "Set as wallpaper for this theme"
 }

@@ -689,5 +689,17 @@
   "Theme's own ({0})": "Vom Theme ({0})",
   "The quick brown fox jumps over the lazy dog": "Zwölf Boxkämpfer jagen Viktor quer über den großen Sylter Deich",
   "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Wird verwendet, wann immer dieses Theme angewendet wird; die Theme-Dateien bleiben unverändert. Themes ohne eigene Wahl geben deine Schriften und Unschärfe zurück und zeigen ihre eigene Textfarbe.",
-  "the picture cache {0} is not your own folder": "der Bild-Cache {0} ist nicht dein eigener Ordner"
+  "the picture cache {0} is not your own folder": "der Bild-Cache {0} ist nicht dein eigener Ordner",
+  "3D flip to wallpaper on hover": "3D-Drehung zum Hintergrund beim Überfahren",
+  "Hovering a theme card flips its preview in 3D to show the theme's wallpaper.": "Beim Überfahren einer Theme-Karte dreht sich ihre Vorschau in 3D und zeigt den Hintergrund des Themes.",
+  "Current background": "Aktueller Hintergrund",
+  "Apply theme with this wallpaper": "Theme mit diesem Hintergrund anwenden",
+  "3D rotation delay": "Verzögerung der 3D-Drehung",
+  "Seconds before a selected theme card starts rotating. 0 keeps the preview and shows left/right arrows immediately.": "Sekunden, bis sich eine ausgewählte Theme-Karte zu drehen beginnt. 0 behält die Vorschau und zeigt sofort Links-/Rechtspfeile.",
+  "0 s (arrows only)": "0 s (nur Pfeile)",
+  "{0} s": "{0} s",
+  "Apply theme when pinning wallpaper": "Theme beim Anpinnen eines Hintergrunds anwenden",
+  "On: pinning a wallpaper on another theme switches to that theme immediately. Off: only saves it as that theme’s current wallpaper.": "Ein: Das Anpinnen eines Hintergrunds bei einem anderen Theme wechselt sofort zu diesem Theme. Aus: Speichert ihn nur als aktuellen Hintergrund dieses Themes.",
+  "Current wallpaper for this theme": "Aktueller Hintergrund dieses Themes",
+  "Set as wallpaper for this theme": "Als Hintergrund dieses Themes festlegen"
 }

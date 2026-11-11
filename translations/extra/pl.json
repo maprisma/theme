@@ -689,5 +689,17 @@
   "Theme's own ({0})": "Z motywu ({0})",
   "The quick brown fox jumps over the lazy dog": "Pchnąć w tę łódź jeża lub ośm skrzyń fig",
   "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Używane zawsze, gdy ten motyw jest stosowany; pliki motywu pozostają bez zmian. Motywy bez wyboru przywracają Twoje czcionki i rozmycie oraz pokazują własny kolor tekstu.",
-  "the picture cache {0} is not your own folder": "pamięć podręczna obrazów {0} nie jest twoim folderem"
+  "the picture cache {0} is not your own folder": "pamięć podręczna obrazów {0} nie jest twoim folderem",
+  "3D flip to wallpaper on hover": "Obrót 3D do tapety po najechaniu",
+  "Hovering a theme card flips its preview in 3D to show the theme's wallpaper.": "Po najechaniu na kartę motywu jej podgląd obraca się w 3D, pokazując tapetę motywu.",
+  "Current background": "Bieżące tło",
+  "Apply theme with this wallpaper": "Zastosuj motyw z tą tapetą",
+  "3D rotation delay": "Opóźnienie obrotu 3D",
+  "Seconds before a selected theme card starts rotating. 0 keeps the preview and shows left/right arrows immediately.": "Sekundy do rozpoczęcia obrotu wybranej karty motywu. 0 zachowuje podgląd i od razu pokazuje strzałki w lewo/prawo.",
+  "0 s (arrows only)": "0 s (tylko strzałki)",
+  "{0} s": "{0} s",
+  "Apply theme when pinning wallpaper": "Zastosuj motyw przy przypinaniu tapety",
+  "On: pinning a wallpaper on another theme switches to that theme immediately. Off: only saves it as that theme’s current wallpaper.": "Włączone: przypięcie tapety w innym motywie od razu przełącza na ten motyw. Wyłączone: zapisuje ją tylko jako bieżącą tapetę tego motywu.",
+  "Current wallpaper for this theme": "Bieżąca tapeta tego motywu",
+  "Set as wallpaper for this theme": "Ustaw jako tapetę tego motywu"
 }

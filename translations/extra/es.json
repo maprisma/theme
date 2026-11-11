@@ -689,5 +689,17 @@
   "Theme's own ({0})": "El del tema ({0})",
   "The quick brown fox jumps over the lazy dog": "El veloz murciélago hindú comía feliz cardillo y kiwi",
   "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Se usa siempre que se aplica este tema; los archivos del tema no cambian. Los temas sin elección devuelven tus fuentes y desenfoque y muestran su propio color de texto.",
-  "the picture cache {0} is not your own folder": "la caché de imágenes {0} no es tu propia carpeta"
+  "the picture cache {0} is not your own folder": "la caché de imágenes {0} no es tu propia carpeta",
+  "3D flip to wallpaper on hover": "Giro 3D al fondo al pasar el ratón",
+  "Hovering a theme card flips its preview in 3D to show the theme's wallpaper.": "Al pasar el ratón sobre la tarjeta de un tema, su vista previa gira en 3D para mostrar el fondo del tema.",
+  "Current background": "Fondo actual",
+  "Apply theme with this wallpaper": "Aplicar tema con este fondo",
+  "3D rotation delay": "Retardo del giro 3D",
+  "Seconds before a selected theme card starts rotating. 0 keeps the preview and shows left/right arrows immediately.": "Segundos antes de que la tarjeta del tema seleccionado empiece a girar. 0 mantiene la vista previa y muestra enseguida las flechas izquierda/derecha.",
+  "0 s (arrows only)": "0 s (solo flechas)",
+  "{0} s": "{0} s",
+  "Apply theme when pinning wallpaper": "Aplicar el tema al fijar un fondo",
+  "On: pinning a wallpaper on another theme switches to that theme immediately. Off: only saves it as that theme’s current wallpaper.": "Activado: fijar un fondo en otro tema cambia enseguida a ese tema. Desactivado: solo lo guarda como fondo actual de ese tema.",
+  "Current wallpaper for this theme": "Fondo actual de este tema",
+  "Set as wallpaper for this theme": "Establecer como fondo de este tema"
 }

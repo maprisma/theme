@@ -2,6 +2,7 @@ import 'apply.dart';
 import 'auto.dart';
 import 'colors.dart';
 import 'context.dart';
+import 'i18n.dart';
 import 'images.dart';
 import 'themes.dart';
 import 'looks.dart';
@@ -29,30 +30,49 @@ Map<String, String> swatches(Map<String, String> resolved) => {
     if (resolved[k] != null) k: resolved[k]!,
 };
 
-Map<String, dynamic> themeJson(Ctx ctx, ThemeInfo t, {required String current, required Set<String> hidden,
-    required List<String> favorites, required Map<String, double> recent}) => {
-  'slug': t.slug,
-  'name': t.name,
-  'scope': t.scope,
-  'current': t.slug == current,
-  'hidden': hidden.contains(t.slug),
-  'favorite': favorites.contains(t.slug),
-  'last_used': recent[t.slug],
-  'preview': t.preview != null && imageSizeProblem(t.preview!) == null ? t.preview : null,
-  'custom': t.custom,
-  'git': t.fromGit,
-  'cosmic': t.cosmicNative,
-  'kde': t.kdeNative,
-  'deletable': !t.system,
-  'colors': swatches(t.colors),
-  'font': t.font,
-};
+Map<String, dynamic> themeJson(
+  Ctx ctx,
+  ThemeInfo t, {
+  required String current,
+  required Set<String> hidden,
+  required List<String> favorites,
+  required Map<String, double> recent,
+  Map<String, Set<String>>? hiddenWallpapers,
+  Map<String, String>? chosen,
+  String? currentBg,
+}) {
+  final preview = t.preview != null && imageSizeProblem(t.preview!) == null ? t.preview : null;
+  final isCurrent = t.slug == current;
+  return {
+    'slug': t.slug,
+    'name': t.name,
+    'scope': t.scope,
+    'current': isCurrent,
+    'hidden': hidden.contains(t.slug),
+    'favorite': favorites.contains(t.slug),
+    'last_used': recent[t.slug],
+    'preview': preview,
+    'wallpapers': preview == null
+        ? const <String>[]
+        : flipWallpapers(ctx, t, isCurrent: isCurrent, hidden: hiddenWallpapers, chosen: chosen, currentBg: currentBg),
+    'custom': t.custom,
+    'git': t.fromGit,
+    'cosmic': t.cosmicNative,
+    'kde': t.kdeNative,
+    'deletable': !t.system,
+    'colors': swatches(t.colors),
+    'font': t.font,
+  };
+}
 
 Map<String, Handler> themeRoutes(Ctx ctx) => {
   'themes.list': (p) async {
     final s = ctx.settings.load();
     final favorites = ctx.lists.favorites, recent = ctx.lists.recent, hidden = ctx.lists.hidden;
+    final hiddenWalls = loadHiddenWallpapers(ctx.paths);
+    final chosen = chosenWallpapers(ctx);
     final current = ctx.current.slug;
+    final activeBg = currentBackground(ctx);
     final ordered = orderThemes(ctx.themes(), favorites, recent, s['sort'] as String);
     // the theme in use: which of its fonts and blur aren't on the desktop now (Reapply)
     final inUse = ordered.where((t) => t.slug == current).firstOrNull;
@@ -61,11 +81,22 @@ Map<String, Handler> themeRoutes(Ctx ctx) => {
       'themes': [
         for (final t in ordered)
           {
-            ...themeJson(ctx, t, current: current, hidden: hidden, favorites: favorites, recent: recent),
+            ...themeJson(
+              ctx,
+              t,
+              current: current,
+              hidden: hidden,
+              favorites: favorites,
+              recent: recent,
+              hiddenWallpapers: hiddenWalls,
+              chosen: chosen,
+              currentBg: activeBg,
+            ),
             if (t.slug == current) 'pending': pending,
           },
       ],
       'current': current,
+      'current_wallpaper': activeBg,
       'show_hidden': s['show_hidden'],
     };
   },
@@ -81,8 +112,20 @@ Map<String, Handler> themeRoutes(Ctx ctx) => {
   'themes.apply': (p) async {
     // One apply at a time, also against the applet's automation (CLI) runs.
     return autoLocked(ctx, () async {
-      final r = await applyTheme(ctx, str(p, 'slug'));
-      rememberBaseTheme(ctx, r['applied'] as String); // a manual pick is the base for workspace themes
+      final slug = str(p, 'slug');
+      final wp = optStr(p, 'wallpaper');
+      if (wp != null) {
+        final theme = ctx.theme(slug);
+        final w = listBackgrounds(ctx.paths, theme).where((x) => x.path == wp && !x.hidden).firstOrNull;
+        if (w == null) throw RouteError('not_found', trf("not a visible wallpaper of {0}", [theme.name]));
+        final problem = imageSizeProblem(wp);
+        if (problem != null) throw RouteError('bad_image', problem);
+        rememberWallpaper(ctx, theme.slug, w.name);
+      }
+      final r = await applyTheme(ctx, slug, wallpaper: wp);
+      final applied = r['applied'] as String;
+      rememberBaseTheme(ctx, applied); // a manual pick is the base for workspace themes
+      if (wp != null) rememberBaseWallpaper(ctx, applied, wp);
       return r;
     });
   },

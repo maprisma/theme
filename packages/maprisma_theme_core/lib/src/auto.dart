@@ -436,6 +436,16 @@ Future<bool> showChosenBackground(Ctx ctx, ThemeInfo theme, String target) async
   return _show(ctx, target, remember: !own);
 }
 
+/// Records [target] as the base wallpaper restored on leaving an assigned
+/// workspace when [slug] is the active theme.
+void rememberBaseWallpaper(Ctx ctx, String slug, String target) {
+  final state = _state(ctx);
+  if (state['theme'] == slug) {
+    state['base'] = target;
+    _saveState(ctx, state);
+  }
+}
+
 // --- slideshow and day/night ---------------------------------------------------------------
 
 int _minutes(String hhmm) => int.parse(hhmm.substring(0, 2)) * 60 + int.parse(hhmm.substring(3));
@@ -580,6 +590,11 @@ void renameAutoState(Ctx ctx, String old, String renamed) {
     hiddenWalls[renamed] = hiddenWalls.remove(old)!;
     saveHiddenWallpapers(ctx.paths, hiddenWalls);
   }
+  final chosen = chosenWallpapers(ctx);
+  if (chosen.containsKey(old)) {
+    chosen[renamed] = chosen.remove(old)!;
+    writeJson('${ctx.paths.state}/theme-backgrounds.json', chosen);
+  }
   final plan = schedule(ctx);
   final changed = {for (final k in ['day', 'night']) if (plan[k] == old) k: renamed};
   if (changed.isNotEmpty) saveSchedule(ctx, changed);
@@ -606,6 +621,8 @@ void forgetAutoState(Ctx ctx, String slug) {
   if (map.remove(slug) != null) saveWorkspaceMap(ctx, map);
   final hiddenWalls = loadHiddenWallpapers(ctx.paths);
   if (hiddenWalls.remove(slug) != null) saveHiddenWallpapers(ctx.paths, hiddenWalls);
+  final chosen = chosenWallpapers(ctx);
+  if (chosen.remove(slug) != null) writeJson('${ctx.paths.state}/theme-backgrounds.json', chosen);
   final plan = schedule(ctx);
   final changed = {for (final k in ['day', 'night']) if (plan[k] == slug) k: ''};
   if (changed.isNotEmpty) saveSchedule(ctx, changed);

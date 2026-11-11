@@ -689,5 +689,17 @@
   "Theme's own ({0})": "A do tema ({0})",
   "The quick brown fox jumps over the lazy dog": "Luís argüia à Júlia que «brações, fé, chá, óxido, pôr, zângão» eram palavras do português",
   "Used whenever this theme is applied; the theme files stay as they are. Themes without a choice give your own fonts and blur back and show their own text colour.": "Usado sempre que este tema é aplicado; os ficheiros do tema ficam como estão. Temas sem escolha devolvem os seus tipos de letra e desfoque e mostram a sua própria cor de texto.",
-  "the picture cache {0} is not your own folder": "o cache de imagens {0} não é a sua própria pasta"
+  "the picture cache {0} is not your own folder": "o cache de imagens {0} não é a sua própria pasta",
+  "3D flip to wallpaper on hover": "Rotação 3D para o papel de parede ao passar o rato",
+  "Hovering a theme card flips its preview in 3D to show the theme's wallpaper.": "Ao passar o rato sobre o cartão de um tema, a pré-visualização roda em 3D para mostrar o papel de parede do tema.",
+  "Current background": "Papel de parede atual",
+  "Apply theme with this wallpaper": "Aplicar tema com este papel de parede",
+  "3D rotation delay": "Atraso da rotação 3D",
+  "Seconds before a selected theme card starts rotating. 0 keeps the preview and shows left/right arrows immediately.": "Segundos até o cartão do tema selecionado começar a rodar. 0 mantém a pré-visualização e mostra logo as setas esquerda/direita.",
+  "0 s (arrows only)": "0 s (só setas)",
+  "{0} s": "{0} s",
+  "Apply theme when pinning wallpaper": "Aplicar o tema ao fixar um papel de parede",
+  "On: pinning a wallpaper on another theme switches to that theme immediately. Off: only saves it as that theme’s current wallpaper.": "Ligado: fixar um papel de parede noutro tema muda logo para esse tema. Desligado: guarda-o apenas como papel de parede atual desse tema.",
+  "Current wallpaper for this theme": "Papel de parede atual deste tema",
+  "Set as wallpaper for this theme": "Definir como papel de parede deste tema"
 }
