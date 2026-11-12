@@ -6,6 +6,7 @@ import 'package:collection/collection.dart';
 import 'bounded.dart';
 import 'colors.dart';
 import 'desktop.dart';
+import 'gtk_colors.dart';
 import 'paths.dart';
 import 'posix.dart';
 import 'shell_scheme.dart';
@@ -13,8 +14,10 @@ import 'shortcuts.dart';
 import 'store.dart';
 
 /// Hyprland with Maprisma Shell (a Quickshell config): the colours go to the
-/// shell's scheme.json (which the other Maprisma apps read too) and to
+/// shell's scheme.json (which the other Maprisma apps read too), to
 /// Hyprland's own scheme/current.lua (borders, groups; then `hyprctl reload`),
+/// to GTK's colors.css (Breeze's colours for title bars and dialogs, which Plasma
+/// writes on KDE and nothing on Hyprland),
 /// the terminals open now get the colours as escape sequences, and the
 /// wallpaper is the `wallpaper` key of the shell's shell.json. The rest (fonts,
 /// icons, windows, shortcuts) is not done here yet: those caps are missing.
@@ -49,6 +52,29 @@ final class HyprlandDesktop extends DesktopBase {
 
   /// Hyprland's colours (`require("scheme.current")` in its Lua config).
   String get hyprSchemeFile => '$_configHome/hypr/scheme/current.lua';
+
+  /// GTK 3's and 4's colours (Breeze's `@define-color …_breeze`, imported by their gtk.css).
+  List<String> get gtkColorFiles => ['$_configHome/gtk-3.0/colors.css', '$_configHome/gtk-4.0/colors.css'];
+
+  /// GTK's colours for the Breeze theme; a gtk.css that doesn't import them yet gets the import
+  /// (one line at its top), one that does stays as it is. False when a file couldn't be written.
+  bool writeGtkColors(Map<String, String> colors, Map<String, String> colours) {
+    final css = gtkColorsCss(colors, colours);
+    for (final file in gtkColorFiles) {
+      final dir = file.substring(0, file.lastIndexOf('/'));
+      try {
+        writeText(file, css, mode: _modeOf(file));
+        final gtkCss = File('$dir/gtk.css');
+        final text = gtkCss.existsSync() ? gtkCss.readAsStringSync() : '';
+        if (!RegExp(r'''@import\s+(url\()?["']?colors\.css''').hasMatch(text)) {
+          writeText(gtkCss.path, "@import 'colors.css';\n$text", mode: _modeOf(gtkCss.path));
+        }
+      } on FileSystemException {
+        return false;
+      }
+    }
+    return true;
+  }
 
   /// Only with Maprisma Shell installed: plain Hyprland (Omarchy, for one) has
   /// nothing to apply to, so there it is as [GenericDesktop] (themes,
@@ -93,6 +119,8 @@ final class HyprlandDesktop extends DesktopBase {
       }
     }
     sendTerminalColours(colors, colours);
+    // GTK's title bars and dialogs (new windows; open ones keep theirs until they reopen).
+    if (!writeGtkColors(colors, colours)) return false;
     return true;
   }
 

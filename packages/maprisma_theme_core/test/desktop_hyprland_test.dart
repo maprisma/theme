@@ -265,4 +265,34 @@ void main() {
     final h = await desktop().health(paths, env);
     expect(h['helper'], {'ok': true, 'path': '$home/.config/quickshell/maprisma-shell/shell.qml', 'name': 'Maprisma Shell'});
   });
+
+  test('GTK colours: Breeze\'s colors.css for GTK 3 and 4 from the theme; gtk.css imports it once', () async {
+    // KDE's import is there already for GTK 3; GTK 4 has a gtk.css without it.
+    File('$home/.config/gtk-3.0/gtk.css')
+      ..createSync(recursive: true)
+      ..writeAsStringSync("@import 'colors.css';");
+    File('$home/.config/gtk-4.0/gtk.css')
+      ..createSync(recursive: true)
+      ..writeAsStringSync('window { }\n');
+    expect(await desktop().applyColors(dark), isTrue);
+    final colours = shellScheme(dark)!.colours;
+    for (final v in ['3', '4']) {
+      final css = File('$home/.config/gtk-$v.0/colors.css').readAsStringSync();
+      expect(css, contains('@define-color theme_titlebar_background_breeze #${colours['surfaceContainer']};'));
+      expect(css, contains('@define-color theme_base_color_breeze #${colours['surface']};'));
+      expect(css, contains('@define-color theme_fg_color_breeze #${colours['onSurface']};'));
+      expect(css, contains('@define-color theme_button_decoration_focus_breeze #${colours['primary']};'));
+      expect(css, contains('@define-color error_color_breeze #f38ba8;'));
+      // every Breeze name KDE writes is there, each once
+      final names = RegExp(r'@define-color (\w+) ').allMatches(css).map((m) => m[1]).toList();
+      expect(names.length, names.toSet().length);
+      expect(names.length, greaterThanOrEqualTo(84));
+      expect(names.every((n) => n!.endsWith('_breeze')), isTrue);
+    }
+    expect(File('$home/.config/gtk-3.0/gtk.css').readAsStringSync(), "@import 'colors.css';");
+    expect(File('$home/.config/gtk-4.0/gtk.css').readAsStringSync(), "@import 'colors.css';\nwindow { }\n");
+    // a second apply adds no second import
+    expect(await desktop().applyColors(dark), isTrue);
+    expect(RegExp('colors.css').allMatches(File('$home/.config/gtk-4.0/gtk.css').readAsStringSync()).length, 1);
+  });
 }
