@@ -161,9 +161,8 @@ class FlipPictureState extends State<FlipPicture> with SingleTickerProviderState
 
     if (oldWidget.themeCurrent != widget.themeCurrent || oldWidget.pinApplyTheme != widget.pinApplyTheme) {
       _pinnedOverrideName = null;
-    } else if (_pinnedOverrideName != null &&
-        widget.activeWallpaper != null &&
-        _baseName(widget.activeWallpaper!) == _pinnedOverrideName) {
+    } else if (_pinnedOverrideName != null && widget.activeWallpaper != oldWidget.activeWallpaper) {
+      // A newer desktop picture was reported (this pin's, or one chosen elsewhere): it decides now.
       _pinnedOverrideName = null;
     }
     _syncActiveName();

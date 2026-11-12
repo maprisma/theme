@@ -32,7 +32,6 @@ final class AppWindow {
       case 'shown':
         shown.add(null);
       case 'hidden':
-        hideCount++;                 // closed or toggled away by the window itself too
         hidden.add(null);
       case 'focus':
         focus.add(true);
@@ -60,13 +59,7 @@ final class AppWindow {
     }
   }
 
-  /// How often the window was hidden (work queued while it was shown checks this, e.g. waiting pins).
-  int hideCount = 0;
-
-  Future<void> hide() {
-    hideCount++;
-    return _call('hide');
-  }
+  Future<void> hide() => _call('hide');
   Future<void> present() => _call('present');
   Future<void> titlebar(bool dark) => _call('titlebar', dark);
   Future<void> resize(int width, int height) => _call('size', [width, height]);

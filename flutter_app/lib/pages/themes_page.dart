@@ -45,7 +45,6 @@ class _ThemesPageState extends State<ThemesPage> {
   // One pin at a time; a click while one runs waits, and only the latest waiting one runs.
   bool _pinBusy = false;
   int _loads = 0;
-  ({Map t, String wp, Completer<bool> done})? _pinNext;
   int columns = 2;
   final focus = FocusNode();
   final scroll = ScrollController();
@@ -64,8 +63,6 @@ class _ThemesPageState extends State<ThemesPage> {
   @override
   void dispose() {
     app.revision.removeListener(load);
-    _pinNext?.done.complete(false);
-    _pinNext = null;
     _bigClose.dispose();
     focus.dispose();
     scroll.dispose();
@@ -155,54 +152,18 @@ class _ThemesPageState extends State<ThemesPage> {
     app.changed();
   }
 
-  Future<bool> pinWallpaper(Map t, String wpPath) {
-    if (_pinBusy) {
-      _pinNext?.done.complete(false); // superseded by this click
-      final done = Completer<bool>();
-      _pinNext = (t: t, wp: wpPath, done: done);
-      return done.future;
-    }
+  /// One pin at a time: a click while a pin is still being applied is ignored (no waiting pins, so
+  /// nothing can run after the list changed or the window closed).
+  Future<bool> pinWallpaper(Map t, String wpPath) async {
+    if (_pinBusy) return false;
     _pinBusy = true;
-    return _drainPins(t, wpPath);
-  }
-
-  /// Runs [t]'s pin, then every pin that waited meanwhile (only the latest each time), one after
-  /// the other with nothing in between: a waiting pin acts on a freshly read list (the pin before it
-  /// may have applied another theme) and is dropped when the list cannot be read or the page is gone.
-  Future<bool> _drainPins(Map t, String wpPath) async {
-    final hides = AppWindow.instance.hideCount;   // before the first pin: a close while it runs counts
-    bool first;
     try {
-      first = await _pin(t, wpPath);
+      return await _pin(t, wpPath);
     } catch (_) {
-      first = false;
+      return false;
+    } finally {
+      _pinBusy = false;
     }
-    while (_pinNext != null) {
-      final next = _pinNext!;
-      _pinNext = null;
-      if (AppWindow.instance.hideCount != hides) {
-        next.done.complete(false);                // the window was closed: a waiting pin is dropped
-        continue;                                 // (and any queued after it, each answered)
-      }
-      var ok = false;
-      var shown = false;
-      for (var attempt = 0; attempt < 3 && mounted && !shown; attempt++) {
-        shown = await load();
-      }
-      if (shown && mounted) {
-        final fresh = themes.where((x) => x['slug'] == next.t['slug']).firstOrNull;
-        if (fresh != null) {
-          try {
-            ok = await _pin(fresh, next.wp);
-          } catch (_) {
-            ok = false;
-          }
-        }
-      }
-      next.done.complete(ok);
-    }
-    _pinBusy = false;
-    return first;
   }
 
   Future<bool> _pin(Map t, String wpPath) async {
