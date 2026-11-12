@@ -28,11 +28,10 @@ if (( build )); then
   mkdir -p "$bundle/bin"
   (cd "$root/packages/maprisma_theme_core" && dart compile exe bin/maprisma_theme_core.dart -o "$bundle/bin/maprisma-theme-core" >/dev/null)
   install -m755 "$root/cosmic/target/release/maprisma-theme-helper" "$root/cosmic/target/release/maprisma-theme-applet" "$bundle/bin/"
-  install -m755 "$root/hyprland/maprisma-caelestia-bridge" "$bundle/bin/"   # Hyprland/Caelestia backend
   rm -rf "$bundle/share" && mkdir -p "$bundle/share/maprisma-theme"
   cp -a "$root/themes" "$root/templates" "$bundle/share/maprisma-theme/"
 fi
-for f in maprisma-theme bin/maprisma-theme-core bin/maprisma-theme-helper bin/maprisma-theme-applet bin/maprisma-caelestia-bridge share/maprisma-theme/themes; do
+for f in maprisma-theme bin/maprisma-theme-core bin/maprisma-theme-helper bin/maprisma-theme-applet share/maprisma-theme/themes; do
   [[ -e $bundle/$f ]] || { echo "missing in the build: $f" >&2; exit 1; }
 done
 

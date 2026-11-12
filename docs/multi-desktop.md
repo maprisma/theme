@@ -171,21 +171,25 @@ Started by an XDG autostart entry.
 Claude: Dart core + Flutter (steps 1–3), commits. Codex: plan review, KWin script and Konsole/Plasma
 format checks (step 2/4), read-only crosscheck of every step. Findings are verified before fixing.
 
-## Hyprland with Caelestia (2026-11-11)
+## Hyprland with Maprisma Shell (2026-11-12; Caelestia before)
 
 `HyprlandDesktop` (desktop_hyprland.dart, id `hyprland`, picked for `XDG_CURRENT_DESKTOP=Hyprland`)
-has the caps `appearance` and `wallpaper`. Both go through `hyprland/maprisma-caelestia-bridge`, a
-Python script run with `python3 -I` that imports caelestia-cli's own modules:
+has the caps `appearance` and `wallpaper` when Maprisma Shell is installed
+(`~/.config/quickshell/maprisma-shell/shell.qml`); without it, none (as GenericDesktop). Everything
+is plain Dart, nothing of Caelestia is needed any more:
 
-- `apply <colors.json>`: a Material scheme seeded from the accent (tonalspot), with the theme's own
-  background, text, surfaces (mixed from background and text), terminal colours and named colours
-  laid over it; saved as Caelestia's `scheme.json` and applied with Caelestia's `apply_colours`
-  (shell, Hyprland borders, terminals, btop, fuzzel, …, as `cli.json` enables them).
-- The scheme is saved under Caelestia's name `dynamic`. Caelestia only knows schemes shipped in its
-  package, and any other name would make its own wallpaper picker or mode switch crash. With
-  `dynamic`, those keep working and recolour from the wallpaper.
-- `wallpaper <path>` writes Caelestia's wallpaper state (path.txt, the `current` link, the
-  thumbnail) without recolouring; `current` and `wallpaper-get` read it back.
+- `applyColors`: `shellScheme` (shell_scheme.dart) turns the colours object into Caelestia's scheme
+  format: the theme's own background, text, surfaces (mixed from background toward text), outline
+  (muted), terminal colours (term0..15) and named colours; secondary is the selection (else the
+  cursor); the Material roles (onX, xContainer, onXContainer, xFixed…, inversePrimary,
+  outlineVariant, palette key colours) are mixed from them, each on-colour checked for 4.5:1
+  contrast. Written atomically to `$XDG_STATE_HOME/maprisma-shell/scheme.json` (the shell and the
+  other Maprisma apps read it) and as `return { key = "rrggbb", … }` to
+  `~/.config/hypr/scheme/current.lua` (when `~/.config/hypr` exists), then `hyprctl reload`. The
+  user's open terminals (`/dev/pts/N` they own) get the colours as OSC 10/11/12/17/4 sequences,
+  written without blocking, as Caelestia did; new terminals take them from the app templates.
+- `current` reads scheme.json back. The wallpaper is the `wallpaper` key of
+  `$XDG_CONFIG_HOME/maprisma-shell/shell.json` (other keys and the layout kept; "" for none).
 
 Not done yet on Hyprland: fonts, icons, blur, terminal schemes of their own, windows/workspaces
 (`wm`) and shortcuts. Their caps are missing, so the UI hides them.

@@ -186,6 +186,29 @@ final class Posix {
     }
   }
 
+  /// Writes [bytes] to an existing [path] (a terminal) without blocking and
+  /// without making it the controlling terminal; false when it could not be
+  /// opened or took less than all of them (a terminal that does not read).
+  bool writeNonBlocking(String path, List<int> bytes) {
+    final fd =
+        _withPath(path, (name) => _open(name, 0x1 | _nonBlock | _noCtty | _cloexec | _noFollow, 0)) ?? -1;
+    if (fd < 0) return false;
+    final buffer = calloc<Uint8>(bytes.isEmpty ? 1 : bytes.length);
+    try {
+      buffer.asTypedList(bytes.length).setAll(0, bytes);
+      var done = 0;
+      while (done < bytes.length) {
+        final n = _write(fd, buffer + done, bytes.length - done);
+        if (n <= 0) return false;
+        done += n;
+      }
+      return true;
+    } finally {
+      calloc.free(buffer);
+      _close(fd);
+    }
+  }
+
   /// (mode, size) of an open descriptor.
   (int, int)? _fstat(int fd) {
     final buffer = calloc<Uint8>(256);
