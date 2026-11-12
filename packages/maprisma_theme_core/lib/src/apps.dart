@@ -32,6 +32,7 @@ const appSpecs = [
   AppSpec('ghostty', 'Ghostty', 'ghostty.conf.tpl', 'ghostty.conf', ['ghostty'], 'ghostty'),
   AppSpec('foot', 'foot', 'foot.ini.tpl', 'foot.ini', ['foot'], 'foot'),
   AppSpec('btop', 'btop', 'btop.theme.tpl', 'btop.theme', ['btop'], 'btop'),
+  AppSpec('fuzzel', 'fuzzel', 'fuzzel.ini.tpl', 'fuzzel.ini', ['fuzzel'], 'fuzzel'),
   AppSpec('neovim', 'Neovim', 'neovim.lua.tpl', 'neovim.lua', ['nvim'], 'nvim'),
   AppSpec('helix', 'Helix', 'helix.toml.tpl', 'helix.toml', ['hx', 'helix'], 'helix'),
   AppSpec('vscode', 'VS Code', 'vscode-theme.json.tpl', 'vscode-theme.json', ['code', 'codium', 'code-oss'], 'Code'),
@@ -141,6 +142,48 @@ Map<String, dynamic> _appsState(Ctx ctx) => readJsonMap(_appsStateFile(ctx));
 void _saveAppsState(Ctx ctx, Map<String, dynamic> s) => writeJson(_appsStateFile(ctx), s);
 
 // --- per app ------------------------------------------------------------------------
+
+/// fuzzel: `include` only counts in [main], and a [colors] section after it would win, so
+/// ours is a marked `[main]` + `include=` block at the end of fuzzel.ini (read last).
+bool _fuzzelAdd(String path, AppSpec a, String include) {
+  final text = _readConfig(path);
+  if (text == null) return false;
+  final lines = text.split('\n');
+  final at = lines.lastIndexWhere((l) => l.trim() == include);
+  // already there and nothing but blank lines and comments after it
+  if (at >= 0 && lines.skip(at + 1).every((l) => l.trim().isEmpty || l.trim().startsWith('#'))) return true;
+  final rest = at >= 0 ? _fuzzelStrip(lines, a, include) : text;
+  final block = '${_comment(a)} $appMarker\n[main]\n$include\n';
+  final out = rest.isEmpty ? block : '$rest${rest.endsWith('\n') ? '' : '\n'}\n$block';
+  return _writeConfig(path, out, existed: text.isNotEmpty || File(path).existsSync());
+}
+
+/// fuzzel.ini without our block (the marker, its `[main]` and the include line).
+String _fuzzelStrip(List<String> lines, AppSpec a, String include) {
+  final kept = <String>[];
+  for (var i = 0; i < lines.length; i++) {
+    if (lines[i].trim() == '${_comment(a)} $appMarker') {
+      if (i + 1 < lines.length && lines[i + 1].trim() == '[main]') i++;
+      if (i + 1 < lines.length && lines[i + 1].trim() == include) i++;
+      if (kept.isNotEmpty && kept.last.trim().isEmpty) kept.removeLast();
+      continue;
+    }
+    if (lines[i].trim() == include) continue;
+    kept.add(lines[i]);
+  }
+  var out = kept.join('\n');
+  if (lines.isNotEmpty && lines.last.isEmpty && !out.endsWith('\n')) out += '\n';
+  return out;
+}
+
+bool _fuzzelRemove(String path, AppSpec a, String include) {
+  final text = _readConfig(path);
+  if (text == null || text.isEmpty) return false;
+  final out = _fuzzelStrip(text.split('\n'), a, include);
+  if (out == text) return false;
+  return _writeConfig(path, out, existed: true);
+}
+
 
 String _ghosttyConfig(Ctx ctx) {
   final dir = '${configHome(ctx)}/ghostty';
@@ -270,6 +313,8 @@ String ensureInclude(Ctx ctx, AppSpec a) {
       // Another import or a [general] table: one more line would break the file.
       if (RegExp(r'^\s*((general\.)?import\s*=|\[\s*general\b)', multiLine: true).hasMatch(text)) return 'manual';
       return _addLines(path, a, line, top: true) ? 'ok' : 'failed';
+    case 'fuzzel':
+      return _fuzzelAdd('$cfg/fuzzel/fuzzel.ini', a, 'include=$out') ? 'ok' : 'failed';
     case 'btop':
       final copied = _copyInto(out, '$cfg/btop/themes/maprisma.theme', '#');
       if (copied != 'ok') return copied;
@@ -310,6 +355,8 @@ bool removeInclude(Ctx ctx, AppSpec a) {
       return _removeLines('$cfg/foot/foot.ini', a, (l) => l.trim() == 'include=$out');
     case 'alacritty':
       return _removeLines('$cfg/alacritty/alacritty.toml', a, (l) => l.trim() == 'general.import = ["$out"]');
+    case 'fuzzel':
+      return _fuzzelRemove('$cfg/fuzzel/fuzzel.ini', a, 'include=$out');
     case 'btop':
       final reset = _resetValue(ctx, a, '$cfg/btop/btop.conf', 'color_theme', 'maprisma', tables: false);
       return _deleteOwned('$cfg/btop/themes/maprisma.theme', '#') || reset;
@@ -332,6 +379,7 @@ bool includeActive(Ctx ctx, AppSpec a) {
     'kitty' => has('$cfg/kitty/kitty.conf', 'include $out'),
     'ghostty' => has(_ghosttyConfig(ctx), 'config-file = ?"$out"'),
     'foot' => has('$cfg/foot/foot.ini', 'include=$out'),
+    'fuzzel' => has('$cfg/fuzzel/fuzzel.ini', 'include=$out'),
     'alacritty' => has('$cfg/alacritty/alacritty.toml', 'general.import = ["$out"]'),
     'btop' => _topLevelValue((_readConfig('$cfg/btop/btop.conf') ?? '').split('\n'), 'color_theme', tables: false).$2 == 'maprisma',
     'helix' => _topLevelValue((_readConfig('$cfg/helix/config.toml') ?? '').split('\n'), 'theme').$2 == 'maprisma',

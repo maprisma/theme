@@ -19,7 +19,7 @@ void main() {
       if (f.path.endsWith('.tpl')) File(f.path).copySync('${env.paths.templates}/${f.uri.pathSegments.last}');
     }
     final bin = Directory('${env.root.path}/bin')..createSync();
-    for (final p in ['kitty', 'btop', 'hx', 'foot', 'alacritty', 'ghostty']) {
+    for (final p in ['kitty', 'btop', 'hx', 'foot', 'alacritty', 'ghostty', 'fuzzel']) {
       File('${bin.path}/$p').writeAsStringSync('#!/bin/sh\n');
       chmodPath('${bin.path}/$p', 493);
     }
@@ -44,7 +44,7 @@ void main() {
     write('helix/config.toml', 'theme = "onedark"\n\n[editor]\nline-number = "relative"\n');
     write('alacritty/alacritty.toml', '[font]\nsize = 10\n');
     final ids = await applyAppTemplates(ctx, findTheme(env.paths, 'nord')!, colors);
-    expect(ids, unorderedEquals(['alacritty', 'kitty', 'ghostty', 'foot', 'btop', 'helix']));
+    expect(ids, unorderedEquals(['alacritty', 'kitty', 'ghostty', 'foot', 'btop', 'fuzzel', 'helix']));
     final current = currentAppsDir(ctx);
     expect(File('$current/kitty.conf').readAsStringSync(), contains('background #2e3440'));
     expect(read('kitty/kitty.conf'), 'font_size 11\n\n# $appMarker\ninclude $current/kitty.conf\n');
@@ -63,7 +63,7 @@ void main() {
     expect(Directory('$cfg/nvim').existsSync(), isFalse);
 
     final removed = removeAppIncludes(ctx);
-    expect(removed, unorderedEquals(['alacritty', 'kitty', 'ghostty', 'foot', 'btop', 'helix']));
+    expect(removed, unorderedEquals(['alacritty', 'kitty', 'ghostty', 'foot', 'btop', 'fuzzel', 'helix']));
     expect(read('kitty/kitty.conf'), 'font_size 11\n');
     expect(read('alacritty/alacritty.toml'), '[font]\nsize = 10\n');
     expect(read('btop/btop.conf'), contains('color_theme = "Default"'));
@@ -146,5 +146,32 @@ void main() {
     expect(() => setAppEnabled(ctx, 'vscode', true, colors), throwsA(isA<RouteError>()));
     setAppEnabled(ctx, 'kitty', true, colors);
     expect(ctx.settings.get('apps'), isNot(contains('vscode')));
+  });
+
+  test('fuzzel: a marked [main] include at the end, after its own [colors]; removed cleanly', () async {
+    const original = 'font=Mono:size=12\nlines=15\n\n[colors]\nbackground=282c34dd\n\n[border]\nwidth=2\n';
+    write('fuzzel/fuzzel.ini', original);
+    final a = appSpec('fuzzel')!;
+    await applyAppTemplates(ctx, findTheme(env.paths, 'nord')!, colors);
+    final out = '${currentAppsDir(ctx)}/fuzzel.ini';
+    expect(File(out).readAsStringSync(), contains('[colors]\nbackground=${colors['background']!.substring(1)}f0'));
+    final text = read('fuzzel/fuzzel.ini');
+    expect(text, startsWith(original));
+    expect(text, endsWith('# $appMarker\n[main]\ninclude=$out\n'));
+    expect(includeActive(ctx, a), isTrue);
+    // again: nothing changes
+    expect(ensureInclude(ctx, a), 'ok');
+    expect(read('fuzzel/fuzzel.ini'), text);
+    // a section the user adds after ours: our block moves to the end again
+    write('fuzzel/fuzzel.ini', '$text\n[colors]\ntext=ffffffff\n');
+    expect(ensureInclude(ctx, a), 'ok');
+    final moved = read('fuzzel/fuzzel.ini');
+    expect('include=$out'.allMatches(moved), hasLength(1));
+    expect(moved, endsWith('[colors]\ntext=ffffffff\n\n# $appMarker\n[main]\ninclude=$out\n'));
+    // off: the user's file as it was (with their later section)
+    write('fuzzel/fuzzel.ini', text);
+    expect(removeInclude(ctx, a), isTrue);
+    expect(read('fuzzel/fuzzel.ini'), original);
+    expect(includeActive(ctx, a), isFalse);
   });
 }
