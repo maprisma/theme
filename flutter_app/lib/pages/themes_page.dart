@@ -197,6 +197,11 @@ class _ThemesPageState extends State<ThemesPage> {
     if (t['current'] == true) {
       final r = await app.run('wallpapers.set', {'slug': slug, 'path': wpPath}, tr("Could not set background"));
       if (r == null) return false;
+      if (r['set'] == false) {
+        // The theme is no longer the one in use (automation switched it): only remembered.
+        app.changed();
+        return false;
+      }
       if (mounted) setState(() => currentWallpaper = wpPath);
       return true;
     }
@@ -586,7 +591,8 @@ class _ThemesPageState extends State<ThemesPage> {
                   ),
                   if (big != null)
                     Positioned.fill(
-                      child: FocusTraversalGroup(child: _BigPreview(
+                      // Its own focus scope: Tab goes round its buttons and never leaves it.
+                      child: FocusScope(child: _BigPreview(
                         theme: big,
                         box: box.biggest,
                         flipKey: _bigFlip,

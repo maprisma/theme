@@ -338,6 +338,17 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
     await tester.pumpAndSettle();
     expect(big.visibleFace, 0);
+    // Tab goes round the preview's own buttons, never to the list or the header behind it
+    final closeButton = find.byTooltip('Close preview (Esc)');
+    final scope = find.ancestor(of: closeButton, matching: find.byType(FocusScope)).first;
+    final scopeNode = FocusScope.of(tester.element(closeButton));
+    for (var i = 0; i < 8; i++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      final focused = FocusManager.instance.primaryFocus;
+      expect(focused == scopeNode || (focused?.ancestors.contains(scopeNode) ?? false), isTrue);
+    }
+    expect(scope, findsOneWidget);
     // Backspace (and Esc) close the preview before anything else
     await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
     await tester.pumpAndSettle();
