@@ -5,8 +5,8 @@
 ///
 /// - The agent has no tools (Claude Code, pi, Hermes) or a read-only sandbox
 ///   (Codex), which then runs in a bubblewrap jail that shows it no home
-///   folder but its own config folder, as a throw-away overlay (only its
-///   sign-in file is written through), and no session bus.
+///   folder, only a new, empty config folder of its own (its sign-in file
+///   alone is bound and written through), and no session bus.
 /// - It runs as an argv subprocess (no shell) in a new empty private folder
 ///   (0700), in its own process group (`setsid`), with a time limit, a hard
 ///   cap on every file it writes (`prlimit --fsize`, RLIMIT_FSIZE 256 MiB), the
@@ -671,7 +671,15 @@ Future<List<String>> jailArgv(Helper h, List<String> argv, String work, String h
     // program right in the home folder is bound alone, never the home.
     final installs = p.join(home, '.local/share/mise/installs');
     var root = p.isWithin(installs, binary) ? installs : p.dirname(binary);
-    if (p.equals(root, home) || p.isWithin(root, home)) root = binary;
+    // Never a folder that is, holds or lies inside the agent's own folders (a codex installed as
+    // ~/.codex/codex would otherwise bring the real config.toml, MCP servers, history): then only
+    // the program file itself is bound.
+    final private = [for (final name in [...jail.fresh, ...jail.keep]) p.join(home, name)];
+    if (p.equals(root, home) ||
+        p.isWithin(root, home) ||
+        private.any((f) => p.equals(root, f) || p.isWithin(f, root) || p.isWithin(root, f))) {
+      root = binary;
+    }
     args.addAll(['--ro-bind', root, root]);
   }
   // Its own folders new and empty on the jail's home (a tmpfs): nothing of

@@ -411,6 +411,22 @@ void main() {
       expect(argv.sublist(argv.indexOf('--') + 1), ['$bin/codex', 'exec', '-']);
     });
 
+    test('a codex installed inside its own folder is bound alone, never the folder', () async {
+      _exe('$bin/bwrap', 'exit 0');
+      for (final dir in ['$home/.codex', '$home/.codex/bin']) {
+        Directory(dir).createSync(recursive: true);
+        _exe('$dir/codex', 'exit 0');
+        final work = Directory('${root.path}/work-${dir.hashCode}')..createSync();
+        final codex = helpers.firstWhere((h) => h.id == 'codex');
+        final argv = await jailArgv(codex, ['codex', 'exec', '-'], work.path, home, {'PATH': '$dir:$bin'});
+        final binds = [for (var i = 0; i < argv.length - 1; i++) if (argv[i] == '--ro-bind') argv[i + 1]];
+        expect(binds, contains('$dir/codex'));
+        expect(binds, isNot(contains('$home/.codex')));
+        expect(binds, isNot(contains('$home/.codex/bin')));
+        File('$dir/codex').deleteSync();
+      }
+    });
+
     test('port trust: another account listening refuses the port', () {
       final me = Posix.instance.uid;
       expect(portIsTrusted(8080, lister: (_) => null), isFalse);
