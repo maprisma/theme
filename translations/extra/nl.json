@@ -706,5 +706,6 @@
   "Automatically flips the big preview to its first wallpaper after the 3D rotation delay. Off keeps the theme preview until you use the arrows.": "Draait het grote voorbeeld na de 3D-draaivertraging automatisch naar de eerste achtergrond. Uit behoudt het themavoorbeeld totdat u de pijlen gebruikt.",
   "Big preview on click": "Groot voorbeeld bij klikken",
   "Clicking or pressing Enter on a theme card opens a large interactive preview overlay inside the window. Off opens the theme’s wallpapers page directly.": "Klikken of op Enter drukken op een themakaart opent een groot interactief voorbeeld in het venster. Uit opent direct de achtergrondpagina van het thema.",
-  "Close preview (Esc)": "Voorbeeld sluiten (Esc)"
+  "Close preview (Esc)": "Voorbeeld sluiten (Esc)",
+  "Set the shown wallpaper as background": "Getoonde achtergrond als bureaubladachtergrond instellen"
 }

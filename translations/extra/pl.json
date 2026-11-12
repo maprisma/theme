@@ -706,5 +706,6 @@
   "Automatically flips the big preview to its first wallpaper after the 3D rotation delay. Off keeps the theme preview until you use the arrows.": "Automatycznie obraca duży podgląd do pierwszej tapety po opóźnieniu obrotu 3D. Wyłączone zachowuje podgląd motywu do użycia strzałek.",
   "Big preview on click": "Duży podgląd po kliknięciu",
   "Clicking or pressing Enter on a theme card opens a large interactive preview overlay inside the window. Off opens the theme’s wallpapers page directly.": "Kliknięcie lub naciśnięcie Enter na karcie motywu otwiera duży interaktywny podgląd w oknie. Wyłączone otwiera bezpośrednio stronę tapet motywu.",
-  "Close preview (Esc)": "Zamknij podgląd (Esc)"
+  "Close preview (Esc)": "Zamknij podgląd (Esc)",
+  "Set the shown wallpaper as background": "Ustaw pokazaną tapetę jako tło"
 }

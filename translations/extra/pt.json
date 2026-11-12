@@ -706,5 +706,6 @@
   "Automatically flips the big preview to its first wallpaper after the 3D rotation delay. Off keeps the theme preview until you use the arrows.": "Vira automaticamente a pré-visualização grande para o primeiro papel de parede após o atraso de rotação 3D. Desligado mantém a pré-visualização do tema até usar as setas.",
   "Big preview on click": "Pré-visualização grande ao clicar",
   "Clicking or pressing Enter on a theme card opens a large interactive preview overlay inside the window. Off opens the theme’s wallpapers page directly.": "Clicar ou premir Enter num cartão de tema abre uma pré-visualização grande e interativa dentro da janela. Desligado abre diretamente a página de papéis de parede do tema.",
-  "Close preview (Esc)": "Fechar pré-visualização (Esc)"
+  "Close preview (Esc)": "Fechar pré-visualização (Esc)",
+  "Set the shown wallpaper as background": "Definir o papel de parede mostrado como fundo"
 }

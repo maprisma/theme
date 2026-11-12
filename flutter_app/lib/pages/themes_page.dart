@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -44,6 +45,8 @@ class _ThemesPageState extends State<ThemesPage> {
   final _bigClose = FocusNode(debugLabel: 'big preview close');
   // One pin at a time; a click while one runs waits, and only the latest waiting one runs.
   bool _pinBusy = false;
+  // Bumped when the big preview's shown face or pinned wallpaper changes: its Apply follows.
+  final _bigShown = ValueNotifier<int>(0);
   int _loads = 0;
   int columns = 2;
   final focus = FocusNode();
@@ -69,6 +72,7 @@ class _ThemesPageState extends State<ThemesPage> {
     app.revision.removeListener(load);
     _shownSub?.cancel();
     _bigClose.dispose();
+    _bigShown.dispose();
     focus.dispose();
     scroll.dispose();
     super.dispose();
@@ -162,11 +166,11 @@ class _ThemesPageState extends State<ThemesPage> {
 
   /// One pin at a time: a click while a pin is still being applied is ignored (no waiting pins, so
   /// nothing can run after the list changed or the window closed).
-  Future<bool> pinWallpaper(Map t, String wpPath) async {
+  Future<bool> pinWallpaper(Map t, String wpPath, {bool apply = false}) async {
     if (_pinBusy) return false;
     _pinBusy = true;
     try {
-      return await _pin(t, wpPath);
+      return await _pin(t, wpPath, apply: apply);
     } catch (_) {
       return false;
     } finally {
@@ -174,7 +178,28 @@ class _ThemesPageState extends State<ThemesPage> {
     }
   }
 
-  Future<bool> _pin(Map t, String wpPath) async {
+  /// Apply in the big preview: rotated to a wallpaper, the theme is applied with it pinned
+  /// (whatever "Apply theme when pinning wallpaper" says); for the theme in use that wallpaper
+  /// becomes the background; on the theme's own preview a plain apply. All share the one-at-a-time
+  /// guard: a click while one runs is ignored.
+  Future<void> applyBig(Map t) async {
+    final flip = _bigFlip.currentState;
+    final wp = flip?.currentWallpaperPath;
+    if (flip != null && wp != null) {
+      await flip.applyShown((path) => pinWallpaper(t, path, apply: true));
+      return;
+    }
+    if (t['current'] == true || _pinBusy) return;
+    _pinBusy = true;
+    try {
+      await apply(t);
+    } catch (_) {
+    } finally {
+      _pinBusy = false;
+    }
+  }
+
+  Future<bool> _pin(Map t, String wpPath, {bool apply = false}) async {
     final slug = t['slug'] as String;
     if (t['current'] == true) {
       final r = await app.run('wallpapers.set', {'slug': slug, 'path': wpPath}, tr("Could not set background"));
@@ -192,7 +217,7 @@ class _ThemesPageState extends State<ThemesPage> {
       }
       return true;
     }
-    if (app.settings['preview_pin_apply_theme'] == false) {
+    if (!apply && app.settings['preview_pin_apply_theme'] == false) {
       final r = await app.run('wallpapers.set', {'slug': slug, 'path': wpPath}, tr("Could not set background"));
       if (r == null) return false;
       app.changed(); // its remembered wallpaper (chosen_wallpaper) is read again
@@ -589,7 +614,9 @@ class _ThemesPageState extends State<ThemesPage> {
                         canPin: app.can('wallpaper'),
                         currentWallpaper: currentWallpaper,
                         onPin: (wp) => pinWallpaper(big, wp),
-                        onApply: () => apply(big),
+                        shown: _bigShown,
+                        onShownChanged: () => _bigShown.value++,
+                        onApply: () => applyBig(big),
                         onReapply: () => reapply(big),
                         onWallpapers: () {
                           closeBig();
@@ -665,6 +692,8 @@ class _BigPreview extends StatelessWidget {
     required this.canPin,
     required this.currentWallpaper,
     required this.onPin,
+    required this.shown,
+    required this.onShownChanged,
     required this.onApply,
     required this.onReapply,
     required this.onWallpapers,
@@ -680,6 +709,8 @@ class _BigPreview extends StatelessWidget {
   final bool pinApplyTheme, canPin;
   final String? currentWallpaper;
   final Future<bool> Function(String path) onPin;
+  final ValueListenable<int> shown;
+  final VoidCallback onShownChanged;
   final VoidCallback onApply, onReapply, onWallpapers, onClose;
   final List<PopupMenuEntry<VoidCallback>> Function() menu;
 
@@ -729,6 +760,7 @@ class _BigPreview extends StatelessWidget {
             badges: badges,
             menuButton: menuButton,
             onPin: onPin,
+            onShownChanged: onShownChanged,
           )
         : ClipRRect(
             borderRadius: BorderRadius.circular(innerRadius),
@@ -771,9 +803,25 @@ class _BigPreview extends StatelessWidget {
               Expanded(
                 child: Text('${t['name']}', overflow: TextOverflow.ellipsis, style: TextStyle(color: look.fg)),
               ),
-              if (!isCurrent)
-                TextButton.icon(onPressed: onApply, icon: const Icon(Icons.play_arrow, size: 16), label: Text(tr("Apply theme")))
-              else if (pending)
+              // For the theme in use Apply stays while it has wallpapers: enabled whenever
+              // another wallpaper than the desktop's is shown (Apply sets that one).
+              if (!isCurrent || media is FlipPicture)
+                ValueListenableBuilder<int>(
+                  valueListenable: shown,
+                  builder: (context, _, _) {
+                    final flip = flipKey.currentState;
+                    final enabled = !isCurrent ||
+                        (flip != null && flip.currentWallpaperPath != null && !flip.isCurrentWallpaperPinned);
+                    final button = TextButton.icon(
+                      key: const ValueKey('big-apply'),
+                      onPressed: enabled ? onApply : null,
+                      icon: const Icon(Icons.play_arrow, size: 16),
+                      label: Text(tr("Apply theme")),
+                    );
+                    return isCurrent ? Tooltip(message: tr("Set the shown wallpaper as background"), child: button) : button;
+                  },
+                ),
+              if (isCurrent && pending)
                 TextButton.icon(onPressed: onReapply, icon: const Icon(Icons.refresh, size: 16), label: Text(tr("Reapply"))),
               IconButton(
                 tooltip: tr("Wallpapers"),

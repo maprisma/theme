@@ -37,6 +37,7 @@ class FlipPicture extends StatefulWidget {
     this.activeWallpaper,
     this.canPin = true,
     this.onPin,
+    this.onShownChanged,
   });
 
   final String slug;
@@ -54,6 +55,10 @@ class FlipPicture extends StatefulWidget {
   final Widget badges;
   final Widget menuButton;
   final Future<bool> Function(String path)? onPin;
+
+  /// Called after a frame in which the shown face or the pinned wallpaper changed (the big
+  /// preview's Apply follows it).
+  final VoidCallback? onShownChanged;
 
   @override
   State<FlipPicture> createState() => FlipPictureState();
@@ -81,6 +86,7 @@ class FlipPictureState extends State<FlipPicture> with SingleTickerProviderState
   late final Ticker _ticker;
   Duration? _lastElapsed;
   final Set<String> _prefetched = {};
+  (int, String?)? _reportedShown;
 
   int get visibleFace {
     final eased = 0.5 - 0.5 * math.cos(math.pi * _progress);
@@ -550,18 +556,29 @@ class FlipPictureState extends State<FlipPicture> with SingleTickerProviderState
     if (path == null || isCurrentWallpaperPinned) return;
     final ok = await widget.onPin!(path);
     if (!ok || !mounted) return;
-    if (widget.themeCurrent || !widget.pinApplyTheme) {
-      final name = _baseName(path);
-      setState(() {
-        _pinnedOverrideName = name;
-        _activeName = name;
-        if (_fromFace == -1 && _progress <= 0.0) {
-          _promote(name);
-        } else {
-          _promoteName = name;
-        }
-      });
-    }
+    if (widget.themeCurrent || !widget.pinApplyTheme) _markPinned(path);
+  }
+
+  /// The big preview's Apply: hands the shown wallpaper to [action] (the theme applied with it,
+  /// or, for the theme in use, set as background); once it worked that wallpaper is the pinned one.
+  Future<void> applyShown(Future<bool> Function(String path) action) async {
+    final path = currentWallpaperPath;
+    if (path == null || (widget.themeCurrent && isCurrentWallpaperPinned)) return;
+    final ok = await action(path);
+    if (ok && mounted) _markPinned(path);
+  }
+
+  void _markPinned(String path) {
+    final name = _baseName(path);
+    setState(() {
+      _pinnedOverrideName = name;
+      _activeName = name;
+      if (_fromFace == -1 && _progress <= 0.0) {
+        _promote(name);
+      } else {
+        _promoteName = name;
+      }
+    });
   }
 
   String _pinTooltip(int face, bool pinned) {
@@ -591,6 +608,13 @@ class FlipPictureState extends State<FlipPicture> with SingleTickerProviderState
 
   @override
   Widget build(BuildContext context) {
+    final shown = (visibleFace, _activeName);
+    if (widget.onShownChanged != null && shown != _reportedShown) {
+      _reportedShown = shown;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) widget.onShownChanged?.call();
+      });
+    }
     final (face, localDeg) = _faceAndAngle();
     final isIdleFront = _fromFace == -1 && _progress <= 0.0;
     final double badgesOpacity;

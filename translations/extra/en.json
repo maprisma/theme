@@ -706,5 +706,6 @@
   "Automatically flips the big preview to its first wallpaper after the 3D rotation delay. Off keeps the theme preview until you use the arrows.": "Automatically flips the big preview to its first wallpaper after the 3D rotation delay. Off keeps the theme preview until you use the arrows.",
   "Big preview on click": "Big preview on click",
   "Clicking or pressing Enter on a theme card opens a large interactive preview overlay inside the window. Off opens the theme’s wallpapers page directly.": "Clicking or pressing Enter on a theme card opens a large interactive preview overlay inside the window. Off opens the theme’s wallpapers page directly.",
-  "Close preview (Esc)": "Close preview (Esc)"
+  "Close preview (Esc)": "Close preview (Esc)",
+  "Set the shown wallpaper as background": "Set the shown wallpaper as background"
 }

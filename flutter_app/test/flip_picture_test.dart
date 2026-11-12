@@ -316,6 +316,53 @@ void main() {
     expect(core.ctx.current.wallpaper, endsWith('/3-fireside.png'));
   });
 
+  testWidgets('big preview Apply pins the wallpaper rotated to, then stays for another one', (tester) async {
+    await tester.runAsync(() async {
+      await core.call('settings.set', {'key': 'preview_flip_delay', 'value': 0});
+      await core.call('settings.set', {'key': 'preview_pin_apply_theme', 'value': false}); // Apply pins anyway
+    });
+    await pumpInitial(tester);
+    await tester.pumpAndSettle();
+    final page = tester.state(find.byType(ThemesPage)) as dynamic;
+    page.openBig('fireside');
+    await tester.pumpAndSettle();
+    FlipPictureState big() =>
+        tester.state<FlipPictureState>(find.byWidgetPredicate((w) => w is FlipPicture && w.key is GlobalKey));
+    ButtonStyleButton apply() => tester.widget<ButtonStyleButton>(find.byKey(const ValueKey('big-apply')));
+    expect(apply().onPressed, isNotNull); // another theme: always applicable
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pumpAndSettle();
+    expect(big().visibleFace, 1);
+
+    await tester.runAsync(() async {
+      await tester.tap(find.byKey(const ValueKey('big-apply')));
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+    });
+    await tester.pumpAndSettle();
+    expect(core.ctx.current.slug, 'fireside');
+    expect(core.ctx.current.wallpaper, endsWith('/2-fireside.png'));
+    expect(page.bigSlug, 'fireside');
+    // Now in use: the shown wallpaper is the desktop's, nothing to apply …
+    expect(big().isCurrentWallpaperPinned, isTrue);
+    expect(apply().onPressed, isNull);
+    // … until it is rotated further.
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pumpAndSettle();
+    expect(big().isCurrentWallpaperPinned, isFalse);
+    expect(apply().onPressed, isNotNull);
+    await tester.runAsync(() async {
+      await tester.tap(find.byKey(const ValueKey('big-apply')));
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+    });
+    await tester.pumpAndSettle();
+    expect(core.ctx.current.slug, 'fireside');
+    expect(core.ctx.current.wallpaper, isNot(endsWith('/2-fireside.png')));
+    expect(big().isCurrentWallpaperPinned, isTrue);
+    expect(apply().onPressed, isNull);
+  });
+
   testWidgets('click opens the big preview: it has the keys, 0 s stays arrows only, Esc closes it first', (tester) async {
     await tester.runAsync(() => core.call('settings.set', {'key': 'preview_flip_delay', 'value': 0}));
     await pumpInitial(tester);

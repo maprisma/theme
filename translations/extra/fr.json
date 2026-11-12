@@ -706,5 +706,6 @@
   "Automatically flips the big preview to its first wallpaper after the 3D rotation delay. Off keeps the theme preview until you use the arrows.": "Retourne automatiquement le grand aperçu vers son premier fond d’écran après le délai de rotation 3D. Désactivé garde l’aperçu du thème jusqu’à l’utilisation des flèches.",
   "Big preview on click": "Grand aperçu au clic",
   "Clicking or pressing Enter on a theme card opens a large interactive preview overlay inside the window. Off opens the theme’s wallpapers page directly.": "Cliquer ou appuyer sur Entrée sur une carte de thème ouvre un grand aperçu interactif dans la fenêtre. Désactivé ouvre directement la page des fonds d’écran du thème.",
-  "Close preview (Esc)": "Fermer l’aperçu (Échap)"
+  "Close preview (Esc)": "Fermer l’aperçu (Échap)",
+  "Set the shown wallpaper as background": "Définir le fond d’écran affiché comme arrière-plan"
 }
