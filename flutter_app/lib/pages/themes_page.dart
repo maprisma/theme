@@ -184,7 +184,12 @@ class _ThemesPageState extends State<ThemesPage> {
         app.changed();
         return false;
       }
-      if (mounted) setState(() => currentWallpaper = wpPath);
+      if (mounted) {
+        // Reads started before this pin no longer count (they predate it); a fresh one follows.
+        _shownLoad = _loads + 1;
+        setState(() => currentWallpaper = wpPath);
+        unawaited(load());
+      }
       return true;
     }
     if (app.settings['preview_pin_apply_theme'] == false) {
