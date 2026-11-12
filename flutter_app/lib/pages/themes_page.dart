@@ -44,6 +44,7 @@ class _ThemesPageState extends State<ThemesPage> {
   final _bigClose = FocusNode(debugLabel: 'big preview close');
   // One pin at a time; a click while one runs waits, and only the latest waiting one runs.
   bool _pinBusy = false;
+  int _loads = 0;
   ({Map t, String wp, Completer<bool> done})? _pinNext;
   int columns = 2;
   final focus = FocusNode();
@@ -79,13 +80,16 @@ class _ThemesPageState extends State<ThemesPage> {
     }
   }
 
-  /// Reads the list again; false when it could not be read (or the page is gone).
+  /// Reads the list again; true when this read is the one now shown (false: it could not be read,
+  /// the page is gone, or a newer read took its place).
   Future<bool> load() async {
+    final generation = ++_loads; // only the newest read is shown (an older one may finish later)
     final r = await app.run('themes.list');
     final labels = app.can('shortcuts') ? await _quiet('shortcuts.labels') : null;
     final ws = app.can('workspaces') ? await _quiet('auto.workspace_themes') : null;
     final schedule = await _quiet('auto.schedule');
     if (!mounted || r == null) return false;
+    if (generation != _loads) return false; // a newer read is under way: this one is not shown
     setState(() {
       themes = [for (final t in r['themes'] as List) Map<String, dynamic>.from(t as Map)];
       currentWallpaper = r['current_wallpaper'] as String?;
@@ -176,7 +180,11 @@ class _ThemesPageState extends State<ThemesPage> {
       final next = _pinNext!;
       _pinNext = null;
       var ok = false;
-      if (mounted && await load() && mounted) {
+      var shown = false;
+      for (var attempt = 0; attempt < 3 && mounted && !shown; attempt++) {
+        shown = await load();
+      }
+      if (shown && mounted) {
         final fresh = themes.where((x) => x['slug'] == next.t['slug']).firstOrNull;
         if (fresh != null) {
           try {
@@ -812,11 +820,13 @@ class _BigPreview extends StatelessWidget {
 /// never a first wallpaper that was never chosen.
 String? pinnedWallpaper(Map t, List<String> wallpapers, bool isCurrent, String? currentWallpaper, bool pinApplyTheme) {
   if (wallpapers.isEmpty) return null;
-  if (isCurrent) return currentWallpaper ?? wallpapers.first;
-  if (pinApplyTheme) return null;
   final chosen = t['chosen_wallpaper'];
   final first = wallpapers.first;
-  return chosen is String && first.substring(first.lastIndexOf('/') + 1) == chosen ? first : null;
+  final remembered = chosen is String && first.substring(first.lastIndexOf('/') + 1) == chosen ? first : null;
+  // The theme in use: the desktop's wallpaper as reported, else only a remembered one.
+  if (isCurrent) return currentWallpaper ?? remembered;
+  if (pinApplyTheme) return null;
+  return remembered;
 }
 
 /// One theme, as the plugin's tile: the preview in a faint mat with the ☰
