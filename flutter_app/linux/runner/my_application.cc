@@ -107,6 +107,59 @@ static void drag_data_cb(GtkWidget* widget, GdkDragContext* context, gint x, gin
   gtk_drag_finish(context, ok, FALSE, time);
 }
 
+// --- the window's size (Maprisma layout rule 5a) ---------------------------------
+
+// The monitor the window is on, else the largest one (the window is not placed yet).
+static GdkMonitor* size_monitor(GtkWindow* window) {
+  GdkDisplay* display = gtk_widget_get_display(GTK_WIDGET(window));
+  GdkWindow* gdk_window = gtk_widget_get_window(GTK_WIDGET(window));
+  if (gdk_window != nullptr && gtk_widget_get_mapped(GTK_WIDGET(window))) {
+    GdkMonitor* at = gdk_display_get_monitor_at_window(display, gdk_window);
+    if (at != nullptr) return at;
+  }
+  GdkMonitor* best = nullptr;
+  gint best_area = 0;
+  for (gint i = 0; i < gdk_display_get_n_monitors(display); i++) {
+    GdkMonitor* monitor = gdk_display_get_monitor(display, i);
+    GdkRectangle area;
+    gdk_monitor_get_workarea(monitor, &area);
+    if (area.width * area.height > best_area) {
+      best = monitor;
+      best_area = area.width * area.height;
+    }
+  }
+  return best;
+}
+
+// "size" [width, height]: the saved size, at most the screen's work area, at least 420 x 320.
+static void resize_clamped(GtkWindow* window, gint width, gint height) {
+  GdkMonitor* monitor = size_monitor(window);
+  if (monitor != nullptr) {
+    GdkRectangle area;
+    gdk_monitor_get_workarea(monitor, &area);
+    if (area.width > 0) width = MIN(width, area.width);
+    if (area.height > 0) height = MIN(height, area.height);
+  }
+  gtk_window_resize(window, MAX(width, 420), MAX(height, 320));
+}
+
+// "geometry": {width, height, free}; free = shown and neither maximized, fullscreen nor tiled
+// (only a size the user gave it is saved).
+static FlValue* window_geometry(GtkWindow* window) {
+  gint width = 0, height = 0;
+  gtk_window_get_size(window, &width, &height);
+  GdkWindow* gdk_window = gtk_widget_get_window(GTK_WIDGET(window));
+  GdkWindowState state = gdk_window != nullptr ? gdk_window_get_state(gdk_window) : (GdkWindowState)0;
+  gboolean free = gtk_widget_get_visible(GTK_WIDGET(window)) &&
+                  (state & (GDK_WINDOW_STATE_MAXIMIZED | GDK_WINDOW_STATE_FULLSCREEN |
+                            GDK_WINDOW_STATE_TILED)) == 0;
+  FlValue* map = fl_value_new_map();
+  fl_value_set_string_take(map, "width", fl_value_new_int(width));
+  fl_value_set_string_take(map, "height", fl_value_new_int(height));
+  fl_value_set_string_take(map, "free", fl_value_new_bool(free));
+  return map;
+}
+
 // --- the window channel ---------------------------------------------------------
 
 static void window_call_cb(FlMethodChannel* channel, FlMethodCall* call,
@@ -126,14 +179,19 @@ static void window_call_cb(FlMethodChannel* channel, FlMethodCall* call,
     if (window != nullptr) gtk_widget_hide(GTK_WIDGET(window));
     response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
   } else if (g_strcmp0(name, "size") == 0) {
-    // [width, height]: the remembered size, or the default.
+    // [width, height]: the remembered size, or the default; kept on the screen.
     if (window != nullptr && args != nullptr &&
-        fl_value_get_type(args) == FL_VALUE_TYPE_LIST && fl_value_get_length(args) == 2) {
+        fl_value_get_type(args) == FL_VALUE_TYPE_LIST && fl_value_get_length(args) == 2 &&
+        fl_value_get_type(fl_value_get_list_value(args, 0)) == FL_VALUE_TYPE_INT &&
+        fl_value_get_type(fl_value_get_list_value(args, 1)) == FL_VALUE_TYPE_INT) {
       gint w = (gint)fl_value_get_int(fl_value_get_list_value(args, 0));
       gint h = (gint)fl_value_get_int(fl_value_get_list_value(args, 1));
-      if (w >= 420 && h >= 320 && w <= 10000 && h <= 10000) gtk_window_resize(window, w, h);
+      if (w > 0 && h > 0 && w <= 20000 && h <= 20000) resize_clamped(window, w, h);
     }
     response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
+  } else if (g_strcmp0(name, "geometry") == 0) {
+    g_autoptr(FlValue) geometry = window != nullptr ? window_geometry(window) : fl_value_new_null();
+    response = FL_METHOD_RESPONSE(fl_method_success_response_new(geometry));
   } else if (g_strcmp0(name, "maximize") == 0) {
     if (window != nullptr && args != nullptr && fl_value_get_type(args) == FL_VALUE_TYPE_BOOL) {
       if (fl_value_get_bool(args)) {
@@ -171,7 +229,9 @@ static void show_window(MyApplication* self, GtkWindow* window) {
   notify_shown(self);
 }
 
-// --toggle: hide when shown and focused, else show and focus.
+// --toggle (the tray's left click, the COSMIC applet, Maprisma Shell, a shortcut): a shown
+// window hides, focused or not (a click on the bar may take the focus first); a hidden one is
+// shown and focused.
 static void toggle_activated(GSimpleAction* action, GVariant* parameter,
                              gpointer user_data) {
   MyApplication* self = MY_APPLICATION(user_data);
@@ -180,7 +240,7 @@ static void toggle_activated(GSimpleAction* action, GVariant* parameter,
     g_application_activate(G_APPLICATION(self));
     return;
   }
-  if (gtk_widget_get_visible(GTK_WIDGET(window)) && gtk_window_is_active(window)) {
+  if (gtk_widget_get_visible(GTK_WIDGET(window))) {
     gtk_widget_hide(GTK_WIDGET(window));
     invoke(self, "hidden", nullptr);
     return;

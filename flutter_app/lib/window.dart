@@ -64,6 +64,16 @@ final class AppWindow {
   Future<void> titlebar(bool dark) => _call('titlebar', dark);
   Future<void> resize(int width, int height) => _call('size', [width, height]);
   Future<void> maximize(bool on) => _call('maximize', on);
+
+  /// {width, height, free}: GTK's size (title bar included) and whether it is the user's
+  /// (shown, not maximized, fullscreen or tiled); null without the runner (tests).
+  Future<Object?> geometry() async {
+    try {
+      return await _channel.invokeMethod<Object?>('geometry');
+    } on MissingPluginException {
+      return null;
+    }
+  }
   Future<bool> maximized() async {
     try {
       return await _channel.invokeMethod<bool>('maximized') ?? false;

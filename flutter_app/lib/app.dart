@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 
 import 'backend.dart' show ServiceError;
 import 'core_call.dart';
+import 'esc_close.dart';
 import 'pages/ask_page.dart';
 import 'pages/import_page.dart';
 import 'pages/info_page.dart';
@@ -17,6 +18,7 @@ import 'screenshots.dart';
 import 'theme.dart';
 import 'material_translations.dart';
 import 'window.dart';
+import 'window_size.dart';
 
 /// What every page reaches through `AppScope.of(context)`.
 final class AppScope extends InheritedWidget {
@@ -102,6 +104,10 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
   final topPage = ValueNotifier<String?>(null);
   late final _observer = _TopObserver(topPage);
 
+  /// Esc that no page took: leave a field, Back on a page, hide on the list (rule 5a). Hidden,
+  /// as the close button: the process (and its tray) stays.
+  late final _esc = EscFallback(onClose: () => AppWindow.instance.hide());
+
   /// Whether an Ask AI helper is installed and signed in (null: unknown).
   bool? askReady;
   bool maximized = false;
@@ -115,12 +121,10 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    refreshLook().then((_) {
-      final size = settings['size'];
-      if (size is List && size.length == 2) AppWindow.instance.resize(size[0] as int, size[1] as int);
-      _sizeRestored = true;
-    });
+    // The saved size was given to the window before the first frame (main.dart).
+    refreshLook().then((_) => _windowSize.saved ??= parseWindowSize(settings['size']));
     refreshAsk();
+    _esc.attach();
     _subs.add(AppWindow.instance.shown.stream.listen((_) => refreshLook()));
     // A theme applied elsewhere (the tray popup, the CLI, an automation) or new window corners
     // show without a restart.
@@ -136,27 +140,22 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
     return true;
   }
 
-  Timer? _sizeTimer;
-  bool _sizeRestored = false;
+  Timer? _maxTimer;
 
-  /// The window's size is remembered (settings `size`), not while maximized.
+  /// The window's size is remembered (settings `size`, GTK's size with the title bar), half a
+  /// second after the last resize, not while maximized, fullscreen or tiled (rule 5a).
+  late final _windowSize = WindowSizeKeeper(
+    geometry: AppWindow.instance.geometry,
+    save: (w, h) => call('settings.set', {'key': 'size', 'value': [w, h]}),
+  );
+
   @override
   void didChangeMetrics() {
-    _sizeTimer?.cancel();
-    _sizeTimer = Timer(const Duration(milliseconds: 600), () async {
+    _windowSize.resized();
+    _maxTimer?.cancel();
+    _maxTimer = Timer(const Duration(milliseconds: 500), () async {
       final now = await AppWindow.instance.maximized();
       if (mounted && now != maximized) setState(() => maximized = now);
-      if (!_sizeRestored) return;
-      final view = WidgetsBinding.instance.platformDispatcher.views.firstOrNull;
-      if (view == null || now) return;
-      final size = view.physicalSize / view.devicePixelRatio;
-      final w = size.width.round(), h = size.height.round();
-      if (w < 420 || h < 320) return;
-      try {
-        await call('settings.set', {'key': 'size', 'value': [w, h]});
-      } catch (_) {
-        // not saved
-      }
     });
     if (mounted) setState(() {}); // the header's double-click hint
   }
@@ -165,7 +164,9 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     HardwareKeyboard.instance.removeHandler(_f12);
-    _sizeTimer?.cancel();
+    _esc.detach();
+    _windowSize.dispose();
+    _maxTimer?.cancel();
     _lookTimer?.cancel();
     for (final s in _subs) {
       s.cancel();
@@ -355,10 +356,11 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
         localizationsDelegates: const [MaprismaMaterialDelegate()],
         debugShowCheckedModeBanner: false,
         navigatorKey: navigator,
-        navigatorObservers: [_observer],
+        navigatorObservers: [_observer, _esc],
         scaffoldMessengerKey: messenger,
         theme: appTheme(platform, colors, radius),
-        builder: (context, child) => CallbackShortcuts(
+        // Esc's last word sits outside the header too (its buttons can have the keyboard).
+        builder: (context, child) => _esc.wrap(CallbackShortcuts(
           bindings: {
             const SingleActivator(LogicalKeyboardKey.keyZ, control: true): () => undoLast(),
           },
@@ -369,7 +371,7 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
               OverlayEntry(builder: (context) => _Card(child: child!)),
             ]),
           ),
-        ),
+        )),
         home: const ThemesPage(),
       ),
     );
