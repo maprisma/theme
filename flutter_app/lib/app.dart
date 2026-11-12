@@ -1,6 +1,7 @@
 import 'i18n.dart';
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show mapEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -121,6 +122,9 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
     });
     refreshAsk();
     _subs.add(AppWindow.instance.shown.stream.listen((_) => refreshLook()));
+    // A theme applied elsewhere (the tray popup, the CLI, an automation) or new window corners
+    // show without a restart.
+    _lookTimer = Timer.periodic(const Duration(seconds: 5), (_) => pollLook());
     HardwareKeyboard.instance.addHandler(_f12);
   }
 
@@ -162,6 +166,7 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
     WidgetsBinding.instance.removeObserver(this);
     HardwareKeyboard.instance.removeHandler(_f12);
     _sizeTimer?.cancel();
+    _lookTimer?.cancel();
     for (final s in _subs) {
       s.cancel();
     }
@@ -185,6 +190,37 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
       AppWindow.instance.titlebar(look['is_dark'] != false);
     } catch (_) {
       // the core is not ready: keep the defaults
+    }
+  }
+
+  Timer? _lookTimer;
+  bool _polling = false;
+
+  /// Back in the window: the desktop's look may have changed meanwhile.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) pollLook();
+  }
+
+  /// Re-reads only the desktop's look (colours, window corners) and rebuilds only when it changed.
+  Future<void> pollLook() async {
+    if (_polling) return;
+    _polling = true;
+    try {
+      final look = await call('desktop.look');
+      if (!mounted) return;
+      final fresh = (look['colors'] as Map?) ?? const {};
+      final radius = (look['corner_radius'] as num?)?.round();
+      if (mapEquals(fresh, colors) && radius == windowRadius) return;
+      setState(() {
+        colors = fresh;
+        windowRadius = radius;
+      });
+      AppWindow.instance.titlebar(look['is_dark'] != false);
+    } catch (_) {
+      // the core is busy or gone: the old look stays
+    } finally {
+      _polling = false;
     }
   }
 
@@ -370,7 +406,7 @@ class _Card extends StatelessWidget {
     return Material(
       color: look.bg,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(17, 12, 17, 17),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           const MainHeader(),
           const SizedBox(height: 8),
@@ -448,23 +484,23 @@ class _MainHeaderState extends State<MainHeader> {
                 child: Text(title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: look.fg)),
+                    style: Theme.of(context).textTheme.titleLarge!.copyWith(fontWeight: FontWeight.w600, color: look.fg)),
               ),
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
                   child: Tooltip(
                     message: hint,
                     child: Text(hint,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 10, color: look.dim)),
+                        style: Theme.of(context).textTheme.bodySmall!.copyWith(color: look.dim)),
                   ),
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                 decoration: BoxDecoration(color: look.fg.withValues(alpha: .05), borderRadius: BorderRadius.circular(r)),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                   for (var i = 0; i < visible.length; i++) ...[
@@ -482,7 +518,7 @@ class _MainHeaderState extends State<MainHeader> {
                     borderRadius: BorderRadius.circular(r),
                     onTap: () => app.openPage('settings'),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         border: Border.all(color: look.fg.withValues(alpha: .35)),
                         borderRadius: BorderRadius.circular(r),
@@ -565,9 +601,9 @@ class _MainHeaderState extends State<MainHeader> {
         message: '$tip\n$_moveHint',
         child: InkWell(
           key: ValueKey('header-$id'),
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(cornerSizes(context).control),
           onTap: onTap,
-          child: Padding(padding: const EdgeInsets.all(5), child: icon),
+          child: Padding(padding: const EdgeInsets.all(4), child: icon),
         ),
       ),
     );

@@ -82,7 +82,7 @@ class _InfoPageState extends State<InfoPage> {
             : ListView(
                 children: [
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.only(bottom: 8),
                     child: Text(tr("MORE PLUGINS BY THE SAME AUTHOR"),
                         style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1, color: look.dim)),
                   ),
@@ -150,9 +150,9 @@ class _CardState extends State<_Card> {
                   Text(name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: look.fg)),
-                  const SizedBox(height: 2),
-                  Text('${p['summary']}', maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: look.dim)),
+                      style: Theme.of(context).textTheme.titleSmall!.copyWith(fontWeight: FontWeight.w700, color: look.fg)),
+                  const SizedBox(height: 4),
+                  Text('${p['summary']}', maxLines: 2, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.bodySmall!.copyWith(color: look.dim)),
                 ]),
               ),
               Align(

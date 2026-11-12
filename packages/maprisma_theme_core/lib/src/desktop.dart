@@ -92,6 +92,10 @@ abstract interface class Desktop {
   /// {colors, is_dark, corner_radius} of the desktop theme in use.
   Future<Map<String, dynamic>?> current();
 
+  /// The desktop's window corners (Settings › Corners "Like windows"), null when the desktop has
+  /// none to tell: Hyprland's `decoration:rounding`, KDE's 8.
+  Future<int?> windowRounding();
+
   /// The desktop background (every output), or false.
   Future<bool> setWallpaper(String path);
 
@@ -185,6 +189,8 @@ abstract base class DesktopBase implements Desktop {
 
   @override
   Future<Map<String, dynamic>?> blurState() async => null;
+  @override
+  Future<int?> windowRounding() async => null;
   @override
   Map<String, dynamic> blurTarget(Map<String, dynamic> now, {required bool on, required int strength}) => now;
   @override
@@ -403,6 +409,11 @@ final class FakeDesktop implements Desktop {
     'is_dark': true,
     'corner_radius': 8,
   };
+
+  /// Tests: the windows' rounding a desktop without a look tells (null: none).
+  int? rounding;
+  @override
+  Future<int?> windowRounding() async => rounding;
 
   /// Tests: the desktop refuses every wallpaper.
   bool refuseWallpaper = false;

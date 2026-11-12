@@ -498,17 +498,17 @@ class _WallpapersPageState extends State<WallpapersPage> {
         choose();
       },
       picture: Padding(
-        padding: const EdgeInsets.all(6),
+        padding: const EdgeInsets.all(8),
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
           Icon(busy ? Icons.hourglass_top : Icons.add, size: 32, color: lit || selectedTile ? look.accent : look.muted),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Flexible(
             child: Text(
               trf("{0}Drop images here, paste with Ctrl+V or click to choose", [empty ? tr("No wallpapers yet. ") : '']),
               textAlign: TextAlign.center,
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 13, color: look.muted),
+              style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: look.muted),
             ),
           ),
         ]),
@@ -569,7 +569,7 @@ class _WallpapersPageState extends State<WallpapersPage> {
         child: data == null
             ? const Center(child: CircularProgressIndicator())
             : Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                Wrap(spacing: 8, runSpacing: 6, children: [
+                Wrap(spacing: 8, runSpacing: 8, children: [
                   OutlineAction(
                     icon: Icons.content_paste,
                     label: tr("Paste image (Ctrl+V)"),

@@ -295,4 +295,62 @@ void main() {
     expect(await desktop().applyColors(dark), isTrue);
     expect(RegExp('colors.css').allMatches(File('$home/.config/gtk-4.0/gtk.css').readAsStringSync()).length, 1);
   });
+
+  group('window rounding (a fake hyprctl, never the session\'s)', () {
+    void answer(String json, {int code = 0}) {
+      File('${root.path}/bin/hyprctl')
+          .writeAsStringSync('#!/bin/sh\necho "\$@" >> "${log.path}"\ncat <<\'EOF\'\n$json\nEOF\nexit $code\n');
+    }
+
+    test('hyprRounding: the int, clamped to 64; anything else is null', () {
+      expect(hyprRounding('{"option": "decoration:rounding", "int": 15, "set": true }'), 15);
+      expect(hyprRounding('{"int": 0}'), 0);
+      expect(hyprRounding('{"int": 300}'), 64);
+      expect(hyprRounding('{"int": -3}'), isNull);
+      expect(hyprRounding('{"float": 2.5}'), isNull);
+      expect(hyprRounding('no json'), isNull);
+      expect(hyprRounding('[15]'), isNull);
+      expect(hyprRounding(null), isNull);
+    });
+
+    test('asks hyprctl -j getoption decoration:rounding and goes in current()', () async {
+      answer('{"option": "decoration:rounding", "int": 15, "set": true }');
+      final d = desktop();
+      expect(await d.windowRounding(), 15);
+      expect(log.readAsStringSync(), '-j getoption decoration:rounding\n');
+      await d.applyColors(dark);
+      expect((await d.current())!['corner_radius'], 15);
+    });
+
+    test('asked at most every 30 s', () async {
+      answer('{"int": 10}');
+      var now = DateTime(2026, 11, 12, 10);
+      final d = HyprlandDesktop(paths, env, ptsDir: pts.path, clock: () => now);
+      expect(await d.windowRounding(), 10);
+      answer('{"int": 20}');
+      now = now.add(const Duration(seconds: 29));
+      expect(await d.windowRounding(), 10);
+      now = now.add(const Duration(seconds: 2));
+      expect(await d.windowRounding(), 20);
+      expect(log.readAsLinesSync().length, 2);
+    });
+
+    test('null outside a Hyprland session, without hyprctl, or when it fails', () async {
+      answer('{"int": 15}');
+      expect(await desktop({...env}..remove('HYPRLAND_INSTANCE_SIGNATURE')).windowRounding(), isNull);
+      expect(log.existsSync(), isFalse);
+      expect(await desktop({...env, 'PATH': '${root.path}/nothing'}).windowRounding(), isNull);
+      answer('{"int": 15}', code: 1);
+      expect(await desktop().windowRounding(), isNull);
+      answer('garbage');
+      expect(await desktop().windowRounding(), isNull);
+    });
+
+    test('a hyprctl that hangs is given up on', () async {
+      File('${root.path}/bin/hyprctl').writeAsStringSync('#!/bin/sh\nexec sleep 30\n');
+      final watch = Stopwatch()..start();
+      expect(await desktop().windowRounding(), isNull);
+      expect(watch.elapsed, lessThan(const Duration(seconds: 10)));
+    });
+  });
 }

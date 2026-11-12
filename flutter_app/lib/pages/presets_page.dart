@@ -393,7 +393,7 @@ class _PresetsPageState extends State<PresetsPage> {
           backgroundColor: on ? scheme.surfaceContainerHigh : null,
           side: BorderSide(color: on ? scheme.primary : scheme.outlineVariant, width: on ? 2 : 1),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(cornerSizes(context).control)),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           visualDensity: VisualDensity.compact,
         ),
       ),
@@ -405,7 +405,7 @@ class _PresetsPageState extends State<PresetsPage> {
     final scheme = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
         color: scheme.surfaceContainer,
         border: Border.all(color: scheme.outlineVariant),
@@ -415,7 +415,7 @@ class _PresetsPageState extends State<PresetsPage> {
         state['active'] == true
             ? trf("Maprisma Theme {0} arranges the windows: window limits and overflow take effect there at once. Tiled and Floating switch {1}'s tiling; Native leaves it as it is.", [app!.can('panel') ? tr("applet in the panel") : tr("tray service"), tilerOf(app!.desktopName)])
             : trf("Tiling is off (All Workspaces): layouts switch {0}'s tiling of a workspace, window limits wait until Tiling active is on. Native leaves {1}'s tiling as it is.", [tilerOf(app!.desktopName), tilerOf(app!.desktopName)]),
-        style: const TextStyle(fontSize: 12),
+        style: textRole(Theme.of(context).textTheme.bodySmall),
       ),
     );
   }
@@ -452,7 +452,7 @@ class _PresetsPageState extends State<PresetsPage> {
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   visualDensity: VisualDensity.compact,
                 ),
-                child: Text(trf("Workspaces {0}–{1}", [_groups[i].$1, _groups[i].$2]), style: const TextStyle(fontSize: 13)),
+                child: Text(trf("Workspaces {0}–{1}", [_groups[i].$1, _groups[i].$2]), style: textRole(Theme.of(context).textTheme.bodyMedium)),
               ),
             ),
           ),
@@ -530,7 +530,7 @@ class _PresetsPageState extends State<PresetsPage> {
       ),
     );
     final body = Padding(
-      padding: const EdgeInsets.fromLTRB(6, 5, 6, 4),
+      padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -538,19 +538,18 @@ class _PresetsPageState extends State<PresetsPage> {
             title(ws),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 12,
+            style: Theme.of(context).textTheme.bodySmall!.copyWith(
               fontWeight: FontWeight.w600,
               color: ws > 0 && ws == activeWorkspace ? scheme.primary : scheme.onSurface,
             ),
           ),
           const SizedBox(height: 4),
           if (app!.can('tiling')) picture,
-          const SizedBox(height: 3),
+          const SizedBox(height: 4),
           Text(text,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 12, color: chosen ? scheme.onSurface : scheme.onSurfaceVariant)),
+              style: Theme.of(context).textTheme.bodySmall!.copyWith(color: chosen ? scheme.onSurface : scheme.onSurfaceVariant)),
         ],
       ),
     );
@@ -655,7 +654,7 @@ class _PresetsPageState extends State<PresetsPage> {
               children: [
                 Positioned.fill(
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(cornerSizes(context).control),
                     child: Stack(fit: StackFit.expand, children: [
                       ColoredBox(color: hexColor(colors, 'background') ?? Colors.black),
                       if (wall != null)
@@ -715,13 +714,13 @@ class _PresetsPageState extends State<PresetsPage> {
         child: KeyedSubtree(key: ValueKey('$tab/$ws'), child: lookAlike(ws, previewFocus)),
       ),
       const SizedBox(height: 8),
-      Text(caption(ws), style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
-      const SizedBox(height: 2),
+      Text(caption(ws), style: Theme.of(context).textTheme.bodySmall!.copyWith(color: scheme.onSurfaceVariant)),
+      const SizedBox(height: 4),
       Text(
         tab == 1
             ? tr("Tab to the preview: + adds an app.")
             : tr("Tab to the preview: + and − change the limit, ↑/↓ the layout, ←/→ choose a window."),
-        style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant.withValues(alpha: .75)),
+        style: Theme.of(context).textTheme.labelSmall!.copyWith(color: scheme.onSurfaceVariant.withValues(alpha: .75)),
       ),
     ]);
   }
@@ -756,11 +755,11 @@ class _PresetsPageState extends State<PresetsPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         lookAlike(ws, zoomFocus),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 8),
                         Text('${title(ws)} · ${caption(ws)}',
-                            style: TextStyle(color: Colors.white.withValues(alpha: .9), fontSize: 13)),
+                            style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: Colors.white.withValues(alpha: .9))),
                         Text(tr("A click beside it or Esc closes it."),
-                            style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 11)),
+                            style: Theme.of(context).textTheme.labelSmall!.copyWith(color: scheme.onSurfaceVariant)),
                       ],
                     ),
                   ),
@@ -776,14 +775,14 @@ class _PresetsPageState extends State<PresetsPage> {
   // --- controls ------------------------------------------------------------------------
 
   TextStyle heading(ColorScheme scheme) =>
-      TextStyle(fontSize: 10.5, letterSpacing: 1.3, color: scheme.onSurfaceVariant, fontWeight: FontWeight.w500);
+      TextStyle(fontSize: 11, letterSpacing: 1.3, color: scheme.onSurfaceVariant, fontWeight: FontWeight.w700);
 
   /// A section in its own group card (the plugin's Sections).
   Widget groupCard(List<Widget> children, {String? title}) {
     final scheme = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
       decoration: BoxDecoration(
         color: scheme.surfaceContainerLow,
         border: Border.all(color: scheme.outlineVariant),
@@ -800,8 +799,8 @@ class _PresetsPageState extends State<PresetsPage> {
   }
 
   Widget hint(String text) => Padding(
-    padding: const EdgeInsets.only(top: 6),
-    child: Text(text, style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+    padding: const EdgeInsets.only(top: 8),
+    child: Text(text, style: Theme.of(context).textTheme.bodySmall!.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
   );
 
   Widget choiceRow(List<({String label, bool on, VoidCallback tap, String tooltip})> items) {
@@ -809,7 +808,7 @@ class _PresetsPageState extends State<PresetsPage> {
     return Row(
       children: [
         for (var i = 0; i < items.length; i++) ...[
-          if (i > 0) const SizedBox(width: 6),
+          if (i > 0) const SizedBox(width: 8),
           Expanded(
             child: Tooltip(
               message: items[i].tooltip,
@@ -825,10 +824,10 @@ class _PresetsPageState extends State<PresetsPage> {
                         color: items[i].on ? scheme.onSurface.withValues(alpha: .85) : scheme.outlineVariant,
                         width: items[i].on ? 1.5 : 1),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(cornerSizes(context).control)),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
                     visualDensity: VisualDensity.compact,
                   ),
-                  child: Text(items[i].label, style: const TextStyle(fontSize: 14)),
+                  child: Text(items[i].label, style: textRole(Theme.of(context).textTheme.bodyMedium)),
                 ),
               ),
             ),
@@ -844,8 +843,8 @@ class _PresetsPageState extends State<PresetsPage> {
     final colors = colorsOf(ws);
     final tileW = ((width - 3 * 6) / 4 - 10).clamp(64.0, 150.0);
     return Wrap(
-      spacing: 6,
-      runSpacing: 6,
+      spacing: 8,
+      runSpacing: 8,
       children: [
         for (final mode in _modes)
           Tooltip(
@@ -865,7 +864,7 @@ class _PresetsPageState extends State<PresetsPage> {
                 child: InkWell(
                   onTap: busy ? null : () => pickMode(ws, mode),
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(4, 4, 4, 3),
+                    padding: const EdgeInsets.fromLTRB(4, 4, 4, 4),
                     child: SizedBox(
                       width: tileW,
                       child: Column(children: [
@@ -876,8 +875,8 @@ class _PresetsPageState extends State<PresetsPage> {
                                 colors, layoutRects(mode, mode == 'default' ? math.max(cap, 3) : cap), mode == 'default'),
                           ),
                         ),
-                        const SizedBox(height: 3),
-                        Text(modeLabel(mode), style: const TextStyle(fontSize: 11)),
+                        const SizedBox(height: 4),
+                        Text(modeLabel(mode), style: textRole(Theme.of(context).textTheme.labelSmall)),
                       ]),
                     ),
                   ),
@@ -911,7 +910,7 @@ class _PresetsPageState extends State<PresetsPage> {
       Expanded(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(title),
-          if (hint.isNotEmpty) Text(hint, style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+          if (hint.isNotEmpty) Text(hint, style: Theme.of(context).textTheme.bodySmall!.copyWith(color: scheme.onSurfaceVariant)),
         ]),
       ),
       Switch(value: on, onChanged: busy ? null : flip),
@@ -975,7 +974,7 @@ class _PresetsPageState extends State<PresetsPage> {
       if (app!.can('tiling')) groupCard(title: tr("Layout preset"), [
         if (cap <= 1)
           Padding(
-            padding: const EdgeInsets.only(bottom: 6),
+            padding: const EdgeInsets.only(bottom: 8),
             child: hint(tr("Keeps one window on this workspace. Newly opened windows move to the next workspace with room.")),
           ),
         layoutChoices(ws, cap, own, width),
@@ -1151,7 +1150,7 @@ class _PresetsPageState extends State<PresetsPage> {
     ];
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: scheme.surfaceContainer,
         border: Border.all(color: scheme.outlineVariant),
@@ -1162,7 +1161,7 @@ class _PresetsPageState extends State<PresetsPage> {
         const SizedBox(height: 4),
         Text(tr("How would you like to handle them before restoring?")),
         const SizedBox(height: 8),
-        Wrap(spacing: 6, runSpacing: 6, children: [
+        Wrap(spacing: 8, runSpacing: 8, children: [
           for (final (label, choice, tip) in buttons)
             Tooltip(
               message: tip,
@@ -1191,11 +1190,11 @@ class _PresetsPageState extends State<PresetsPage> {
           layout == null
               ? tr("No App Preset saved yet")
               : trf("App Preset · Workspace {0} · {1} {2}", [ws, apps.length, apps.length == 1 ? tr('app') : tr('apps')]),
-          style: heading(scheme).copyWith(fontSize: 12, letterSpacing: .3),
+          style: Theme.of(context).textTheme.titleSmall!.copyWith(color: scheme.onSurfaceVariant),
         ),
         if (apps.isNotEmpty) ...[
           const SizedBox(height: 8),
-          Wrap(spacing: 6, runSpacing: 6, children: [
+          Wrap(spacing: 8, runSpacing: 8, children: [
             for (var i = 0; i < apps.length; i++)
               Container(
                 padding: const EdgeInsets.only(left: 8),
@@ -1209,7 +1208,7 @@ class _PresetsPageState extends State<PresetsPage> {
                   ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 160),
                     child: Text(apps[i].replaceAll(RegExp(r'\.desktop$'), ''),
-                        overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13)),
+                        overflow: TextOverflow.ellipsis, style: textRole(Theme.of(context).textTheme.bodyMedium)),
                   ),
                   IconButton(
                     tooltip: trf("Remove {0} from the App Preset", [apps[i]]),
@@ -1227,7 +1226,7 @@ class _PresetsPageState extends State<PresetsPage> {
           hint(tr("× removes an app from the App Preset; it does not close its open windows.")),
         ],
         if (conflict != null && conflict!['workspace'] == ws) ...[const SizedBox(height: 8), conflictCard(ws)],
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         Wrap(spacing: 8, runSpacing: 8, children: [
           action(tr("Save App Preset"), Icons.save_outlined,
               () => perform('apppresets.save', {'workspace': ws}, trf("Saved App Preset for Workspace {0}", [ws])),
@@ -1280,13 +1279,13 @@ class _PresetsPageState extends State<PresetsPage> {
           groupButtons(),
           const SizedBox(height: 8),
           cards(leftW, wide),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           for (final w in tab == 0 ? layoutControls(ws, leftW - 24) : appControls(ws)) ...[
             w,
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
           ],
           if (message.isNotEmpty && tab == 1)
-            Text(message, style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+            Text(message, style: Theme.of(context).textTheme.bodySmall!.copyWith(color: scheme.onSurfaceVariant)),
         ],
       );
       return SingleChildScrollView(
@@ -1294,7 +1293,7 @@ class _PresetsPageState extends State<PresetsPage> {
         child: wide
             ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 SizedBox(width: leftW, child: left),
-                const SizedBox(width: 18),
+                const SizedBox(width: 16),
                 Expanded(child: rightPanel(ws)),
               ])
             : left,
@@ -1393,7 +1392,7 @@ class _PresetsPageState extends State<PresetsPage> {
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
       children: [
         Text(tr("Save the current theme, wallpaper and font for later."),
-            style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+            style: Theme.of(context).textTheme.bodySmall!.copyWith(color: scheme.onSurfaceVariant)),
         const SizedBox(height: 8),
         Row(children: [
           Expanded(
@@ -1405,7 +1404,7 @@ class _PresetsPageState extends State<PresetsPage> {
               onSubmitted: (_) => saveCurrent(),
             ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 8),
           FilledButton.tonal(
             onPressed: busy || name.text.trim().isEmpty ? null : saveCurrent,
             child: Text(tr("Save current")),
@@ -1436,7 +1435,7 @@ class _PresetsPageState extends State<PresetsPage> {
         ? 0
         : {...(ws['workspaceCaps'] as Map? ?? {}).keys, ...(ws['workspaceModes'] as Map? ?? {}).keys}.length;
     final appCount = (ws?['workspaceLayouts'] as Map? ?? {}).length;
-    final small = TextStyle(fontSize: 12, color: scheme.onSurfaceVariant);
+    final small = Theme.of(context).textTheme.bodySmall!.copyWith(color: scheme.onSurfaceVariant);
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
       decoration: BoxDecoration(
@@ -1458,7 +1457,7 @@ class _PresetsPageState extends State<PresetsPage> {
             if (app!.can('workspaces') && ws != null) Text(trf("Workspace presets: {0} · App presets: {1}", [layoutCount, appCount]), style: small),
           ]),
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 8),
         if (canApplyPreset(p)) OutlinedButton(onPressed: busy || theme == null ? null : () => applyPreset(p), child: Text(tr("Apply"))),
         if (app!.can('workspaces')) IconButton(
           tooltip: tr("Assign theme and/or wallpaper to workspace"),

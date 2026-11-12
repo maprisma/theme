@@ -567,7 +567,7 @@ class _ThemesPageState extends State<ThemesPage> {
     final list = shown;
     final hiddenCount = hiddenOut;
     final footer = Padding(
-      padding: const EdgeInsets.fromLTRB(8, 10, 8, 8),
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
       child: Text(
         list.isEmpty
             ? (filter.isEmpty ? tr("No themes.") : trf("No theme matches “{0}”. Backspace or Esc clears the filter.", [filter]))
@@ -640,7 +640,7 @@ class _ThemesPageState extends State<ThemesPage> {
       controller: scroll,
       count: list.length,
       columns: columns,
-      spacing: 6,
+      spacing: 8,
       footer: showFooter ? footer : null,
       builder: (context, i) {
         final t = list[i];
@@ -784,7 +784,7 @@ class _BigPreview extends StatelessWidget {
       Center(
         child: Container(
           width: w + 12,
-          padding: const EdgeInsets.all(6),
+          padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
             color: look.bg,
             border: isCurrent
@@ -794,7 +794,7 @@ class _BigPreview extends StatelessWidget {
           ),
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             SizedBox(width: w, height: h, child: media),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Row(children: [
               if (t['favorite'] == true) ...[
                 Text('★', style: TextStyle(color: look.accent)),
@@ -992,7 +992,7 @@ class _ThemeTileState extends State<ThemeTile> {
         ),
         const SizedBox(height: 4),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
           child: Row(children: [
             if (t['favorite'] == true) ...[
               Icon(Icons.star, size: 15, color: look.accent),
@@ -1005,7 +1005,7 @@ class _ThemeTileState extends State<ThemeTile> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: text)),
+                    style: Theme.of(context).textTheme.titleSmall!.copyWith(fontWeight: FontWeight.w600, color: text)),
               ),
             ),
           ]),
@@ -1016,8 +1016,8 @@ class _ThemeTileState extends State<ThemeTile> {
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
               style: TextStyle(
-                  fontSize: 12, fontFamily: 'monospace', color: widget.selected ? look.selectionFg : look.muted)),
-        const SizedBox(height: 2),
+                  fontFamily: 'monospace', color: widget.selected ? look.selectionFg : look.muted)),
+        const SizedBox(height: 4),
       ]),
     );
     return MouseRegion(

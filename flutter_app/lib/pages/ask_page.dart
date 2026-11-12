@@ -246,7 +246,7 @@ class _AskPageState extends State<AskPage> {
     if (editing == index) {
       return Row(
         children: [
-          const SizedBox(width: 28),
+          const SizedBox(width: 24),
           Expanded(
             child: CallbackShortcuts(
               bindings: {const SingleActivator(LogicalKeyboardKey.escape): () => _finishEdit(false)},
@@ -305,7 +305,7 @@ class _AskPageState extends State<AskPage> {
                     }
                   : null,
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 4),
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
                 child: Tooltip(
                   message: text,
                   child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -845,7 +845,7 @@ class _AskPageState extends State<AskPage> {
   Widget _card(_Card card, ColorScheme scheme, double previewW) {
     final c = card.c;
     final colors = _colorsOf(card);
-    final hint = TextStyle(fontSize: 12, color: scheme.onSurfaceVariant);
+    final hint = Theme.of(context).textTheme.bodySmall!.copyWith(color: scheme.onSurfaceVariant);
     final (title, kind, reason) = _texts(card);
     String? picture = card.walls.isNotEmpty ? _thumb(card.walls[card.wall]) : null;
     if (picture == null && c['kind'] == 'catalog' && c['wallpaper_query'] == null) picture = card.catalogPicture;
@@ -853,10 +853,10 @@ class _AskPageState extends State<AskPage> {
     return Container(
       decoration: BoxDecoration(
         color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(corners(context).clamp(0, 10)),
+        borderRadius: BorderRadius.circular(corners(context)),
         border: Border.all(color: scheme.outlineVariant),
       ),
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
@@ -867,9 +867,9 @@ class _AskPageState extends State<AskPage> {
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontWeight: FontWeight.w700),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 4),
           Text(kind, maxLines: 1, overflow: TextOverflow.ellipsis, style: hint),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           SizedBox(
             height: previewW * 9 / 16,
             child: Stack(
@@ -883,15 +883,15 @@ class _AskPageState extends State<AskPage> {
                 if (busy != null)
                   Center(
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(cornerSizes(context).control)),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
                           const SizedBox(width: 8),
                           Flexible(
-                            child: Text(busy, style: const TextStyle(color: Colors.white, fontSize: 12)),
+                            child: Text(busy, style: Theme.of(context).textTheme.bodySmall!.copyWith(color: Colors.white)),
                           ),
                         ],
                       ),
@@ -900,15 +900,15 @@ class _AskPageState extends State<AskPage> {
               ],
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           _strip(c, colors, scheme, card),
           if (card.search != null) ...[const SizedBox(height: 4), _searchRow(card)],
           if (c['wallpaper_query'] is String || card.walls.isNotEmpty || c['picture_prompt'] is String) _wallRow(card, scheme),
           if (reason.isNotEmpty) ...[const SizedBox(height: 4), Text(reason, style: hint)],
           const SizedBox(height: 8),
           Wrap(
-            spacing: 6,
-            runSpacing: 6,
+            spacing: 8,
+            runSpacing: 8,
             children: [
               Builder(
                 builder: (b) => FilledButton.icon(
@@ -938,7 +938,7 @@ class _AskPageState extends State<AskPage> {
               ),
             ],
           ),
-          if (card.refine != null) ...[const SizedBox(height: 6), _refineRow(card)],
+          if (card.refine != null) ...[const SizedBox(height: 8), _refineRow(card)],
         ],
       ),
     );
@@ -946,7 +946,7 @@ class _AskPageState extends State<AskPage> {
 
   static final _small = ButtonStyle(
     visualDensity: VisualDensity.compact,
-    padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 10)),
+    padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 8)),
   );
 
   /// Wallpaper…: opens your own search for this card (no tokens); a second
@@ -975,12 +975,12 @@ class _AskPageState extends State<AskPage> {
           controller: card.search,
           autofocus: true,
           maxLength: 100,
-          style: const TextStyle(fontSize: 13),
+          style: textRole(Theme.of(context).textTheme.bodyMedium),
           decoration: InputDecoration(isDense: true, counterText: '', hintText: tr("Search wallpapers, e.g. “husky snow”")),
           onSubmitted: (_) => _ownSearch(card),
         ),
       ),
-      const SizedBox(width: 6),
+      const SizedBox(width: 8),
       IconButton.filledTonal(
         tooltip: tr("Search wallpapers (no tokens)"),
         visualDensity: VisualDensity.compact,
@@ -999,7 +999,7 @@ class _AskPageState extends State<AskPage> {
             controller: card.refine,
             autofocus: true,
             maxLength: _maxRequest,
-            style: const TextStyle(fontSize: 13),
+            style: textRole(Theme.of(context).textTheme.bodyMedium),
             decoration: InputDecoration(
               isDense: true,
               counterText: '',
@@ -1012,7 +1012,7 @@ class _AskPageState extends State<AskPage> {
             },
           ),
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 8),
         IconButton.filledTonal(
           tooltip: tr("Refine…"),
           visualDensity: VisualDensity.compact,
@@ -1075,7 +1075,7 @@ class _AskPageState extends State<AskPage> {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+            style: Theme.of(context).textTheme.bodySmall!.copyWith(color: scheme.onSurfaceVariant),
           ),
         ),
         if (c['picture_prompt'] is String) _makeButton(card),
@@ -1154,10 +1154,10 @@ class _AskPageState extends State<AskPage> {
         if (known) ...[
           swatch('background', outline: true),
           swatch('foreground', outline: true),
-          const SizedBox(width: 6),
+          const SizedBox(width: 8),
           for (final k in _paletteKeys)
             if (hexColor(colors, k) != null) swatch(k),
-          const SizedBox(width: 6),
+          const SizedBox(width: 8),
         ],
         Expanded(
           child: Text(
@@ -1167,7 +1167,7 @@ class _AskPageState extends State<AskPage> {
             ].join(' · '),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+            style: Theme.of(context).textTheme.bodySmall!.copyWith(color: scheme.onSurfaceVariant),
           ),
         ),
       ],
@@ -1180,7 +1180,7 @@ class _AskPageState extends State<AskPage> {
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
       color: scheme.surfaceContainerLow,
-      borderRadius: BorderRadius.circular(corners(context).clamp(0, 10)),
+      borderRadius: BorderRadius.circular(corners(context)),
       border: Border.all(color: scheme.outlineVariant),
     ),
     child: child,
@@ -1192,8 +1192,8 @@ class _AskPageState extends State<AskPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(tr("Easy AI setup with Maprisma"), style: TextStyle(fontWeight: FontWeight.w700)),
-        const SizedBox(height: 6),
-        Text(_maprismaText, style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant)),
+        const SizedBox(height: 8),
+        Text(_maprismaText, style: Theme.of(context).textTheme.bodySmall!.copyWith(color: scheme.onSurfaceVariant)),
         const SizedBox(height: 8),
         OutlinedButton(
           onPressed: () => app.run('ask.open_maprisma', const {}, tr("Could not open the browser")),
@@ -1228,7 +1228,7 @@ class _AskPageState extends State<AskPage> {
                   CheckedPopupMenuItem(value: h['id'] as String, checked: h['id'] == helper, child: Text(_helperName(h))),
               ],
               child: Container(
-                padding: const EdgeInsets.fromLTRB(10, 6, 6, 6),
+                padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
                 decoration: BoxDecoration(color: scheme.surfaceContainerHighest, borderRadius: radius),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -1264,10 +1264,10 @@ class _AskPageState extends State<AskPage> {
         if (h['installed'] == true && h['signed_in'] != true && '${h['login']}'.isNotEmpty) h,
     ];
     return Padding(
-      padding: const EdgeInsets.only(top: 6),
+      padding: const EdgeInsets.only(top: 8),
       child: Wrap(
         spacing: 8,
-        runSpacing: 6,
+        runSpacing: 8,
         children: [
           for (final h in waiting)
             OutlinedButton.icon(
@@ -1301,7 +1301,7 @@ class _AskPageState extends State<AskPage> {
             onSubmitted: (_) => _ask(),
           ),
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 8),
         Tooltip(
           message: tr("Asks once; uses your plan or tokens only now."),
           child: FilledButton.icon(
@@ -1310,7 +1310,7 @@ class _AskPageState extends State<AskPage> {
             label: Text(tr("Ask")),
           ),
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 8),
         IconButton.outlined(
           tooltip: tr("Save as suggestion"),
           style: ButtonStyle(
@@ -1328,7 +1328,7 @@ class _AskPageState extends State<AskPage> {
     AppScope.of(context); // rebuild when the settings change
     final scheme = Theme.of(context).colorScheme;
     final h = chosen;
-    final hint = TextStyle(fontSize: 12, color: scheme.onSurfaceVariant);
+    final hint = Theme.of(context).textTheme.bodySmall!.copyWith(color: scheme.onSurfaceVariant);
     return SubPage(
       title: tr("Ask AI"),
       actions: [
@@ -1356,17 +1356,17 @@ class _AskPageState extends State<AskPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(_description),
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 12),
                             FilledButton(onPressed: _turnOn, child: Text(tr("Turn Ask AI on"))),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 12),
                     ],
                     if (enabled) ...[
-                      if (hints && showNote) ...[_note(scheme), const SizedBox(height: 10)],
+                      if (hints && showNote) ...[_note(scheme), const SizedBox(height: 12)],
                       _helperRow(scheme),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 8),
                       Text(
                         h == null
                             ? _noHelper
@@ -1380,7 +1380,7 @@ class _AskPageState extends State<AskPage> {
                       _requestRow(scheme),
                       const SizedBox(height: 8),
                       _suggestions(scheme, box.maxWidth),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 12),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -1442,7 +1442,7 @@ class _LookAlike extends StatelessWidget {
     final accent = hexColor(colors, 'accent') ?? const Color(0xff89b4fa);
     final plain = ColoredBox(color: Color.alphaBlend(accent.withValues(alpha: .12), bg));
     return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(cornerSizes(context).control),
       child: Stack(
         fit: StackFit.expand,
         children: [

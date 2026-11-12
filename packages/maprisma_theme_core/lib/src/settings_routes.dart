@@ -40,7 +40,7 @@ Map<String, Handler> settingsRoutes(Ctx ctx) => {
       'desktop': ctx.desktop.id,
       'colors': cur?['colors'] ?? const {},
       'is_dark': cur?['is_dark'] ?? true,
-      'corner_radius': cur?['corner_radius'],
+      'corner_radius': cur?['corner_radius'] ?? await ctx.desktop.windowRounding(),
       'theme': ctx.current.slug,
     };
   },

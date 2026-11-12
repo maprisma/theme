@@ -85,6 +85,11 @@ Color _darker(Color c) {
   return hsv.withValue(hsv.value / 1.45).toColor();
 }
 
+/// A text role's size and weight without its colour: the text keeps the colour around it (a
+/// button's, a chip's, a selected row's).
+TextStyle textRole(TextStyle? role) =>
+    TextStyle(fontSize: role?.fontSize, fontWeight: role?.fontWeight, letterSpacing: role?.letterSpacing, height: role?.height);
+
 double corners(BuildContext context) => Theme.of(context).extension<Corners>()?.radius ?? 12;
 
 /// Settings › Corners in its three sizes (see [Corners]).
@@ -114,8 +119,11 @@ ThemeData appTheme(Brightness platform, Map colors, double radius) {
   if (background != null) {
     final foreground = hexColor(colors, 'foreground') ?? scheme.onSurface;
     Color step(double amount) => Color.lerp(background, foreground, amount)!;
+    final accent = hexColor(colors, 'accent');
     scheme = scheme.copyWith(
-      primary: hexColor(colors, 'accent') ?? scheme.primary,
+      primary: accent ?? scheme.primary,
+      // Text on the accent: black on a light one, else white.
+      onPrimary: accent == null ? null : (accent.computeLuminance() > .4 ? Colors.black : Colors.white),
       surface: background,
       onSurface: foreground,
       onSurfaceVariant: hexColor(colors, 'muted') == null
@@ -129,6 +137,7 @@ ThemeData appTheme(Brightness platform, Map colors, double radius) {
       outlineVariant: step(.18),
       secondaryContainer: hexColor(colors, 'selection') ?? step(.2),
       error: hexColor(colors, 'red') ?? scheme.error,
+      onError: hexColor(colors, 'red') == null ? null : (hexColor(colors, 'red')!.computeLuminance() > .4 ? Colors.black : Colors.white),
     );
   }
   final bg = scheme.surface, fg = scheme.onSurface, accent = scheme.primary;
@@ -150,6 +159,8 @@ ThemeData appTheme(Brightness platform, Map colors, double radius) {
   final sizes = Corners(radius);
   final control = sizes.control, small = sizes.small;
   final controlShape = RoundedRectangleBorder(borderRadius: BorderRadius.circular(control));
+  // The text roles' sizes (Material 3), for the theme's own styles.
+  final type = Typography.material2021().englishLike;
   return ThemeData(
     colorScheme: scheme,
     useMaterial3: true,
@@ -158,7 +169,7 @@ ThemeData appTheme(Brightness platform, Map colors, double radius) {
     hoverColor: fg.withValues(alpha: .06),
     focusColor: sel.withValues(alpha: .5),
     tooltipTheme: TooltipThemeData(
-      textStyle: TextStyle(color: fg, fontSize: 12),
+      textStyle: TextStyle(color: fg, fontSize: type.bodySmall!.fontSize),
       decoration: BoxDecoration(
         color: Color.lerp(bg, fg, .1),
         border: Border.all(color: fg.withValues(alpha: .2)),
@@ -193,8 +204,8 @@ ThemeData appTheme(Brightness platform, Map colors, double radius) {
       surfaceTintColor: Colors.transparent,
       elevation: 6,
       shadowColor: Colors.black54,
-      menuPadding: const EdgeInsets.all(5),
-      textStyle: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: fg),
+      menuPadding: const EdgeInsets.all(4),
+      textStyle: TextStyle(fontSize: type.bodyMedium!.fontSize, fontWeight: FontWeight.w500, color: fg),
       shape: shape,
     ),
     dropdownMenuTheme: DropdownMenuThemeData(
@@ -206,8 +217,8 @@ ThemeData appTheme(Brightness platform, Map colors, double radius) {
     inputDecorationTheme: InputDecorationTheme(
       filled: false,
       isDense: true,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-      hintStyle: TextStyle(color: look.muted, fontSize: 14),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      hintStyle: TextStyle(color: look.muted, fontSize: type.bodyMedium!.fontSize),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(control),
         borderSide: BorderSide(color: fg.withValues(alpha: .25)),
@@ -232,10 +243,10 @@ ThemeData appTheme(Brightness platform, Map colors, double radius) {
     // .tm-undo: the selection colour, accent border, floating over the bottom.
     snackBarTheme: SnackBarThemeData(
       backgroundColor: sel,
-      contentTextStyle: TextStyle(color: look.selectionFg, fontSize: 14),
+      contentTextStyle: TextStyle(color: look.selectionFg, fontSize: type.bodyMedium!.fontSize),
       actionTextColor: look.selectionFg,
       behavior: SnackBarBehavior.floating,
-      insetPadding: const EdgeInsets.all(17),
+      insetPadding: const EdgeInsets.all(16),
       shape: shape,
     ),
     checkboxTheme: CheckboxThemeData(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(small))),
@@ -266,9 +277,9 @@ ThemeData appTheme(Brightness platform, Map colors, double radius) {
         iconColor: accent,
         side: BorderSide(color: fg.withValues(alpha: .25)),
         shape: controlShape,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         minimumSize: const Size(0, 32),
-        textStyle: Typography.material2021().black.labelLarge!.copyWith(fontSize: 14, fontWeight: FontWeight.w500),
+        textStyle: Typography.material2021().black.labelLarge!.copyWith(fontSize: type.labelLarge!.fontSize, fontWeight: FontWeight.w500),
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
     ),

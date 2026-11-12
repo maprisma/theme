@@ -181,7 +181,7 @@ class _WallhavenPageState extends State<WallhavenPage> {
       ],
       child: Container(
         constraints: const BoxConstraints(maxWidth: 200),
-        padding: const EdgeInsets.fromLTRB(10, 6, 6, 6),
+        padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
         decoration: BoxDecoration(
             color: scheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(cornerSizes(context).control)),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -821,7 +821,7 @@ class _WallhavenPageState extends State<WallhavenPage> {
     return Tooltip(
       message: tr("Pictures per batch: from the web, made here and from wallhaven.cc; Next shows the next batch"),
       child: Container(
-        padding: const EdgeInsets.only(left: 10, right: 4),
+        padding: const EdgeInsets.only(left: 8, right: 4),
         decoration: BoxDecoration(color: scheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(cornerSizes(context).control)),
         child: DropdownButtonHideUnderline(
           child: DropdownButton<int>(
@@ -853,7 +853,7 @@ class _WallhavenPageState extends State<WallhavenPage> {
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             Text(trf("Setting up the picture generator… {0}", ['${g['text'] ?? ''}'])),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             LinearProgressIndicator(value: ((g['fraction'] as num?) ?? 0).toDouble()),
           ]),
         ),
@@ -877,13 +877,13 @@ class _WallhavenPageState extends State<WallhavenPage> {
       ]);
     }
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: look.fg.withValues(alpha: .06),
         border: Border.all(color: look.accent.withValues(alpha: .5)),
         borderRadius: BorderRadius.circular(corners(context)),
       ),
-      child: DefaultTextStyle.merge(style: const TextStyle(fontSize: 13), child: body),
+      child: DefaultTextStyle.merge(style: textRole(Theme.of(context).textTheme.bodyMedium), child: body),
     );
   }
 
@@ -915,9 +915,9 @@ class _WallhavenPageState extends State<WallhavenPage> {
             ),
           ),
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 8),
         countChoice(),
-        const SizedBox(width: 6),
+        const SizedBox(width: 8),
         // As the Ask AI page: a filled Ask (Stop while asking); corners from the theme.
         making
             ? FilledButton.icon(onPressed: stopMakingPictures, icon: const Icon(Icons.stop, size: 16), label: Text(tr("Stop")))
@@ -929,12 +929,12 @@ class _WallhavenPageState extends State<WallhavenPage> {
               ),
       ]),
       if (picturePrompt != null && generator != null && generator!['ready'] != true) ...[
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         generatorBanner(),
       ],
       if (aiQueries.isNotEmpty) ...[
-        const SizedBox(height: 6),
-        Wrap(spacing: 6, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
+        const SizedBox(height: 8),
+        Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
           if (aiSummary.isNotEmpty) Text(aiSummary, style: hintStyle(context)),
           for (final q in aiQueries)
             ActionChip(
@@ -975,16 +975,16 @@ class _WallhavenPageState extends State<WallhavenPage> {
             ),
           ),
           // Without Ask AI the batch size sits here; with it, next to Ask (one on screen).
-          if (aiHelper == null) ...[const SizedBox(width: 6), countChoice()],
+          if (aiHelper == null) ...[const SizedBox(width: 8), countChoice()],
         ]),
         if (aiHelper != null) ...[
           const SizedBox(height: 8),
           aiRow(),
         ],
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         // Busy: Ask AI is thinking or a search is loading (fixed height, no jump).
         SizedBox(height: 2, child: asking || loading || making ? const LinearProgressIndicator() : null),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         Text(hint, style: hintStyle(context)),
         const SizedBox(height: 8),
         Expanded(

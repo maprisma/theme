@@ -32,7 +32,7 @@ class _ImportPageState extends State<ImportPage> {
     Widget tabButton(int i, String label, String source) {
       final on = tab == i;
       return Padding(
-        padding: const EdgeInsets.only(right: 6),
+        padding: const EdgeInsets.only(right: 8),
         child: Tooltip(
           message: source,
           child: OutlinedButton(
@@ -98,7 +98,7 @@ class _Toolbar extends StatelessWidget {
             controller: controller,
             focusNode: focus,
             maxLength: maxLength,
-            style: const TextStyle(fontSize: 14),
+            style: textRole(Theme.of(context).textTheme.bodyMedium),
             decoration: InputDecoration(counterText: '', prefixIcon: const Icon(Icons.search, size: 18), hintText: hint),
           ),
         ),
@@ -695,7 +695,7 @@ class _CosmicTabState extends State<_CosmicTab> with _Gallery<_CosmicTab> {
             isDense: true,
             dropdownColor: look.bg,
             underline: const SizedBox.shrink(),
-            style: Theme.of(context).textTheme.bodyMedium!.copyWith(fontSize: 13, color: look.fg),
+            style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: look.fg),
             items: [for (final s in sorts) DropdownMenuItem(value: '${s['value']}', child: Text(tr(s['label'] as String? ?? '')))],
             onChanged: (v) {
               if (v == null || v == sort) return;
@@ -975,7 +975,7 @@ class _KdeTabState extends State<_KdeTab> with _Gallery<_KdeTab> {
             isDense: true,
             dropdownColor: look.bg,
             underline: const SizedBox.shrink(),
-            style: Theme.of(context).textTheme.bodyMedium!.copyWith(fontSize: 13, color: look.fg),
+            style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: look.fg),
             items: [for (final s in sorts) DropdownMenuItem(value: '${s['value']}', child: Text(tr(s['label'] as String? ?? '')))],
             onChanged: (v) {
               if (v == null || v == sort) return;
@@ -1021,7 +1021,7 @@ class _KdeTabState extends State<_KdeTab> with _Gallery<_KdeTab> {
                 '${t['name']}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 13, color: look.fg),
+                style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: look.fg),
               ),
               if (author.isNotEmpty) Text(trf("by {0}", [author]), maxLines: 1, overflow: TextOverflow.ellipsis, style: hintStyle(context)),
             ],

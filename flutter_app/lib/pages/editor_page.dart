@@ -292,7 +292,7 @@ class _EditorPageState extends State<EditorPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   SizedBox(width: w, height: w * 9 / 16, child: _sample()),
-                  const SizedBox(width: 18),
+                  const SizedBox(width: 16),
                   Expanded(child: controls),
                 ],
               ),
@@ -335,14 +335,14 @@ class _EditorPageState extends State<EditorPage> {
   Widget _actions(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(_pad, 6, _pad, 12),
+      padding: const EdgeInsets.fromLTRB(_pad, 8, _pad, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (hint.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
-              child: Text(hint, style: TextStyle(fontSize: 12.5, color: hint.endsWith('…') ? scheme.onSurfaceVariant : scheme.error)),
+              child: Text(hint, style: Theme.of(context).textTheme.bodySmall!.copyWith(color: hint.endsWith('…') ? scheme.onSurfaceVariant : scheme.error)),
             ),
           Row(
             children: [
@@ -405,7 +405,7 @@ class _EditorPageState extends State<EditorPage> {
     final count = (d['base_wallpapers'] as num?)?.toInt() ?? 0;
     final fromPicture = widget.wallpaper != null;
     final scheme = Theme.of(context).colorScheme;
-    final heading = TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: scheme.onSurface);
+    final heading = Theme.of(context).textTheme.titleSmall!.copyWith(fontWeight: FontWeight.w700, color: scheme.onSurface);
     String wallLabel, wallTip;
     if (widget.askWallpaper != null && !fromPicture) {
       wallLabel = trf("Also {0}'s wallpapers", [baseName]);
@@ -510,7 +510,7 @@ class _EditorPageState extends State<EditorPage> {
               child: Switch(value: copyWallpapers, onChanged: (v) => setState(() => copyWallpapers = v)),
             ),
           ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         Text(tr("Colors"), style: heading),
         const SizedBox(height: 4),
         for (final k in main) _colorRow(k),
@@ -529,7 +529,7 @@ class _EditorPageState extends State<EditorPage> {
                   padding: const EdgeInsets.only(bottom: 4),
                   child: Text(
                     tr("These follow the colors above until you change them here."),
-                    style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+                    style: Theme.of(context).textTheme.bodySmall!.copyWith(color: scheme.onSurfaceVariant),
                   ),
                 ),
               ),
@@ -544,7 +544,7 @@ class _EditorPageState extends State<EditorPage> {
   static String _fileName(String path) => path.substring(path.lastIndexOf('/') + 1);
 
   Widget _row(String label, Widget control) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 3),
+    padding: const EdgeInsets.symmetric(vertical: 4),
     child: SizedBox(
       height: 36,
       child: Row(
@@ -560,7 +560,7 @@ class _EditorPageState extends State<EditorPage> {
     final scheme = Theme.of(context).colorScheme;
     final controller = hex[key]!;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
           Tooltip(
@@ -579,9 +579,9 @@ class _EditorPageState extends State<EditorPage> {
               ),
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(child: Text(labels[key] ?? colorLabel(key), overflow: TextOverflow.ellipsis)),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           SizedBox(
             width: 92,
             child: Focus(
@@ -598,7 +598,7 @@ class _EditorPageState extends State<EditorPage> {
                   return TextField(
                     controller: controller,
                     maxLength: 7,
-                    style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+                    style: textRole(Theme.of(context).textTheme.bodyMedium).copyWith(fontFamily: 'monospace'),
                     inputFormatters: [FilteringTextInputFormatter.allow(RegExp('[#0-9a-fA-F]'))],
                     decoration: InputDecoration(isDense: true, counterText: '', errorText: _hexRe.hasMatch(t) ? null : '#rrggbb'),
                     onSubmitted: (v) => setColor(key, v),
@@ -784,7 +784,7 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
                   child: Container(
                     width: 34,
                     height: 26,
-                    decoration: swatch(_color(widget.initial), const BorderRadius.horizontal(left: Radius.circular(6))),
+                    decoration: swatch(_color(widget.initial), BorderRadius.horizontal(left: Radius.circular(cornerSizes(context).small))),
                   ),
                 ),
                 Tooltip(
@@ -792,7 +792,7 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
                   child: Container(
                     width: 34,
                     height: 26,
-                    decoration: swatch(hsv.toColor(), const BorderRadius.horizontal(right: Radius.circular(6))),
+                    decoration: swatch(hsv.toColor(), BorderRadius.horizontal(right: Radius.circular(cornerSizes(context).small))),
                   ),
                 ),
                 const Spacer(),

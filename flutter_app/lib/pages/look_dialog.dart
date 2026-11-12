@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../app.dart';
+import '../theme.dart' show cornerSizes;
 import 'editor_page.dart' show pickColor;
 
 /// WCAG contrast ratio of two #rrggbb colours (1..21).
@@ -144,7 +145,7 @@ class _LookDialogState extends State<_LookDialog> {
             message: tr("Choose a text colour"),
             child: InkWell(
               key: const ValueKey('look-text-color'),
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(cornerSizes(context).small),
               onTap: () async {
                 final picked = await pickColor(context, shown, tr("Text colour"));
                 if (picked != null && mounted) setState(() => textColor = picked.toLowerCase() == _themeText.toLowerCase() ? null : picked.toLowerCase());
@@ -154,7 +155,7 @@ class _LookDialogState extends State<_LookDialog> {
                 height: 24,
                 decoration: BoxDecoration(
                   color: _c(shown),
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(cornerSizes(context).small),
                   border: Border.all(color: look.colorScheme.outline),
                 ),
               ),
@@ -176,8 +177,8 @@ class _LookDialogState extends State<_LookDialog> {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Container(
             key: const ValueKey('look-text-preview'),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(color: _c(_background), borderRadius: BorderRadius.circular(6)),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            decoration: BoxDecoration(color: _c(_background), borderRadius: BorderRadius.circular(cornerSizes(context).control)),
             child: Text(tr("The quick brown fox jumps over the lazy dog"), style: TextStyle(color: _c(shown))),
           ),
           if (ratio < minTextContrast)
@@ -379,7 +380,7 @@ class _Row extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 6),
+    padding: const EdgeInsets.symmetric(vertical: 8),
     child: Row(
       children: [
         SizedBox(

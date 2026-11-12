@@ -230,13 +230,13 @@ class _ShortcutPageState extends State<ShortcutPage> {
       children: [
         for (final part in label.split(' + '))
           Container(
-            padding: EdgeInsets.symmetric(horizontal: large ? 10 : 6, vertical: large ? 5 : 2),
+            padding: EdgeInsets.symmetric(horizontal: large ? 12 : 8, vertical: large ? 4 : 2),
             decoration: BoxDecoration(
               border: Border.all(color: scheme.outlineVariant),
               borderRadius: BorderRadius.circular(cornerSizes(context).control),
               color: scheme.surfaceContainerHighest,
             ),
-            child: Text(part, style: TextStyle(fontSize: large ? 14 : 12, fontWeight: FontWeight.w600)),
+            child: Text(part, style: (large ? textRole(Theme.of(context).textTheme.labelLarge) : textRole(Theme.of(context).textTheme.labelMedium)).copyWith(fontWeight: FontWeight.w600)),
           ),
       ],
     );
@@ -278,13 +278,13 @@ class _ShortcutPageState extends State<ShortcutPage> {
                           onTap: () => setState(() => key = picked ? null : name),
                           child: Container(
                             constraints: const BoxConstraints(minWidth: 30),
-                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(cornerSizes(context).control),
                               color: color.withValues(alpha: picked ? .55 : .18),
                               border: Border.all(color: picked ? scheme.onSurface : color, width: picked ? 2 : 1),
                             ),
-                            child: Text(keyName(name), textAlign: TextAlign.center, style: const TextStyle(fontSize: 12)),
+                            child: Text(keyName(name), textAlign: TextAlign.center, style: textRole(Theme.of(context).textTheme.labelMedium)),
                           ),
                         ),
                       );
@@ -306,7 +306,7 @@ class _ShortcutPageState extends State<ShortcutPage> {
       _ => scheme.onSurfaceVariant,
     };
     Widget section(String t) => Padding(
-      padding: const EdgeInsets.fromLTRB(0, 14, 0, 6),
+      padding: const EdgeInsets.fromLTRB(0, 16, 0, 8),
       child: Text(t, style: const TextStyle(fontWeight: FontWeight.w700)),
     );
     final replaces = '${current?['replaces'] ?? ''}';
@@ -322,7 +322,7 @@ class _ShortcutPageState extends State<ShortcutPage> {
               if (replaces.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
-                  child: Text(trf("Overrides “{0}”", [replaces]), style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+                  child: Text(trf("Overrides “{0}”", [replaces]), style: Theme.of(context).textTheme.bodySmall!.copyWith(color: scheme.onSurfaceVariant)),
                 ),
             ]),
           ),
@@ -338,7 +338,7 @@ class _ShortcutPageState extends State<ShortcutPage> {
         ]),
       section(tr("Choose a key")),
       Wrap(
-        spacing: 6,
+        spacing: 8,
         children: [
           for (final m in modOrder)
             FilterChip(
@@ -349,7 +349,7 @@ class _ShortcutPageState extends State<ShortcutPage> {
             ),
         ],
       ),
-      const SizedBox(height: 10),
+      const SizedBox(height: 12),
       Row(children: [
         Expanded(
           child: Tooltip(
@@ -358,7 +358,7 @@ class _ShortcutPageState extends State<ShortcutPage> {
                 ? Align(alignment: Alignment.centerLeft, child: caps(comboLabel(mods, key!), large: true))
                 : Row(children: [
                     if (mods.isNotEmpty) caps(mods.map((m) => modNames[m]).join(' + '), large: true),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 8),
                     Text(tr("select a key"), style: TextStyle(color: scheme.onSurfaceVariant)),
                   ]),
           ),
@@ -369,7 +369,7 @@ class _ShortcutPageState extends State<ShortcutPage> {
           child: Text(button),
         ),
       ]),
-      Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Text(text, style: TextStyle(color: statusColor))),
+      Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text(text, style: TextStyle(color: statusColor))),
       if (message.isNotEmpty) Text(message, style: TextStyle(color: messageOk ? marks.running : scheme.error)),
       section(mods.isEmpty ? tr("Keys") : trf("Keys with {0}", [mods.map((m) => modNames[m]).join(' + ')])),
       Tooltip(
@@ -378,11 +378,11 @@ class _ShortcutPageState extends State<ShortcutPage> {
           for (final (t, c) in [(tr('free'), marks.running), (tr('yours'), marks.fresh), (trf("{0} default", [app.desktopName]), marks.update)])
             Padding(
               padding: const EdgeInsets.only(right: 12),
-              child: Text('● $t', style: TextStyle(fontSize: 12, color: c)),
+              child: Text('● $t', style: Theme.of(context).textTheme.bodySmall!.copyWith(color: c)),
             ),
         ]),
       ),
-      const SizedBox(height: 6),
+      const SizedBox(height: 8),
       _keyMap(scheme, marks),
     ];
   }

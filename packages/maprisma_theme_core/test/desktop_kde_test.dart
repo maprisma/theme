@@ -338,6 +338,17 @@ void main() {
       final look = await env.core.call('desktop.look');
       expect(look['colors'], {'background': '#2e3440', 'foreground': '#d8dee9', 'accent': '#81a1c1'});
       expect(look['is_dark'], isTrue);
+      expect(look['corner_radius'], isNull);
+    });
+
+    test('desktop.look: the window corners come from the desktop when its look has none', () async {
+      final fake = FakeDesktop(id: 'generic', name: 'your desktop', terminalName: null, caps: const {}, hasLook: false)..rounding = 15;
+      final env = TestEnv.create(desktop: fake);
+      addTearDown(env.dispose);
+      expect((await env.core.call('desktop.look'))['corner_radius'], 15);
+      fake.rounding = null;
+      expect((await env.core.call('desktop.look'))['corner_radius'], isNull);
+      expect(await KdeDesktop(env.paths, const {}).windowRounding(), 8);
     });
 
     test("a desktop without fonts neither changes nor forgets the user's font", () async {

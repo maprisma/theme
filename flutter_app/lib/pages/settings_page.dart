@@ -205,7 +205,7 @@ class _SettingsPageState extends State<SettingsPage> {
         underline: const SizedBox(),
         dropdownColor: look.bg,
         borderRadius: BorderRadius.circular(corners(context)), // the open list: a pop-up
-        style: Theme.of(context).textTheme.bodyMedium!.copyWith(fontSize: 12, color: look.fg),
+        style: Theme.of(context).textTheme.bodySmall!.copyWith(color: look.fg),
         icon: Icon(Icons.expand_more, size: 16, color: look.fg),
         items: [for (final (v, label) in choices) DropdownMenuItem(value: v, child: Text(label))],
         onChanged: (v) => v == null ? null : onChanged(v),
@@ -220,10 +220,10 @@ class _SettingsPageState extends State<SettingsPage> {
       key: key,
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         minimumSize: const Size(0, 24),
         side: BorderSide(color: look.fg.withValues(alpha: .35)),
-        textStyle: Theme.of(context).textTheme.labelLarge!.copyWith(fontSize: 11),
+        textStyle: Theme.of(context).textTheme.labelSmall,
       ),
       child: icon == null ? Text(label) : Icon(icon, size: 14),
     );
@@ -238,13 +238,13 @@ class _SettingsPageState extends State<SettingsPage> {
       children: [
         for (final part in label.split(' + '))
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
             decoration: BoxDecoration(
               border: Border.all(color: look.fg.withValues(alpha: .35)),
               borderRadius: BorderRadius.circular(r),
               color: look.fg.withValues(alpha: .08),
             ),
-            child: Text(part, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            child: Text(part, style: textRole(Theme.of(context).textTheme.labelMedium).copyWith(fontWeight: FontWeight.w600)),
           ),
       ],
     );
@@ -338,8 +338,8 @@ class _SettingsPageState extends State<SettingsPage> {
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(ok ? Icons.check_circle_outline : Icons.error_outline, size: 14, color: ok ? marks.running : marks.update),
-        const SizedBox(width: 6),
-        Text(text, style: const TextStyle(fontSize: 12)),
+        const SizedBox(width: 8),
+        Text(text, style: textRole(Theme.of(context).textTheme.bodySmall)),
       ],
     );
     final themeChoices = <(String, String)>[('', tr("Choose…")), for (final t in themes) ('${t['slug']}', '${t['name']}')];
@@ -470,7 +470,7 @@ class _SettingsPageState extends State<SettingsPage> {
           label,
           '',
           Wrap(
-            spacing: 6,
+            spacing: 8,
             runSpacing: 4,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
@@ -526,7 +526,7 @@ class _SettingsPageState extends State<SettingsPage> {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (s['label'] != null) ...[_caps('${s['label']}'), const SizedBox(width: 6)],
+              if (s['label'] != null) ...[_caps('${s['label']}'), const SizedBox(width: 8)],
               _small(
                 s['label'] == null ? tr("Set…") : tr("Change…"),
                 shortcuts['available'] == true ? () => _openShortcut('${s['target']}', '${s['title']}') : null,
@@ -553,11 +553,11 @@ class _SettingsPageState extends State<SettingsPage> {
                 shotDir ?? '~/Pictures/MaprismaTheme',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 12),
+                style: textRole(Theme.of(context).textTheme.bodySmall),
               ),
             ),
-            const SizedBox(width: 6),
-            if (shotDir != null) ...[_small(tr("Default"), () => set('screenshot_dir', null)), const SizedBox(width: 6)],
+            const SizedBox(width: 8),
+            if (shotDir != null) ...[_small(tr("Default"), () => set('screenshot_dir', null)), const SizedBox(width: 8)],
             _small(
               tr("Choose folder…"),
               _chooseScreenshotFolder,
@@ -665,7 +665,7 @@ class _SettingsPageState extends State<SettingsPage> {
         tr("Includes settings, lists, workspace assignments, presets and shortcuts; themes and wallpapers remain in their folders."),
         Row(
           mainAxisSize: MainAxisSize.min,
-          children: [_small(tr("Export…"), _export), const SizedBox(width: 6), _small(tr("Restore…"), _restore)],
+          children: [_small(tr("Export…"), _export), const SizedBox(width: 8), _small(tr("Restore…"), _restore)],
         ),
       ),
     ]);
@@ -691,18 +691,18 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget _rowWidget(_Row r) {
     final look = Look.of(context);
     if (r.title.isEmpty && r.below != null) {
-      return Padding(padding: const EdgeInsets.symmetric(vertical: 2), child: r.below!);
+      return Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: r.below!);
     }
     Widget tip(Widget w) => r.hint.isEmpty ? w : Tooltip(message: r.hint, child: w);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
           SizedBox(
             width: 130,
-            child: tip(Text(r.title, style: TextStyle(fontSize: 11, color: look.dim))),
+            child: tip(Text(r.title, style: Theme.of(context).textTheme.labelMedium!.copyWith(color: look.dim))),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
             child: Align(alignment: Alignment.centerLeft, child: tip(r.control)),
           ),
@@ -750,7 +750,7 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
       );
     }
-    return ListView(padding: const EdgeInsets.fromLTRB(0, 2, 4, 12), children: children);
+    return ListView(padding: const EdgeInsets.fromLTRB(0, 4, 4, 12), children: children);
   }
 
   void _select(String key) => setState(() {
@@ -811,7 +811,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       key: const ValueKey('settings-search'),
                       controller: _search,
                       focusNode: _searchFocus,
-                      style: const TextStyle(fontSize: 14),
+                      style: textRole(Theme.of(context).textTheme.bodyMedium),
                       decoration: InputDecoration(
                         prefixIcon: Icon(Icons.search, size: 18),
                         hintText: tr("Find in Settings"),
@@ -833,12 +833,11 @@ class _SettingsPageState extends State<SettingsPage> {
                         onTap: () => _select(key),
                         child: Padding(
                           padding: chip
-                              ? const EdgeInsets.symmetric(horizontal: 9, vertical: 4)
-                              : const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              ? const EdgeInsets.symmetric(horizontal: 8, vertical: 4)
+                              : const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                           child: Text(
                             name,
-                            style: TextStyle(
-                              fontSize: chip ? 11 : 12,
+                            style: (chip ? Theme.of(context).textTheme.labelSmall! : Theme.of(context).textTheme.bodySmall!).copyWith(
                               fontWeight: active ? FontWeight.w700 : FontWeight.w400,
                               color: active ? look.selectionFg : look.fg,
                             ),
@@ -852,7 +851,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       field,
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 8),
                       if (!wide) ...[
                         SizedBox(
                           height: 30,
@@ -861,13 +860,13 @@ class _SettingsPageState extends State<SettingsPage> {
                             children: [
                               for (final (key, name) in _sections.where((s) => s.$1 != 'shortcuts' || app.can('shortcuts')))
                                 Padding(
-                                  padding: const EdgeInsets.only(right: 5),
+                                  padding: const EdgeInsets.only(right: 4),
                                   child: navButton(key, name, chip: true),
                                 ),
                             ],
                           ),
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 8),
                       ],
                       Expanded(child: _content()),
                       if (!wide) Align(alignment: Alignment.centerLeft, child: reset),

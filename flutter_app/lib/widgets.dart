@@ -6,9 +6,6 @@ import 'package:flutter/services.dart';
 
 import 'theme.dart';
 
-/// Red of destructive menu entries (`.tm-menu-item.destructive`).
-const destructiveRed = Color(0xffff9999);
-
 /// A menu row running [action], as the plugin's menu items: a 14 px icon,
 /// 13 px text, an optional icon at the end (→ for entries that open a page)
 /// and a tooltip.
@@ -24,7 +21,7 @@ PopupMenuItem<VoidCallback> item(
 }) {
   final row = Builder(builder: (context) {
     final look = Look.of(context);
-    final color = destructive ? destructiveRed : look.fg;
+    final color = destructive ? look.red : look.fg;
     return ConstrainedBox(
       constraints: const BoxConstraints(minWidth: 174),
       child: Row(children: [
@@ -32,7 +29,7 @@ PopupMenuItem<VoidCallback> item(
         const SizedBox(width: 8),
         Flexible(
           fit: FlexFit.tight,
-          child: Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: color)),
+          child: Text(label, style: Theme.of(context).textTheme.bodyMedium!.copyWith(fontWeight: FontWeight.w500, color: color)),
         ),
         if (end != null) ...[const SizedBox(width: 8), Icon(end, size: 14, color: color)],
       ]),
@@ -65,13 +62,13 @@ class _MenuLineState extends State<_MenuLine> {
   @override
   Widget build(BuildContext context) => Container(
     height: 1,
-    margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+    margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
     color: Look.of(context).muted.withValues(alpha: .6),
   );
 }
 
 /// The plugin's hint text (`.tm-hint`: muted, 14 px).
-TextStyle hintStyle(BuildContext context, {double size = 14}) => TextStyle(color: Look.of(context).muted, fontSize: size);
+TextStyle hintStyle(BuildContext context) => Theme.of(context).textTheme.bodyMedium!.copyWith(color: Look.of(context).muted);
 
 /// A small label (current, system, a shortcut, `ws 2 · 5`).
 class Tag extends StatelessWidget {
@@ -89,7 +86,7 @@ class Tag extends StatelessWidget {
         color: c.withValues(alpha: .14),
         borderRadius: BorderRadius.circular(r),
       ),
-      child: Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: c)),
+      child: Text(label, style: Theme.of(context).textTheme.labelMedium!.copyWith(fontWeight: FontWeight.w600, color: c)),
     );
   }
 }
@@ -114,9 +111,9 @@ class TileBadge extends StatelessWidget {
       BadgeKind.plain => (Colors.black.withValues(alpha: .6), Colors.white),
     };
     final badge = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(r)),
-      child: Text(label, maxLines: 1, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: fg, height: 1.25)),
+      child: Text(label, maxLines: 1, style: Theme.of(context).textTheme.labelMedium!.copyWith(fontWeight: FontWeight.w600, color: fg, height: 1.25)),
     );
     return tooltip == null ? badge : Tooltip(message: tooltip!, child: badge);
   }
@@ -152,8 +149,8 @@ class _TileMenuButtonState extends State<TileMenuButton> {
         itemBuilder: (_) => widget.menu(),
         onSelected: (f) => f(),
         child: Container(
-          margin: const EdgeInsets.all(5),
-          padding: const EdgeInsets.all(3),
+          margin: const EdgeInsets.all(4),
+          padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
             color: hover ? look.accent : Colors.black.withValues(alpha: .6),
             borderRadius: BorderRadius.circular(r),
@@ -231,9 +228,9 @@ class PluginTile extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: Text(captionText ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 13, color: look.muted)),
+                  style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: look.muted)),
             ),
-        const SizedBox(height: 2),
+        const SizedBox(height: 4),
       ]),
     );
     if (dashed) {
@@ -379,13 +376,13 @@ Future<bool> confirm(BuildContext context, String title, String body, {String? a
       builder: (context) {
         final look = Look.of(context);
         return AlertDialog(
-          title: Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+          title: Text(title, style: textRole(Theme.of(context).textTheme.titleLarge).copyWith(fontWeight: FontWeight.w600)),
           content: body.isEmpty ? null : Text(body, style: hintStyle(context)),
           actions: [
             OutlinedButton(onPressed: () => Navigator.pop(context, false), child: Text(tr("Cancel"))),
             FilledButton(
               autofocus: true,
-              style: danger ? FilledButton.styleFrom(backgroundColor: look.red, foregroundColor: Colors.white) : null,
+              style: danger ? FilledButton.styleFrom(backgroundColor: look.red, foregroundColor: Theme.of(context).colorScheme.onError) : null,
               onPressed: () => Navigator.pop(context, true),
               child: Text(action ?? tr('OK')),
             ),
@@ -453,7 +450,7 @@ Future<int?> showWorkspaceMenu(
           child: Row(children: [
             const Icon(Icons.clear_all, size: 14),
             const SizedBox(width: 8),
-            Text(clearLabel, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+            Text(clearLabel, style: textRole(Theme.of(context).textTheme.labelLarge).copyWith(fontWeight: FontWeight.w500)),
           ]),
         ),
       ],
@@ -494,12 +491,11 @@ class _WorkspaceGridState extends State<_WorkspaceGrid> {
         child: Container(
           height: 30,
           alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(horizontal: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
           child: Text(text,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 13,
+              style: Theme.of(context).textTheme.bodyMedium!.copyWith(
                 fontWeight: mine ? FontWeight.w700 : FontWeight.w500,
                 color: mine ? look.accent : other != null ? look.muted : look.fg,
               )),
@@ -513,14 +509,14 @@ class _WorkspaceGridState extends State<_WorkspaceGrid> {
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(4, 2, 4, 4),
-          child: Text(widget.title, style: TextStyle(fontSize: 13, color: look.muted)),
+          padding: const EdgeInsets.fromLTRB(4, 4, 4, 4),
+          child: Text(widget.title, style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: look.muted)),
         ),
         SizedBox(
           width: widget.others.isEmpty || !widget.namesOthers ? 230 : 360,
           child: Column(children: [
             Row(children: [for (var ws = 1; ws <= 5; ws++) cell(ws)]),
-            const SizedBox(height: 2),
+            const SizedBox(height: 4),
             Row(children: [for (var ws = 6; ws <= 10; ws++) cell(ws)]),
           ]),
         ),
@@ -550,15 +546,15 @@ class PluginBackButton extends StatelessWidget {
         onPressed: onPressed ?? () => Navigator.of(context).maybePop(),
         style: TextButton.styleFrom(
           foregroundColor: look.accent,
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           minimumSize: const Size(0, 28),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Icon(Icons.chevron_left, size: 18),
-          SizedBox(width: 2),
-          Text(tr("Back"), style: TextStyle(fontSize: 14)),
-          SizedBox(width: 6),
-          Text('· ⌫', style: TextStyle(fontSize: 14)),
+          SizedBox(width: 4),
+          Text(tr("Back"), style: textRole(Theme.of(context).textTheme.labelLarge)),
+          SizedBox(width: 8),
+          Text('· ⌫', style: textRole(Theme.of(context).textTheme.labelLarge)),
         ]),
       ),
     );
@@ -620,12 +616,12 @@ class SubPage extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: section
                     ? TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1, color: look.fg)
-                    : TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: look.fg),
+                    : Theme.of(context).textTheme.titleLarge!.copyWith(fontWeight: FontWeight.w600, color: look.fg),
               ),
             ),
             ...actions,
           ]),
-          if (section) ...[const SizedBox(height: 6), const Divider(height: 1)],
+          if (section) ...[const SizedBox(height: 8), const Divider(height: 1)],
           const SizedBox(height: 8),
           Expanded(child: body),
         ]),

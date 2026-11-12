@@ -22,7 +22,30 @@ import 'store.dart';
 /// wallpaper is the `wallpaper` key of the shell's shell.json. The rest (fonts,
 /// icons, windows, shortcuts) is not done here yet: those caps are missing.
 final class HyprlandDesktop extends DesktopBase {
-  HyprlandDesktop(super.paths, super.environment, {this.ptsDir = '/dev/pts'});
+  HyprlandDesktop(super.paths, super.environment, {this.ptsDir = '/dev/pts', DateTime Function()? clock})
+    : _clock = clock ?? DateTime.now;
+
+  final DateTime Function() _clock;
+  int? _rounding;
+  DateTime? _roundingAt;
+
+  /// Hyprland's window rounding (`hyprctl -j getoption decoration:rounding`, its `int`, 0–64),
+  /// asked at most every 30 s (the window re-reads its look every few seconds); null outside a
+  /// Hyprland session, without hyprctl or without a readable answer.
+  @override
+  Future<int?> windowRounding() async {
+    if ((environment['HYPRLAND_INSTANCE_SIGNATURE'] ?? '').isEmpty) return null;
+    final now = _clock();
+    final at = _roundingAt;
+    if (at != null && now.difference(at).abs() < const Duration(seconds: 30)) return _rounding;
+    _roundingAt = now;
+    final hyprctl = findProgram(paths, environment, 'hyprctl');
+    final out = hyprctl == null
+        ? null
+        : await readBoundedText([hyprctl, '-j', 'getoption', 'decoration:rounding'],
+            timeout: const Duration(seconds: 2), environment: environment);
+    return _rounding = hyprRounding(out);
+  }
 
   /// Where the open terminals are (tests: a folder of plain files).
   final String ptsDir;
@@ -201,7 +224,7 @@ final class HyprlandDesktop extends DesktopBase {
           if (e.value != null) e.key: e.value,
       },
       'is_dark': mode == 'dark',
-      'corner_radius': null,
+      'corner_radius': await windowRounding(),
     };
   }
 
@@ -313,4 +336,16 @@ final class HyprlandDesktop extends DesktopBase {
   Future<Map<String, dynamic>> health(Paths paths, Map<String, String> environment) async => {
     'helper': {'ok': File(shellQml).existsSync(), 'path': shellQml, 'name': 'Maprisma Shell'},
   };
+}
+
+/// `hyprctl -j getoption decoration:rounding`'s `int` (0–64), or null.
+int? hyprRounding(String? json) {
+  if (json == null) return null;
+  try {
+    final v = jsonDecode(json);
+    final n = v is Map ? v['int'] : null;
+    return n is int && n >= 0 ? (n > 64 ? 64 : n) : null;
+  } on FormatException {
+    return null;
+  }
 }

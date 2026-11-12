@@ -514,6 +514,10 @@ final class KdeDesktop extends DesktopBase {
   @override
   Future<Map<String, dynamic>?> current() async => kdeCurrentLook(_text(_kdeglobals));
 
+  /// Breeze's window corners.
+  @override
+  Future<int?> windowRounding() async => 8;
+
   // --- wallpaper: every desktop containment, through plasmashell ---------------
 
   /// {containment id: {plugin, image}} of the desktops, read from plasmashell's
