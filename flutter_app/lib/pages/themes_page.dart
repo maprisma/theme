@@ -51,18 +51,23 @@ class _ThemesPageState extends State<ThemesPage> {
   final _tileKeys = <String, GlobalKey>{};
   final _menuKeys = <String, GlobalKey<PopupMenuButtonState<VoidCallback>>>{};
   late final MaprismaThemeAppState app;
+  StreamSubscription<void>? _shownSub;
+  int _shownLoad = 0; // the newest read that is shown
 
   @override
   void initState() {
     super.initState();
     app = AppScope.read(context);
     app.revision.addListener(load);
+    // Shown again: the desktop may have changed meanwhile (another program set a wallpaper).
+    _shownSub = AppWindow.instance.shown.stream.listen((_) => load());
     load();
   }
 
   @override
   void dispose() {
     app.revision.removeListener(load);
+    _shownSub?.cancel();
     _bigClose.dispose();
     focus.dispose();
     scroll.dispose();
@@ -86,7 +91,10 @@ class _ThemesPageState extends State<ThemesPage> {
     final ws = app.can('workspaces') ? await _quiet('auto.workspace_themes') : null;
     final schedule = await _quiet('auto.schedule');
     if (!mounted || r == null) return false;
-    if (generation != _loads) return false; // a newer read is under way: this one is not shown
+    // Never older than what is shown (a read that finishes late is dropped); a newer read that
+    // failed does not hide this one.
+    if (generation < _shownLoad) return false;
+    _shownLoad = generation;
     setState(() {
       themes = [for (final t in r['themes'] as List) Map<String, dynamic>.from(t as Map)];
       currentWallpaper = r['current_wallpaper'] as String?;
