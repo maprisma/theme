@@ -32,6 +32,7 @@ final class AppWindow {
       case 'shown':
         shown.add(null);
       case 'hidden':
+        hideCount++;                 // closed or toggled away by the window itself too
         hidden.add(null);
       case 'focus':
         focus.add(true);

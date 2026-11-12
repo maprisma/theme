@@ -170,17 +170,20 @@ class _ThemesPageState extends State<ThemesPage> {
   /// the other with nothing in between: a waiting pin acts on a freshly read list (the pin before it
   /// may have applied another theme) and is dropped when the list cannot be read or the page is gone.
   Future<bool> _drainPins(Map t, String wpPath) async {
+    final hides = AppWindow.instance.hideCount;   // before the first pin: a close while it runs counts
     bool first;
     try {
       first = await _pin(t, wpPath);
     } catch (_) {
       first = false;
     }
-    final hides = AppWindow.instance.hideCount;
     while (_pinNext != null) {
       final next = _pinNext!;
       _pinNext = null;
-      if (AppWindow.instance.hideCount != hides) break;   // the window was closed: a waiting pin is dropped
+      if (AppWindow.instance.hideCount != hides) {
+        next.done.complete(false);                // the window was closed: a waiting pin is dropped
+        continue;                                 // (and any queued after it, each answered)
+      }
       var ok = false;
       var shown = false;
       for (var attempt = 0; attempt < 3 && mounted && !shown; attempt++) {
@@ -828,11 +831,12 @@ String? pinnedWallpaper(Map t, List<String> wallpapers, bool isCurrent, String? 
   // The theme in use: the one of its own wallpapers the desktop really shows (the core compares the
   // files, not their names), else only a remembered one.
   if (isCurrent) {
+    // The newest known desktop picture first (a pin here updates it at once; a list read too), when
+    // it is exactly one of this theme's files; else the core's same-file match; else none: the
+    // desktop shows another picture, so no remembered choice is marked as current.
+    if (currentWallpaper != null && wallpapers.contains(currentWallpaper)) return currentWallpaper;
     final shown = t['pinned_wallpaper'];
     if (shown is String && wallpapers.contains(shown)) return shown;
-    // Just pinned here (the list not read again yet): that exact path of this theme. Otherwise none:
-    // the desktop shows another picture, so no remembered choice is marked as current.
-    if (currentWallpaper != null && wallpapers.contains(currentWallpaper)) return currentWallpaper;
     return null;
   }
   if (pinApplyTheme) return null;
