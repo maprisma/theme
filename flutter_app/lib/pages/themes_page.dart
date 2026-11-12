@@ -176,9 +176,11 @@ class _ThemesPageState extends State<ThemesPage> {
     } catch (_) {
       first = false;
     }
+    final hides = AppWindow.instance.hideCount;
     while (_pinNext != null) {
       final next = _pinNext!;
       _pinNext = null;
+      if (AppWindow.instance.hideCount != hides) break;   // the window was closed: a waiting pin is dropped
       var ok = false;
       var shown = false;
       for (var attempt = 0; attempt < 3 && mounted && !shown; attempt++) {
@@ -828,9 +830,10 @@ String? pinnedWallpaper(Map t, List<String> wallpapers, bool isCurrent, String? 
   if (isCurrent) {
     final shown = t['pinned_wallpaper'];
     if (shown is String && wallpapers.contains(shown)) return shown;
-    // Just pinned here (the list not read again yet): that exact path of this theme.
+    // Just pinned here (the list not read again yet): that exact path of this theme. Otherwise none:
+    // the desktop shows another picture, so no remembered choice is marked as current.
     if (currentWallpaper != null && wallpapers.contains(currentWallpaper)) return currentWallpaper;
-    return remembered;
+    return null;
   }
   if (pinApplyTheme) return null;
   return remembered;
