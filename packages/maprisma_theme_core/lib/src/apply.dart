@@ -32,18 +32,6 @@ Map<String, String> chosenWallpapers(Ctx ctx) {
   };
 }
 
-/// Puts the remembered wallpaper of [slug] back to [name] (none: forgotten), after a pin that did
-/// not happen.
-void restoreChosenWallpaper(Ctx ctx, String slug, String? name) {
-  final m = chosenWallpapers(ctx);
-  if (name == null) {
-    if (m.remove(slug) == null) return;
-  } else {
-    m[slug] = name;
-  }
-  writeJson('${ctx.paths.state}/theme-backgrounds.json', m);
-}
-
 void rememberWallpaper(Ctx ctx, String slug, String name) {
   final m = chosenWallpapers(ctx)..[slug] = name;
   writeJson('${ctx.paths.state}/theme-backgrounds.json', m);
