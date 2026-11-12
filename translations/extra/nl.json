@@ -701,5 +701,10 @@
   "Apply theme when pinning wallpaper": "Thema toepassen bij vastzetten van achtergrond",
   "On: pinning a wallpaper on another theme switches to that theme immediately. Off: only saves it as that theme’s current wallpaper.": "Aan: een achtergrond vastzetten op een ander thema schakelt direct naar dat thema. Uit: slaat die alleen op als huidige achtergrond van dat thema.",
   "Current wallpaper for this theme": "Huidige achtergrond van dit thema",
-  "Set as wallpaper for this theme": "Instellen als achtergrond van dit thema"
+  "Set as wallpaper for this theme": "Instellen als achtergrond van dit thema",
+  "Auto-rotate big preview": "Groot voorbeeld automatisch draaien",
+  "Automatically flips the big preview to its first wallpaper after the 3D rotation delay. Off keeps the theme preview until you use the arrows.": "Draait het grote voorbeeld na de 3D-draaivertraging automatisch naar de eerste achtergrond. Uit behoudt het themavoorbeeld totdat u de pijlen gebruikt.",
+  "Big preview on click": "Groot voorbeeld bij klikken",
+  "Clicking or pressing Enter on a theme card opens a large interactive preview overlay inside the window. Off opens the theme’s wallpapers page directly.": "Klikken of op Enter drukken op een themakaart opent een groot interactief voorbeeld in het venster. Uit opent direct de achtergrondpagina van het thema.",
+  "Close preview (Esc)": "Voorbeeld sluiten (Esc)"
 }

@@ -1,4 +1,5 @@
 import '../i18n.dart';
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -37,6 +38,13 @@ class _ThemesPageState extends State<ThemesPage> {
   String filter = '';
   String? selected;
   String? currentWallpaper;
+  /// The theme shown in the big preview (click / Enter on a card), or null.
+  String? bigSlug;
+  final _bigFlip = GlobalKey<FlipPictureState>();
+  final _bigClose = FocusNode(debugLabel: 'big preview close');
+  // One pin at a time; a click while one runs waits, and only the latest waiting one runs.
+  Future<bool>? _pinRunning;
+  ({Map t, String wp, Completer<bool> done})? _pinNext;
   int columns = 2;
   final focus = FocusNode();
   final scroll = ScrollController();
@@ -55,6 +63,8 @@ class _ThemesPageState extends State<ThemesPage> {
   @override
   void dispose() {
     app.revision.removeListener(load);
+    _pinNext?.done.complete(false);
+    _bigClose.dispose();
     focus.dispose();
     scroll.dispose();
     super.dispose();
@@ -138,7 +148,30 @@ class _ThemesPageState extends State<ThemesPage> {
     app.changed();
   }
 
-  Future<bool> pinWallpaper(Map t, String wpPath) async {
+  Future<bool> pinWallpaper(Map t, String wpPath) {
+    if (_pinRunning != null) {
+      _pinNext?.done.complete(false); // superseded by this click
+      final done = Completer<bool>();
+      _pinNext = (t: t, wp: wpPath, done: done);
+      return done.future;
+    }
+    return _runPin(t, wpPath);
+  }
+
+  Future<bool> _runPin(Map t, String wpPath) async {
+    final running = _pin(t, wpPath);
+    _pinRunning = running;
+    try {
+      return await running;
+    } finally {
+      _pinRunning = null;
+      final next = _pinNext;
+      _pinNext = null;
+      if (next != null) next.done.complete(_runPin(next.t, next.wp));
+    }
+  }
+
+  Future<bool> _pin(Map t, String wpPath) async {
     final slug = t['slug'] as String;
     if (t['current'] == true) {
       final r = await app.run('wallpapers.set', {'slug': slug, 'path': wpPath}, tr("Could not set background"));
@@ -154,6 +187,12 @@ class _ThemesPageState extends State<ThemesPage> {
     app.notify(trf("Applying {0}…", [t['name']]), duration: const Duration(seconds: 20));
     final r = await app.run('themes.apply', {'slug': slug, 'wallpaper': wpPath});
     if (r == null) return false;
+    if (r['wallpaper_set'] == false) {
+      // The theme is in use, its picture is not: say so instead of only "applied".
+      app.notify('${trf("Theme applied: {0}", [t['name']])} · ${tr("Could not set background")}');
+      app.changed();
+      return false;
+    }
     app.notify(trf("Theme applied: {0}", [t['name']]));
     app.changed();
     return true;
@@ -365,6 +404,30 @@ class _ThemesPageState extends State<ThemesPage> {
 
   void openMenu(String slug) => _menuKeys[slug]?.currentState?.showButtonMenu();
 
+  /// Click or Enter on a card: the big preview (Settings › Themes › Big preview on click),
+  /// else the theme's wallpapers as before.
+  void activateTheme(Map t) {
+    if (app.settings['preview_big_card'] != false && t['preview'] != null) {
+      openBig(t['slug'] as String);
+    } else {
+      open(WallpapersPage(slug: t['slug'] as String));
+    }
+  }
+
+  void openBig(String slug) {
+    setState(() => bigSlug = slug);
+    // Keyboard focus into the preview (its Close button), never on the list behind it.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && bigSlug == slug) _bigClose.requestFocus();
+    });
+  }
+
+  void closeBig() {
+    if (bigSlug == null) return;
+    setState(() => bigSlug = null);
+    focus.requestFocus();
+  }
+
   KeyEventResult onKey(FocusNode node, KeyEvent e) {
     if (e is! KeyDownEvent && e is! KeyRepeatEvent) return KeyEventResult.ignored;
     final key = e.logicalKey;
@@ -372,6 +435,24 @@ class _ThemesPageState extends State<ThemesPage> {
     final alt = HardwareKeyboard.instance.isAltPressed;
     // Super+digit switches desktops: the digit is no filter text.
     final meta = HardwareKeyboard.instance.isMetaPressed;
+    if (bigSlug != null) {
+      // The big preview has the keys: Esc and Backspace close it, ← → turn it, Tab, Space and
+      // Enter go to its focused button; typing does not filter the list behind it.
+      switch (key) {
+        case LogicalKeyboardKey.escape || LogicalKeyboardKey.backspace:
+          closeBig();
+          return KeyEventResult.handled;
+        case LogicalKeyboardKey.arrowLeft:
+          _bigFlip.currentState?.rotateStep(-1);
+          return KeyEventResult.handled;
+        case LogicalKeyboardKey.arrowRight:
+          _bigFlip.currentState?.rotateStep(1);
+          return KeyEventResult.handled;
+        case LogicalKeyboardKey.tab || LogicalKeyboardKey.space || LogicalKeyboardKey.enter || LogicalKeyboardKey.numpadEnter:
+          return KeyEventResult.ignored;
+      }
+      return KeyEventResult.handled;
+    }
     if (key == LogicalKeyboardKey.escape) {
       if (filter.isNotEmpty) {
         setFilter('');
@@ -407,7 +488,7 @@ class _ThemesPageState extends State<ThemesPage> {
         if (selected != null) openMenu(selected!);
         return KeyEventResult.handled;
       case LogicalKeyboardKey.enter || LogicalKeyboardKey.numpadEnter:
-        if (i >= 0) open(WallpapersPage(slug: list[i]['slug'] as String)); // Enter opens its wallpapers
+        if (i >= 0) activateTheme(list[i]); // the big preview, or (off) its wallpapers
         return KeyEventResult.handled;
       case LogicalKeyboardKey.arrowDown:
         if (i + columns < list.length) select(at(i + columns));
@@ -459,7 +540,7 @@ class _ThemesPageState extends State<ThemesPage> {
     final showFooter = list.isEmpty || (hiddenCount > 0 && filter.isEmpty);
     final routeActive = ModalRoute.of(context)?.isCurrent ?? true;
     final flip3d = app.settings['preview_flip_3d'] != false;
-    final flipDelay = (app.settings['preview_flip_delay'] as num?)?.toDouble() ?? 1.0;
+    final flipDelay = (app.settings['preview_flip_delay'] as num?)?.toDouble() ?? 2.0;
     final pinApplyTheme = app.settings['preview_pin_apply_theme'] != false;
     return Focus(
       focusNode: focus,
@@ -471,49 +552,236 @@ class _ThemesPageState extends State<ThemesPage> {
             ? const Center(child: CircularProgressIndicator())
             : LayoutBuilder(builder: (context, box) {
                 columns = gridColumns(box.maxWidth);
-                return TileGrid(
-                  controller: scroll,
-                  count: list.length,
-                  columns: columns,
-                  spacing: 6,
-                  footer: showFooter ? footer : null,
-                  builder: (context, i) {
-                    final t = list[i];
-                    final slug = t['slug'] as String;
-                    return KeyedSubtree(
-                      key: _tileKeys.putIfAbsent(slug, () => GlobalKey()),
-                      child: ThemeTile(
-                        theme: t,
-                        selected: slug == selected,
-                        flipActive: routeActive && slug == selected,
-                        pageVisible: routeActive,
-                        flip3d: flip3d,
-                        flipDelay: flipDelay,
+                final big = bigSlug == null ? null : themes.where((t) => t['slug'] == bigSlug).firstOrNull;
+                return Stack(children: [
+                  Positioned.fill(child: _grid(list, showFooter, footer, routeActive, flip3d, flipDelay, pinApplyTheme)),
+                  if (big != null)
+                    Positioned.fill(
+                      child: _BigPreview(
+                        theme: big,
+                        box: box.biggest,
+                        flipKey: _bigFlip,
+                        closeFocus: _bigClose,
+                        delaySeconds: app.settings['preview_big_auto_rotate'] != false ? flipDelay : 0,
                         pinApplyTheme: pinApplyTheme,
                         canPin: app.can('wallpaper'),
                         currentWallpaper: currentWallpaper,
-                        onPin: (wp) => pinWallpaper(t, wp),
-                        shortcuts: app.can('shortcuts') ? shortcutLabels['apply:$slug'] ?? const [] : const [],
-                        workspaces: [if (app.can('workspaces')) for (final e in workspaceThemes.entries) if (e.value == slug) e.key]..sort(),
-                        menuKey: _menuKeys.putIfAbsent(slug, () => GlobalKey()),
-                        onApply: () {
-                          focus.requestFocus();
-                          select(slug, reveal: false);
-                          // As the plugin (child-activated): a click opens the theme's wallpapers.
-                          open(WallpapersPage(slug: slug));
+                        onPin: (wp) => pinWallpaper(big, wp),
+                        onApply: () => apply(big),
+                        onReapply: () => reapply(big),
+                        onWallpapers: () {
+                          closeBig();
+                          open(WallpapersPage(slug: big['slug'] as String));
                         },
-                        onHover: () {
-                          if (selected != slug) select(slug, reveal: false);
-                        },
-                        menu: () => menu(t),
+                        onClose: closeBig,
+                        menu: () => menu(big),
                       ),
-                    );
-                  },
-                );
+                    ),
+                ]);
               }),
       ),
     );
   }
+
+  Widget _grid(List<Map<String, dynamic>> list, bool showFooter, Widget footer, bool routeActive, bool flip3d,
+      double flipDelay, bool pinApplyTheme) {
+    // The cards behind an open big preview stay still (no flip under it).
+    final cardsActive = routeActive && bigSlug == null;
+    return TileGrid(
+      controller: scroll,
+      count: list.length,
+      columns: columns,
+      spacing: 6,
+      footer: showFooter ? footer : null,
+      builder: (context, i) {
+        final t = list[i];
+        final slug = t['slug'] as String;
+        return KeyedSubtree(
+          key: _tileKeys.putIfAbsent(slug, () => GlobalKey()),
+          child: ThemeTile(
+            theme: t,
+            selected: slug == selected,
+            flipActive: cardsActive && slug == selected,
+            pageVisible: cardsActive,
+            flip3d: flip3d,
+            flipDelay: flipDelay,
+            pinApplyTheme: pinApplyTheme,
+            canPin: app.can('wallpaper'),
+            currentWallpaper: currentWallpaper,
+            onPin: (wp) => pinWallpaper(t, wp),
+            shortcuts: app.can('shortcuts') ? shortcutLabels['apply:$slug'] ?? const [] : const [],
+            workspaces: [if (app.can('workspaces')) for (final e in workspaceThemes.entries) if (e.value == slug) e.key]..sort(),
+            menuKey: _menuKeys.putIfAbsent(slug, () => GlobalKey()),
+            onApply: () {
+              focus.requestFocus();
+              select(slug, reveal: false);
+              // As the plugin (child-activated): the big preview, or (off) the wallpapers.
+              activateTheme(t);
+            },
+            onHover: () {
+              if (selected != slug) select(slug, reveal: false);
+            },
+            menu: () => menu(t),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// The big preview over the dimmed list: the theme's card at about half the window with the 3D
+/// flip, ‹ › and the pin, its name, Apply (or Reapply), Wallpapers and Close (focused, Esc).
+/// A click on the dimmed area closes it.
+class _BigPreview extends StatelessWidget {
+  const _BigPreview({
+    required this.theme,
+    required this.box,
+    required this.flipKey,
+    required this.closeFocus,
+    required this.delaySeconds,
+    required this.pinApplyTheme,
+    required this.canPin,
+    required this.currentWallpaper,
+    required this.onPin,
+    required this.onApply,
+    required this.onReapply,
+    required this.onWallpapers,
+    required this.onClose,
+    required this.menu,
+  });
+
+  final Map<String, dynamic> theme;
+  final Size box;
+  final GlobalKey<FlipPictureState> flipKey;
+  final FocusNode closeFocus;
+  final double delaySeconds;
+  final bool pinApplyTheme, canPin;
+  final String? currentWallpaper;
+  final Future<bool> Function(String path) onPin;
+  final VoidCallback onApply, onReapply, onWallpapers, onClose;
+  final List<PopupMenuEntry<VoidCallback>> Function() menu;
+
+  @override
+  Widget build(BuildContext context) {
+    final look = Look.of(context);
+    final r = corners(context);
+    final t = theme;
+    final slug = t['slug'] as String;
+    final colors = (t['colors'] as Map?) ?? const {};
+    final preview = t['preview'] as String?;
+    final wallpapers = [
+      for (final w in (t['wallpapers'] as List?) ?? const [])
+        if (w is String) w,
+    ];
+    final isCurrent = t['current'] == true;
+    final pending = (t['pending'] as List?)?.isNotEmpty == true;
+    // About half the window, never past it (room around it so the list stays visible).
+    var w = math.min(math.max(box.width * 0.54, 360.0), box.width - 48);
+    var h = w * 9 / 16;
+    final maxH = math.min(box.height - 48, box.height * 0.68) - 56;
+    if (h > maxH) {
+      h = math.max(112, maxH);
+      w = h * 16 / 9;
+    }
+    final innerRadius = r == 0 ? 0.0 : math.max(2.0, r - 4.0);
+    final badges = Wrap(spacing: 4, runSpacing: 4, children: [
+      if (isCurrent) TileBadge(tr("current"), kind: BadgeKind.current),
+      if (t['scope'] == 'system') TileBadge(tr("system")),
+      if (t['hidden'] == true) TileBadge(tr("hidden")),
+    ]);
+    final menuButton = TileMenuButton(tooltip: tr("Theme actions (Menu key)"), menu: menu);
+    final Widget media = preview != null && wallpapers.isNotEmpty
+        ? FlipPicture(
+            key: flipKey,
+            slug: slug,
+            preview: preview,
+            wallpapers: wallpapers,
+            colors: colors,
+            borderRadius: innerRadius,
+            active: true,
+            themeCurrent: isCurrent,
+            pinApplyTheme: pinApplyTheme,
+            delaySeconds: delaySeconds, // 0: arrows only, no turn by itself
+            canPin: canPin,
+            activeWallpaper: pinnedWallpaper(t, wallpapers, isCurrent, currentWallpaper, pinApplyTheme),
+            badges: badges,
+            menuButton: menuButton,
+            onPin: onPin,
+          )
+        : ClipRRect(
+            borderRadius: BorderRadius.circular(innerRadius),
+            child: Stack(fit: StackFit.expand, children: [
+              preview != null
+                  ? Image.file(File(preview),
+                      fit: BoxFit.cover, cacheWidth: 1280, errorBuilder: (_, _, _) => ColorPreview(colors: colors))
+                  : ColorPreview(colors: colors),
+              Positioned(left: 6, right: 40, bottom: 6, child: badges),
+              Positioned(top: 0, right: 0, child: menuButton),
+            ]),
+          );
+    return Stack(children: [
+      Positioned.fill(
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onClose,
+          child: ColoredBox(color: Colors.black.withValues(alpha: .45)),
+        ),
+      ),
+      Center(
+        child: Container(
+          width: w + 12,
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: look.bg,
+            border: isCurrent
+                ? Border.all(color: hexColor(colors, 'green') ?? hexColor(colors, 'accent') ?? look.accent, width: 2)
+                : Border.all(color: look.fg.withValues(alpha: .22)),
+            borderRadius: BorderRadius.circular(r),
+          ),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            SizedBox(width: w, height: h, child: media),
+            const SizedBox(height: 6),
+            Row(children: [
+              if (t['favorite'] == true) ...[
+                Text('★', style: TextStyle(color: look.accent)),
+                const SizedBox(width: 4),
+              ],
+              Expanded(
+                child: Text('${t['name']}', overflow: TextOverflow.ellipsis, style: TextStyle(color: look.fg)),
+              ),
+              if (!isCurrent)
+                TextButton.icon(onPressed: onApply, icon: const Icon(Icons.play_arrow, size: 16), label: Text(tr("Apply theme")))
+              else if (pending)
+                TextButton.icon(onPressed: onReapply, icon: const Icon(Icons.refresh, size: 16), label: Text(tr("Reapply"))),
+              IconButton(
+                tooltip: tr("Wallpapers"),
+                onPressed: onWallpapers,
+                icon: const Icon(Icons.image_outlined, size: 18),
+              ),
+              IconButton(
+                focusNode: closeFocus,
+                tooltip: tr("Close preview (Esc)"),
+                onPressed: onClose,
+                icon: const Icon(Icons.close, size: 18),
+              ),
+            ]),
+          ]),
+        ),
+      ),
+    ]);
+  }
+}
+
+/// The wallpaper a card shows pinned: the desktop's for the theme in use; on another theme's card
+/// (pinning without applying) only the one really remembered for it (the list puts it first),
+/// never a first wallpaper that was never chosen.
+String? pinnedWallpaper(Map t, List<String> wallpapers, bool isCurrent, String? currentWallpaper, bool pinApplyTheme) {
+  if (wallpapers.isEmpty) return null;
+  if (isCurrent) return currentWallpaper ?? wallpapers.first;
+  if (pinApplyTheme) return null;
+  final chosen = t['chosen_wallpaper'];
+  final first = wallpapers.first;
+  return chosen is String && first.substring(first.lastIndexOf('/') + 1) == chosen ? first : null;
 }
 
 /// One theme, as the plugin's tile: the preview in a faint mat with the ☰
@@ -606,9 +874,7 @@ class _ThemeTileState extends State<ThemeTile> {
         pinApplyTheme: widget.pinApplyTheme,
         delaySeconds: widget.flipDelay,
         canPin: widget.canPin,
-        activeWallpaper: isCurrent
-            ? (widget.currentWallpaper ?? wallpapers.first)
-            : (!widget.pinApplyTheme ? wallpapers.first : null),
+        activeWallpaper: pinnedWallpaper(t, wallpapers, isCurrent, widget.currentWallpaper, widget.pinApplyTheme),
         badges: badges,
         menuButton: menuButton,
         onPin: widget.onPin,

@@ -13,8 +13,10 @@ const defaultSettings = <String, dynamic>{
   'corners': 'windows', // windows, slight (6 px), rounded (12 px), square
   'sort': 'name', // name, recent
   'preview_flip_3d': true,
-  'preview_flip_delay': 1,
+  'preview_flip_delay': 2,
   'preview_pin_apply_theme': true,
+  'preview_big_card': true, // click / Enter opens the big preview (off: the wallpapers page)
+  'preview_big_auto_rotate': true, // the big preview turns to its wallpaper after the delay
   'slideshow_minutes': 0, // 0 = never, else 5..120
   'schedule': {'enabled': false, 'day': '', 'night': '', 'day_at': '07:00', 'night_at': '19:00'},
   'screenshot_key': true,
@@ -106,7 +108,9 @@ final class Settings {
     'maprisma_hints' ||
     'show_hidden' ||
     'preview_flip_3d' ||
-    'preview_pin_apply_theme' =>
+    'preview_pin_apply_theme' ||
+    'preview_big_card' ||
+    'preview_big_auto_rotate' =>
       v is bool,
     'preview_flip_delay' => v is num && !v.isNaN && flipDelayChoices.any((c) => c.toDouble() == v.toDouble()),
     'wallpaper_count' => v is int && const {5, 10, 20}.contains(v),

@@ -1397,7 +1397,12 @@ const translationCatalogs = <String, Map<String, String>>{
     "Apply theme when pinning wallpaper": "Apply theme when pinning wallpaper",
     "On: pinning a wallpaper on another theme switches to that theme immediately. Off: only saves it as that theme’s current wallpaper.": "On: pinning a wallpaper on another theme switches to that theme immediately. Off: only saves it as that theme’s current wallpaper.",
     "Current wallpaper for this theme": "Current wallpaper for this theme",
-    "Set as wallpaper for this theme": "Set as wallpaper for this theme"
+    "Set as wallpaper for this theme": "Set as wallpaper for this theme",
+    "Auto-rotate big preview": "Auto-rotate big preview",
+    "Automatically flips the big preview to its first wallpaper after the 3D rotation delay. Off keeps the theme preview until you use the arrows.": "Automatically flips the big preview to its first wallpaper after the 3D rotation delay. Off keeps the theme preview until you use the arrows.",
+    "Big preview on click": "Big preview on click",
+    "Clicking or pressing Enter on a theme card opens a large interactive preview overlay inside the window. Off opens the theme’s wallpapers page directly.": "Clicking or pressing Enter on a theme card opens a large interactive preview overlay inside the window. Off opens the theme’s wallpapers page directly.",
+    "Close preview (Esc)": "Close preview (Esc)"
   },
   "de": {
     "A key that applies this theme from anywhere": "Eine Taste, die dieses Theme von überall anwendet",
@@ -2796,7 +2801,12 @@ const translationCatalogs = <String, Map<String, String>>{
     "Apply theme when pinning wallpaper": "Theme beim Anpinnen eines Hintergrunds anwenden",
     "On: pinning a wallpaper on another theme switches to that theme immediately. Off: only saves it as that theme’s current wallpaper.": "Ein: Das Anpinnen eines Hintergrunds bei einem anderen Theme wechselt sofort zu diesem Theme. Aus: Speichert ihn nur als aktuellen Hintergrund dieses Themes.",
     "Current wallpaper for this theme": "Aktueller Hintergrund dieses Themes",
-    "Set as wallpaper for this theme": "Als Hintergrund dieses Themes festlegen"
+    "Set as wallpaper for this theme": "Als Hintergrund dieses Themes festlegen",
+    "Auto-rotate big preview": "Große Vorschau automatisch drehen",
+    "Automatically flips the big preview to its first wallpaper after the 3D rotation delay. Off keeps the theme preview until you use the arrows.": "Dreht die große Vorschau nach der 3D-Drehverzögerung automatisch zum ersten Hintergrund. Aus behält die Theme-Vorschau, bis Sie die Pfeile nutzen.",
+    "Big preview on click": "Große Vorschau beim Klicken",
+    "Clicking or pressing Enter on a theme card opens a large interactive preview overlay inside the window. Off opens the theme’s wallpapers page directly.": "Klicken oder Eingabetaste auf einer Theme-Karte öffnet eine große interaktive Vorschau im Fenster. Aus öffnet direkt die Hintergrundseite des Themes.",
+    "Close preview (Esc)": "Vorschau schließen (Esc)"
   },
   "fr": {
     "A key that applies this theme from anywhere": "Une touche qui applique ce thème de partout",
@@ -4195,7 +4205,12 @@ const translationCatalogs = <String, Map<String, String>>{
     "Apply theme when pinning wallpaper": "Appliquer le thème lors de l’épinglage d’un fond d’écran",
     "On: pinning a wallpaper on another theme switches to that theme immediately. Off: only saves it as that theme’s current wallpaper.": "Activé : épingler un fond d’écran sur un autre thème bascule aussitôt vers ce thème. Désactivé : l’enregistre seulement comme fond actuel de ce thème.",
     "Current wallpaper for this theme": "Fond d’écran actuel de ce thème",
-    "Set as wallpaper for this theme": "Définir comme fond d’écran de ce thème"
+    "Set as wallpaper for this theme": "Définir comme fond d’écran de ce thème",
+    "Auto-rotate big preview": "Rotation automatique du grand aperçu",
+    "Automatically flips the big preview to its first wallpaper after the 3D rotation delay. Off keeps the theme preview until you use the arrows.": "Retourne automatiquement le grand aperçu vers son premier fond d’écran après le délai de rotation 3D. Désactivé garde l’aperçu du thème jusqu’à l’utilisation des flèches.",
+    "Big preview on click": "Grand aperçu au clic",
+    "Clicking or pressing Enter on a theme card opens a large interactive preview overlay inside the window. Off opens the theme’s wallpapers page directly.": "Cliquer ou appuyer sur Entrée sur une carte de thème ouvre un grand aperçu interactif dans la fenêtre. Désactivé ouvre directement la page des fonds d’écran du thème.",
+    "Close preview (Esc)": "Fermer l’aperçu (Échap)"
   },
   "es": {
     "A key that applies this theme from anywhere": "Una tecla que aplica este tema desde cualquier lugar",
@@ -5594,7 +5609,12 @@ const translationCatalogs = <String, Map<String, String>>{
     "Apply theme when pinning wallpaper": "Aplicar el tema al fijar un fondo",
     "On: pinning a wallpaper on another theme switches to that theme immediately. Off: only saves it as that theme’s current wallpaper.": "Activado: fijar un fondo en otro tema cambia enseguida a ese tema. Desactivado: solo lo guarda como fondo actual de ese tema.",
     "Current wallpaper for this theme": "Fondo actual de este tema",
-    "Set as wallpaper for this theme": "Establecer como fondo de este tema"
+    "Set as wallpaper for this theme": "Establecer como fondo de este tema",
+    "Auto-rotate big preview": "Rotación automática en vista previa grande",
+    "Automatically flips the big preview to its first wallpaper after the 3D rotation delay. Off keeps the theme preview until you use the arrows.": "Gira automáticamente la vista previa grande hacia su primer fondo tras el retardo de rotación 3D. Desactivado mantiene la vista previa del tema hasta usar las flechas.",
+    "Big preview on click": "Vista previa grande al hacer clic",
+    "Clicking or pressing Enter on a theme card opens a large interactive preview overlay inside the window. Off opens the theme’s wallpapers page directly.": "Hacer clic o pulsar Intro en una tarjeta de tema abre una vista previa grande e interactiva dentro de la ventana. Desactivado abre directamente la página de fondos del tema.",
+    "Close preview (Esc)": "Cerrar vista previa (Esc)"
   },
   "it": {
     "A key that applies this theme from anywhere": "Un tasto che applica questo tema ovunque",
@@ -6993,7 +7013,12 @@ const translationCatalogs = <String, Map<String, String>>{
     "Apply theme when pinning wallpaper": "Applica il tema fissando uno sfondo",
     "On: pinning a wallpaper on another theme switches to that theme immediately. Off: only saves it as that theme’s current wallpaper.": "Attivo: fissare uno sfondo su un altro tema passa subito a quel tema. Disattivo: lo salva solo come sfondo attuale di quel tema.",
     "Current wallpaper for this theme": "Sfondo attuale di questo tema",
-    "Set as wallpaper for this theme": "Imposta come sfondo di questo tema"
+    "Set as wallpaper for this theme": "Imposta come sfondo di questo tema",
+    "Auto-rotate big preview": "Rotazione automatica nell’anteprima grande",
+    "Automatically flips the big preview to its first wallpaper after the 3D rotation delay. Off keeps the theme preview until you use the arrows.": "Capovolge automaticamente l’anteprima grande al primo sfondo dopo il ritardo di rotazione 3D. Disattivo mantiene l’anteprima del tema finché non usi le frecce.",
+    "Big preview on click": "Anteprima grande al clic",
+    "Clicking or pressing Enter on a theme card opens a large interactive preview overlay inside the window. Off opens the theme’s wallpapers page directly.": "Fare clic o premere Invio su una scheda del tema apre un’anteprima grande e interattiva nella finestra. Disattivo apre direttamente la pagina degli sfondi del tema.",
+    "Close preview (Esc)": "Chiudi anteprima (Esc)"
   },
   "pt": {
     "A key that applies this theme from anywhere": "Uma tecla que aplica este tema de qualquer lugar",
@@ -8392,7 +8417,12 @@ const translationCatalogs = <String, Map<String, String>>{
     "Apply theme when pinning wallpaper": "Aplicar o tema ao fixar um papel de parede",
     "On: pinning a wallpaper on another theme switches to that theme immediately. Off: only saves it as that theme’s current wallpaper.": "Ligado: fixar um papel de parede noutro tema muda logo para esse tema. Desligado: guarda-o apenas como papel de parede atual desse tema.",
     "Current wallpaper for this theme": "Papel de parede atual deste tema",
-    "Set as wallpaper for this theme": "Definir como papel de parede deste tema"
+    "Set as wallpaper for this theme": "Definir como papel de parede deste tema",
+    "Auto-rotate big preview": "Rotação automática na pré-visualização grande",
+    "Automatically flips the big preview to its first wallpaper after the 3D rotation delay. Off keeps the theme preview until you use the arrows.": "Vira automaticamente a pré-visualização grande para o primeiro papel de parede após o atraso de rotação 3D. Desligado mantém a pré-visualização do tema até usar as setas.",
+    "Big preview on click": "Pré-visualização grande ao clicar",
+    "Clicking or pressing Enter on a theme card opens a large interactive preview overlay inside the window. Off opens the theme’s wallpapers page directly.": "Clicar ou premir Enter num cartão de tema abre uma pré-visualização grande e interativa dentro da janela. Desligado abre diretamente a página de papéis de parede do tema.",
+    "Close preview (Esc)": "Fechar pré-visualização (Esc)"
   },
   "nl": {
     "A key that applies this theme from anywhere": "Een toets die dit thema overal toepast",
@@ -9791,7 +9821,12 @@ const translationCatalogs = <String, Map<String, String>>{
     "Apply theme when pinning wallpaper": "Thema toepassen bij vastzetten van achtergrond",
     "On: pinning a wallpaper on another theme switches to that theme immediately. Off: only saves it as that theme’s current wallpaper.": "Aan: een achtergrond vastzetten op een ander thema schakelt direct naar dat thema. Uit: slaat die alleen op als huidige achtergrond van dat thema.",
     "Current wallpaper for this theme": "Huidige achtergrond van dit thema",
-    "Set as wallpaper for this theme": "Instellen als achtergrond van dit thema"
+    "Set as wallpaper for this theme": "Instellen als achtergrond van dit thema",
+    "Auto-rotate big preview": "Groot voorbeeld automatisch draaien",
+    "Automatically flips the big preview to its first wallpaper after the 3D rotation delay. Off keeps the theme preview until you use the arrows.": "Draait het grote voorbeeld na de 3D-draaivertraging automatisch naar de eerste achtergrond. Uit behoudt het themavoorbeeld totdat u de pijlen gebruikt.",
+    "Big preview on click": "Groot voorbeeld bij klikken",
+    "Clicking or pressing Enter on a theme card opens a large interactive preview overlay inside the window. Off opens the theme’s wallpapers page directly.": "Klikken of op Enter drukken op een themakaart opent een groot interactief voorbeeld in het venster. Uit opent direct de achtergrondpagina van het thema.",
+    "Close preview (Esc)": "Voorbeeld sluiten (Esc)"
   },
   "pl": {
     "A key that applies this theme from anywhere": "Klawisz, który stosuje ten motyw z dowolnego miejsca",
@@ -11190,6 +11225,11 @@ const translationCatalogs = <String, Map<String, String>>{
     "Apply theme when pinning wallpaper": "Zastosuj motyw przy przypinaniu tapety",
     "On: pinning a wallpaper on another theme switches to that theme immediately. Off: only saves it as that theme’s current wallpaper.": "Włączone: przypięcie tapety w innym motywie od razu przełącza na ten motyw. Wyłączone: zapisuje ją tylko jako bieżącą tapetę tego motywu.",
     "Current wallpaper for this theme": "Bieżąca tapeta tego motywu",
-    "Set as wallpaper for this theme": "Ustaw jako tapetę tego motywu"
+    "Set as wallpaper for this theme": "Ustaw jako tapetę tego motywu",
+    "Auto-rotate big preview": "Automatyczny obrót dużego podglądu",
+    "Automatically flips the big preview to its first wallpaper after the 3D rotation delay. Off keeps the theme preview until you use the arrows.": "Automatycznie obraca duży podgląd do pierwszej tapety po opóźnieniu obrotu 3D. Wyłączone zachowuje podgląd motywu do użycia strzałek.",
+    "Big preview on click": "Duży podgląd po kliknięciu",
+    "Clicking or pressing Enter on a theme card opens a large interactive preview overlay inside the window. Off opens the theme’s wallpapers page directly.": "Kliknięcie lub naciśnięcie Enter na karcie motywu otwiera duży interaktywny podgląd w oknie. Wyłączone otwiera bezpośrednio stronę tapet motywu.",
+    "Close preview (Esc)": "Zamknij podgląd (Esc)"
   }
 };

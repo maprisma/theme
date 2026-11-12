@@ -404,7 +404,7 @@ class _SettingsPageState extends State<SettingsPage> {
         tr("3D rotation delay"),
         tr("Seconds before a selected theme card starts rotating. 0 keeps the preview and shows left/right arrows immediately."),
         _dropdown<num>(
-          settings['preview_flip_delay'] is num ? normalizeFlipDelay(settings['preview_flip_delay'] as num) : 1,
+          settings['preview_flip_delay'] is num ? normalizeFlipDelay(settings['preview_flip_delay'] as num) : 2,
           [
             for (final s in flipDelayChoices)
               (s, s == 0 ? tr("0 s (arrows only)") : trf("{0} s", [s])),
@@ -421,6 +421,26 @@ class _SettingsPageState extends State<SettingsPage> {
           settings['preview_pin_apply_theme'] != false,
           (on) => set('preview_pin_apply_theme', on),
           key: const ValueKey('setting-preview-pin-apply-theme'),
+        ),
+      ),
+      _Row(
+        'themes',
+        tr("Big preview on click"),
+        tr("Clicking or pressing Enter on a theme card opens a large interactive preview overlay inside the window. Off opens the theme’s wallpapers page directly."),
+        _switch(
+          settings['preview_big_card'] != false,
+          (on) => set('preview_big_card', on),
+          key: const ValueKey('setting-preview-big-card'),
+        ),
+      ),
+      _Row(
+        'themes',
+        tr("Auto-rotate big preview"),
+        tr("Automatically flips the big preview to its first wallpaper after the 3D rotation delay. Off keeps the theme preview until you use the arrows."),
+        _switch(
+          settings['preview_big_auto_rotate'] != false,
+          (on) => set('preview_big_auto_rotate', on),
+          key: const ValueKey('setting-preview-big-auto-rotate'),
         ),
       ),
       for (final a in apps)

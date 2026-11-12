@@ -701,5 +701,10 @@
   "Apply theme when pinning wallpaper": "Theme beim Anpinnen eines Hintergrunds anwenden",
   "On: pinning a wallpaper on another theme switches to that theme immediately. Off: only saves it as that theme’s current wallpaper.": "Ein: Das Anpinnen eines Hintergrunds bei einem anderen Theme wechselt sofort zu diesem Theme. Aus: Speichert ihn nur als aktuellen Hintergrund dieses Themes.",
   "Current wallpaper for this theme": "Aktueller Hintergrund dieses Themes",
-  "Set as wallpaper for this theme": "Als Hintergrund dieses Themes festlegen"
+  "Set as wallpaper for this theme": "Als Hintergrund dieses Themes festlegen",
+  "Auto-rotate big preview": "Große Vorschau automatisch drehen",
+  "Automatically flips the big preview to its first wallpaper after the 3D rotation delay. Off keeps the theme preview until you use the arrows.": "Dreht die große Vorschau nach der 3D-Drehverzögerung automatisch zum ersten Hintergrund. Aus behält die Theme-Vorschau, bis Sie die Pfeile nutzen.",
+  "Big preview on click": "Große Vorschau beim Klicken",
+  "Clicking or pressing Enter on a theme card opens a large interactive preview overlay inside the window. Off opens the theme’s wallpapers page directly.": "Klicken oder Eingabetaste auf einer Theme-Karte öffnet eine große interaktive Vorschau im Fenster. Aus öffnet direkt die Hintergrundseite des Themes.",
+  "Close preview (Esc)": "Vorschau schließen (Esc)"
 }

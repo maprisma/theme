@@ -1,4 +1,5 @@
 import 'i18n.dart';
+import 'dart:convert';
 import 'dart:io';
 
 import 'apps.dart';
@@ -7,14 +8,28 @@ import 'context.dart';
 import 'desktop.dart';
 import 'images.dart';
 import 'looks.dart';
+import 'posix.dart';
 import 'store.dart';
 import 'themes.dart';
 
-/// The wallpaper last chosen per theme (Omarchy's theme-backgrounds state).
-Map<String, String> chosenWallpapers(Ctx ctx) => {
-  for (final e in readJsonMap('${ctx.paths.state}/theme-backgrounds.json').entries)
-    if (e.value is String) e.key: e.value as String,
-};
+/// The wallpaper last chosen per theme (Omarchy's theme-backgrounds state). Read while every
+/// theme card is listed: bounded, never through a link, never waiting on a FIFO, checked on the
+/// opened file itself (Posix.readRegular).
+Map<String, String> chosenWallpapers(Ctx ctx) {
+  final bytes = Posix.instance.readRegular('${ctx.paths.state}/theme-backgrounds.json', 256 * 1024, follow: false);
+  if (bytes == null) return {};
+  Object? data;
+  try {
+    data = jsonDecode(utf8.decode(bytes, allowMalformed: true));
+  } on FormatException {
+    return {};
+  }
+  if (data is! Map) return {};
+  return {
+    for (final e in data.entries)
+      if (e.key is String && e.value is String) e.key as String: e.value as String,
+  };
+}
 
 void rememberWallpaper(Ctx ctx, String slug, String name) {
   final m = chosenWallpapers(ctx)..[slug] = name;

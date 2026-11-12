@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:maprisma_theme/app.dart';
 import 'package:maprisma_theme/flip_picture.dart';
 import 'package:maprisma_theme/pages/settings_page.dart';
+import 'package:maprisma_theme/pages/themes_page.dart';
 import 'package:maprisma_theme/pages/wallpapers_page.dart';
 import 'package:maprisma_theme_core/maprisma_theme_core.dart';
 
@@ -126,6 +127,7 @@ void main() {
   testWidgets('1 s delay shows subtle ~16° 3D hint then flips to wallpaper with < / > preview+wallpaper cycle', (
     tester,
   ) async {
+    await tester.runAsync(() => core.call('settings.set', {'key': 'preview_flip_delay', 'value': 1})); // 2 s by default
     final shotKey = await pumpInitial(tester);
     final kanagawa = flipOf(tester, 'kanagawa');
     expect(kanagawa.visibleFace, -1);
@@ -247,10 +249,11 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('flip-next-fireside')));
     await tester.pumpAndSettle();
     expect(fireside.visibleFace, 0);
-    expect(fireside.isCurrentWallpaperPinned, isTrue);
+    // Nothing remembered for fireside yet: its first wallpaper is not shown as pinned.
+    expect(fireside.isCurrentWallpaperPinned, isFalse);
     expect(
       tester.widget<Tooltip>(find.descendant(of: find.byKey(const ValueKey('flip-pin-fireside')), matching: find.byType(Tooltip))).message,
-      'Current wallpaper for this theme (1/3)',
+      'Set as wallpaper for this theme (1/3)',
     );
 
     await tester.tap(find.byKey(const ValueKey('flip-next-fireside')));
@@ -311,5 +314,34 @@ void main() {
     await tester.pumpAndSettle();
     expect(core.ctx.current.slug, 'fireside');
     expect(core.ctx.current.wallpaper, endsWith('/3-fireside.png'));
+  });
+
+  testWidgets('click opens the big preview: it has the keys, 0 s stays arrows only, Esc closes it first', (tester) async {
+    await tester.runAsync(() => core.call('settings.set', {'key': 'preview_flip_delay', 'value': 0}));
+    await pumpInitial(tester);
+    await tester.pumpAndSettle();
+    final page = tester.state(find.byType(ThemesPage)) as dynamic;
+    page.openBig('fireside');
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Close preview (Esc)'), findsOneWidget);
+    expect(page.bigSlug, 'fireside');
+    // typing does not filter the list behind it
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
+    await tester.pumpAndSettle();
+    expect(page.filter, '');
+    expect(page.bigSlug, 'fireside');
+    // 0 s: no turn by itself, arrows turn it
+    final big = tester.state<FlipPictureState>(find.byWidgetPredicate((w) => w is FlipPicture && w.key is GlobalKey));
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
+    expect(big.visibleFace, -1);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pumpAndSettle();
+    expect(big.visibleFace, 0);
+    // Backspace (and Esc) close the preview before anything else
+    await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
+    await tester.pumpAndSettle();
+    expect(page.bigSlug, isNull);
+    expect(find.byTooltip('Close preview (Esc)'), findsNothing);
   });
 }

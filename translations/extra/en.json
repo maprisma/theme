@@ -701,5 +701,10 @@
   "Apply theme when pinning wallpaper": "Apply theme when pinning wallpaper",
   "On: pinning a wallpaper on another theme switches to that theme immediately. Off: only saves it as that theme’s current wallpaper.": "On: pinning a wallpaper on another theme switches to that theme immediately. Off: only saves it as that theme’s current wallpaper.",
   "Current wallpaper for this theme": "Current wallpaper for this theme",
-  "Set as wallpaper for this theme": "Set as wallpaper for this theme"
+  "Set as wallpaper for this theme": "Set as wallpaper for this theme",
+  "Auto-rotate big preview": "Auto-rotate big preview",
+  "Automatically flips the big preview to its first wallpaper after the 3D rotation delay. Off keeps the theme preview until you use the arrows.": "Automatically flips the big preview to its first wallpaper after the 3D rotation delay. Off keeps the theme preview until you use the arrows.",
+  "Big preview on click": "Big preview on click",
+  "Clicking or pressing Enter on a theme card opens a large interactive preview overlay inside the window. Off opens the theme’s wallpapers page directly.": "Clicking or pressing Enter on a theme card opens a large interactive preview overlay inside the window. Off opens the theme’s wallpapers page directly.",
+  "Close preview (Esc)": "Close preview (Esc)"
 }

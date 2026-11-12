@@ -52,6 +52,8 @@ Map<String, dynamic> themeJson(
     'favorite': favorites.contains(t.slug),
     'last_used': recent[t.slug],
     'preview': preview,
+    // The wallpaper remembered for it (a card shows it pinned only then).
+    'chosen_wallpaper': (chosen ?? chosenWallpapers(ctx))[t.slug],
     'wallpapers': preview == null
         ? const <String>[]
         : flipWallpapers(ctx, t, isCurrent: isCurrent, hidden: hiddenWallpapers, chosen: chosen, currentBg: currentBg),
@@ -125,8 +127,10 @@ Map<String, Handler> themeRoutes(Ctx ctx) => {
       final r = await applyTheme(ctx, slug, wallpaper: wp);
       final applied = r['applied'] as String;
       rememberBaseTheme(ctx, applied); // a manual pick is the base for workspace themes
-      if (wp != null) rememberBaseWallpaper(ctx, applied, wp);
-      return r;
+      final wallpaperSet = (r['done'] as List).contains('wallpaper');
+      // Only a wallpaper that really is on the desktop becomes the base; the caller is told otherwise.
+      if (wp != null && wallpaperSet) rememberBaseWallpaper(ctx, applied, wp);
+      return {...r, if (wp != null) 'wallpaper_set': wallpaperSet};
     });
   },
   // After a delete's Undo expired: favorites, keys, workspace and day/night entries go too.

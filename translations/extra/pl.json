@@ -701,5 +701,10 @@
   "Apply theme when pinning wallpaper": "Zastosuj motyw przy przypinaniu tapety",
   "On: pinning a wallpaper on another theme switches to that theme immediately. Off: only saves it as that theme’s current wallpaper.": "Włączone: przypięcie tapety w innym motywie od razu przełącza na ten motyw. Wyłączone: zapisuje ją tylko jako bieżącą tapetę tego motywu.",
   "Current wallpaper for this theme": "Bieżąca tapeta tego motywu",
-  "Set as wallpaper for this theme": "Ustaw jako tapetę tego motywu"
+  "Set as wallpaper for this theme": "Ustaw jako tapetę tego motywu",
+  "Auto-rotate big preview": "Automatyczny obrót dużego podglądu",
+  "Automatically flips the big preview to its first wallpaper after the 3D rotation delay. Off keeps the theme preview until you use the arrows.": "Automatycznie obraca duży podgląd do pierwszej tapety po opóźnieniu obrotu 3D. Wyłączone zachowuje podgląd motywu do użycia strzałek.",
+  "Big preview on click": "Duży podgląd po kliknięciu",
+  "Clicking or pressing Enter on a theme card opens a large interactive preview overlay inside the window. Off opens the theme’s wallpapers page directly.": "Kliknięcie lub naciśnięcie Enter na karcie motywu otwiera duży interaktywny podgląd w oknie. Wyłączone otwiera bezpośrednio stronę tapet motywu.",
+  "Close preview (Esc)": "Zamknij podgląd (Esc)"
 }

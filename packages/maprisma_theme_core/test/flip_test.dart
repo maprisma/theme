@@ -18,8 +18,10 @@ void main() {
   test('3D flip settings: defaults, validation, normalization and reset', () async {
     final initial = (await call('settings.get'))['settings'] as Map<String, dynamic>;
     expect(initial['preview_flip_3d'], isTrue);
-    expect(initial['preview_flip_delay'], 1);
+    expect(initial['preview_flip_delay'], 2);
     expect(initial['preview_pin_apply_theme'], isTrue);
+    expect(initial['preview_big_card'], isTrue);
+    expect(initial['preview_big_auto_rotate'], isTrue);
 
     for (final choice in [0, 0.5, 1, 1.5, 2, 3, 5, 10]) {
       final s = (await call('settings.set', {'key': 'preview_flip_delay', 'value': choice}))['settings'] as Map;
@@ -46,7 +48,7 @@ void main() {
 
     final afterReset = (await call('settings.reset'))['settings'] as Map;
     expect(afterReset['preview_flip_3d'], isTrue);
-    expect(afterReset['preview_flip_delay'], 1);
+    expect(afterReset['preview_flip_delay'], 2);
     expect(afterReset['preview_pin_apply_theme'], isTrue);
   });
 
@@ -118,6 +120,9 @@ void main() {
       ['2-n.png', '3-n.png', '1-n.png'],
     );
     expect(bySlug['no-preview']!['wallpapers'], isEmpty);
+    // A card shows another theme's wallpaper pinned only when it is remembered for it.
+    expect(bySlug['nord']!['chosen_wallpaper'], '2-n.png');
+    expect(bySlug['same-file']!['chosen_wallpaper'], isNull);
     expect(bySlug['same-file']!['wallpapers'], isEmpty);
 
     // Applying nord without an explicit wallpaper uses its remembered 2-n.png.
@@ -139,5 +144,33 @@ void main() {
       () => call('themes.apply', {'slug': 'fireside', 'wallpaper': '$dir/backgrounds/missing.png'}),
       throwsA(isA<RouteError>()),
     );
+  });
+
+  test('themes.apply says whether the asked wallpaper is on the desktop', () async {
+    final dir = env.addTheme('ember', wallpapers: ['1-e.png']);
+    File('$dir/preview.png').writeAsBytesSync(tinyPng);
+    final r = await call('themes.apply', {'slug': 'ember', 'wallpaper': '$dir/backgrounds/1-e.png'});
+    expect(r['wallpaper_set'], (r['done'] as List).contains('wallpaper'));
+    final plain = await call('themes.apply', {'slug': 'ember'});
+    expect(plain.containsKey('wallpaper_set'), isFalse);
+  });
+
+  test('the remembered wallpapers are read bounded, never through a link or a FIFO', () async {
+    final ctx = env.core.ctx;
+    final file = '${ctx.paths.state}/theme-backgrounds.json';
+    Directory(ctx.paths.state).createSync(recursive: true);
+    File(file).writeAsStringSync('{"nord": "2-n.png", "bad": 3}');
+    expect(chosenWallpapers(ctx), {'nord': '2-n.png'});
+    File(file).deleteSync();
+    final elsewhere = '${ctx.paths.state}/elsewhere.json';
+    File(elsewhere).writeAsStringSync('{"nord": "2-n.png"}');
+    Link(file).createSync(elsewhere);
+    expect(chosenWallpapers(ctx), isEmpty);
+    Link(file).deleteSync();
+    expect(Process.runSync('mkfifo', [file]).exitCode, 0);
+    expect(chosenWallpapers(ctx), isEmpty); // returns at once, no writer needed
+    File(file).deleteSync();
+    File(file).writeAsStringSync('{"x": "${'a' * (300 * 1024)}"}');
+    expect(chosenWallpapers(ctx), isEmpty);
   });
 }

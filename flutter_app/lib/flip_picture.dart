@@ -64,7 +64,7 @@ class FlipPictureState extends State<FlipPicture> with SingleTickerProviderState
   String? _activeName;
   String? _pinnedOverrideName;
   String? _promoteName;
-  int _delayMs = 1000;
+  int _delayMs = 2000;
 
   bool _selected = false;
   bool _interactive = false; // true once rotation or manual arrow mode is active
@@ -81,7 +81,6 @@ class FlipPictureState extends State<FlipPicture> with SingleTickerProviderState
   late final Ticker _ticker;
   Duration? _lastElapsed;
   final Set<String> _prefetched = {};
-  bool _pinBusy = false;
 
   int get visibleFace {
     final eased = 0.5 - 0.5 * math.cos(math.pi * _progress);
@@ -226,7 +225,8 @@ class FlipPictureState extends State<FlipPicture> with SingleTickerProviderState
       final bg = widget.activeWallpaper;
       _activeName = bg != null && bg.isNotEmpty ? _baseName(bg) : null;
     } else {
-      final bg = widget.activeWallpaper ?? (_wallpapers.isNotEmpty ? _wallpapers.first : null);
+      // Only the wallpaper the page says is remembered for it (never a first one never chosen).
+      final bg = widget.activeWallpaper;
       _activeName = bg != null && bg.isNotEmpty ? _baseName(bg) : null;
     }
   }
@@ -543,28 +543,25 @@ class FlipPictureState extends State<FlipPicture> with SingleTickerProviderState
     return (_toFace, _direction * (180.0 * (eased - 1.0)));
   }
 
+  /// Every click is handed on: the page runs one pin at a time and the latest waiting one after
+  /// it (a superseded click answers false and changes nothing here).
   Future<void> _handlePin() async {
-    if (_pinBusy || widget.onPin == null) return;
+    if (widget.onPin == null) return;
     final path = currentWallpaperPath;
     if (path == null || isCurrentWallpaperPinned) return;
-    _pinBusy = true;
-    try {
-      final ok = await widget.onPin!(path);
-      if (!ok || !mounted) return;
-      if (widget.themeCurrent || !widget.pinApplyTheme) {
-        final name = _baseName(path);
-        setState(() {
-          _pinnedOverrideName = name;
-          _activeName = name;
-          if (_fromFace == -1 && _progress <= 0.0) {
-            _promote(name);
-          } else {
-            _promoteName = name;
-          }
-        });
-      }
-    } finally {
-      _pinBusy = false;
+    final ok = await widget.onPin!(path);
+    if (!ok || !mounted) return;
+    if (widget.themeCurrent || !widget.pinApplyTheme) {
+      final name = _baseName(path);
+      setState(() {
+        _pinnedOverrideName = name;
+        _activeName = name;
+        if (_fromFace == -1 && _progress <= 0.0) {
+          _promote(name);
+        } else {
+          _promoteName = name;
+        }
+      });
     }
   }
 
