@@ -64,6 +64,7 @@ class _ThemesPageState extends State<ThemesPage> {
   void dispose() {
     app.revision.removeListener(load);
     _pinNext?.done.complete(false);
+    _pinNext = null;
     _bigClose.dispose();
     focus.dispose();
     scroll.dispose();
@@ -167,8 +168,24 @@ class _ThemesPageState extends State<ThemesPage> {
       _pinRunning = null;
       final next = _pinNext;
       _pinNext = null;
-      if (next != null) next.done.complete(_runPin(next.t, next.wp));
+      if (next != null) {
+        if (mounted) {
+          next.done.complete(_runQueued(next.t, next.wp));
+        } else {
+          next.done.complete(false);
+        }
+      }
     }
+  }
+
+  /// A pin that waited: the list is read again first, so it acts on today's state (the pin before it
+  /// may have applied another theme).
+  Future<bool> _runQueued(Map t, String wpPath) async {
+    await load();
+    if (!mounted) return false;
+    final fresh = themes.where((x) => x['slug'] == t['slug']).firstOrNull;
+    if (fresh == null) return false;
+    return _runPin(fresh, wpPath);
   }
 
   Future<bool> _pin(Map t, String wpPath) async {
@@ -181,7 +198,9 @@ class _ThemesPageState extends State<ThemesPage> {
     }
     if (app.settings['preview_pin_apply_theme'] == false) {
       final r = await app.run('wallpapers.set', {'slug': slug, 'path': wpPath}, tr("Could not set background"));
-      return r != null;
+      if (r == null) return false;
+      app.changed(); // its remembered wallpaper (chosen_wallpaper) is read again
+      return true;
     }
     if (t['hidden'] == true) await app.run('themes.hide', {'slug': slug, 'hidden': false});
     app.notify(trf("Applying {0}…", [t['name']]), duration: const Duration(seconds: 20));
@@ -554,10 +573,16 @@ class _ThemesPageState extends State<ThemesPage> {
                 columns = gridColumns(box.maxWidth);
                 final big = bigSlug == null ? null : themes.where((t) => t['slug'] == bigSlug).firstOrNull;
                 return Stack(children: [
-                  Positioned.fill(child: _grid(list, showFooter, footer, routeActive, flip3d, flipDelay, pinApplyTheme)),
+                  // Behind an open big preview the list takes no focus: Tab stays inside the preview.
+                  Positioned.fill(
+                    child: ExcludeFocus(
+                      excluding: big != null,
+                      child: _grid(list, showFooter, footer, routeActive, flip3d, flipDelay, pinApplyTheme),
+                    ),
+                  ),
                   if (big != null)
                     Positioned.fill(
-                      child: _BigPreview(
+                      child: FocusTraversalGroup(child: _BigPreview(
                         theme: big,
                         box: box.biggest,
                         flipKey: _bigFlip,
@@ -575,7 +600,7 @@ class _ThemesPageState extends State<ThemesPage> {
                         },
                         onClose: closeBig,
                         menu: () => menu(big),
-                      ),
+                      )),
                     ),
                 ]);
               }),

@@ -155,6 +155,17 @@ void main() {
     expect(plain.containsKey('wallpaper_set'), isFalse);
   });
 
+  test('a pin whose wallpaper the desktop refuses leaves the remembered one as it was', () async {
+    final dir = env.addTheme('dusk', wallpapers: ['1-d.png', '2-d.png']);
+    File('$dir/preview.png').writeAsBytesSync(tinyPng);
+    await call('wallpapers.set', {'slug': 'dusk', 'path': '$dir/backgrounds/1-d.png'});
+    expect(chosenWallpapers(env.core.ctx)['dusk'], '1-d.png');
+    (env.core.ctx.desktop as FakeDesktop).refuseWallpaper = true;
+    final r = await call('themes.apply', {'slug': 'dusk', 'wallpaper': '$dir/backgrounds/2-d.png'});
+    expect(r['wallpaper_set'], isFalse);
+    expect(chosenWallpapers(env.core.ctx)['dusk'], '1-d.png');
+  });
+
   test('the remembered wallpapers are read bounded, never through a link or a FIFO', () async {
     final ctx = env.core.ctx;
     final file = '${ctx.paths.state}/theme-backgrounds.json';

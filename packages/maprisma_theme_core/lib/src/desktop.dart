@@ -404,9 +404,13 @@ final class FakeDesktop implements Desktop {
     'corner_radius': 8,
   };
 
+  /// Tests: the desktop refuses every wallpaper.
+  bool refuseWallpaper = false;
+
   @override
   Future<bool> setWallpaper(String path) async {
     calls.add('wallpaper $path');
+    if (refuseWallpaper) return false;
     _wallpaper = path;
     return true;
   }

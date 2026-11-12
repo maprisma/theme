@@ -116,20 +116,30 @@ Map<String, Handler> themeRoutes(Ctx ctx) => {
     return autoLocked(ctx, () async {
       final slug = str(p, 'slug');
       final wp = optStr(p, 'wallpaper');
+      String? before; // the wallpaper remembered for the theme before this pin (put back on failure)
       if (wp != null) {
         final theme = ctx.theme(slug);
         final w = listBackgrounds(ctx.paths, theme).where((x) => x.path == wp && !x.hidden).firstOrNull;
         if (w == null) throw RouteError('not_found', trf("not a visible wallpaper of {0}", [theme.name]));
         final problem = imageSizeProblem(wp);
         if (problem != null) throw RouteError('bad_image', problem);
+        before = chosenWallpapers(ctx)[theme.slug];
         rememberWallpaper(ctx, theme.slug, w.name);
       }
-      final r = await applyTheme(ctx, slug, wallpaper: wp);
+      final Map<String, dynamic> r;
+      try {
+        r = await applyTheme(ctx, slug, wallpaper: wp);
+      } catch (_) {
+        if (wp != null) restoreChosenWallpaper(ctx, slug, before); // the pin did not happen
+        rethrow;
+      }
       final applied = r['applied'] as String;
       rememberBaseTheme(ctx, applied); // a manual pick is the base for workspace themes
       final wallpaperSet = (r['done'] as List).contains('wallpaper');
-      // Only a wallpaper that really is on the desktop becomes the base; the caller is told otherwise.
+      // Only a wallpaper that really is on the desktop becomes the base (and stays remembered);
+      // the caller is told otherwise.
       if (wp != null && wallpaperSet) rememberBaseWallpaper(ctx, applied, wp);
+      if (wp != null && !wallpaperSet) restoreChosenWallpaper(ctx, slug, before);
       return {...r, if (wp != null) 'wallpaper_set': wallpaperSet};
     });
   },
