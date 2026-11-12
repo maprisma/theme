@@ -131,6 +131,23 @@ void main() {
     expect(env.core.ctx.current.wallpaper, '$nordDir/backgrounds/2-n.png');
   });
 
+  test('the theme in use: a same-named file of another theme is not its pinned wallpaper', () async {
+    final a = env.addTheme('alpha', wallpapers: ['wallpaper.png', 'other.png']);
+    File('$a/preview.png').writeAsBytesSync(tinyPng);
+    final b = env.addTheme('beta', wallpapers: ['wallpaper.png', 'b2.png']);
+    File('$b/preview.png').writeAsBytesSync(tinyPng);
+    File('$b/backgrounds/wallpaper.png').writeAsBytesSync([...tinyPng, 0]);   // another file, same name
+    await call('themes.apply', {'slug': 'beta'});
+    await call('wallpapers.set', {'slug': 'beta', 'path': '$b/backgrounds/b2.png'});
+    var bySlug = {for (final t in (await call('themes.list'))['themes'] as List) (t as Map)['slug'] as String: t};
+    expect(bySlug['beta']!['pinned_wallpaper'], '$b/backgrounds/b2.png');
+    // The desktop shows alpha's wallpaper.png while beta is in use: beta's file of that name is not it.
+    await (env.core.ctx.desktop as FakeDesktop).setWallpaper('$a/backgrounds/wallpaper.png');
+    bySlug = {for (final t in (await call('themes.list'))['themes'] as List) (t as Map)['slug'] as String: t};
+    expect(bySlug['beta']!['pinned_wallpaper'], isNull);
+    expect(bySlug['alpha']!['pinned_wallpaper'], isNull);    // not the theme in use
+  });
+
   test('themes.apply with wallpaper remembers and applies that wallpaper directly', () async {
     final dir = env.addTheme('fireside', wallpapers: ['1-f.png', '2-f.png']);
     File('$dir/preview.png').writeAsBytesSync(tinyPng);

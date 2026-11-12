@@ -54,9 +54,16 @@ Map<String, dynamic> themeJson(
     'preview': preview,
     // The wallpaper remembered for it (a card shows it pinned only then).
     'chosen_wallpaper': (chosen ?? chosenWallpapers(ctx))[t.slug],
-    'wallpapers': preview == null
-        ? const <String>[]
-        : flipWallpapers(ctx, t, isCurrent: isCurrent, hidden: hiddenWallpapers, chosen: chosen, currentBg: currentBg),
+    ...(() {
+      final walls = preview == null
+          ? const <String>[]
+          : flipWallpapers(ctx, t, isCurrent: isCurrent, hidden: hiddenWallpapers, chosen: chosen, currentBg: currentBg);
+      return {
+        'wallpapers': walls,
+        // The theme in use: the one of its wallpapers the desktop really shows (same file), or null.
+        'pinned_wallpaper': isCurrent ? pinnedOfCurrent(ctx, walls, currentBg: currentBg) : null,
+      };
+    })(),
     'custom': t.custom,
     'git': t.fromGit,
     'cosmic': t.cosmicNative,

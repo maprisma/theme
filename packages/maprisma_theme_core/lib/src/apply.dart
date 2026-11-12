@@ -71,13 +71,14 @@ List<String> flipWallpapers(
 }) {
   var visible = [
     for (final w in listBackgrounds(ctx.paths, theme, hidden: hidden))
-      if (!w.hidden && imageSizeProblem(w.path) == null) w.path,
+      if (!w.hidden && cachedImageSizeProblem(w.path) == null) w.path,
   ];
   if (visible.isEmpty) return const [];
   if (isCurrent) {
     final bg = currentBg ?? ctx.desktop.wallpaper() ?? ctx.current.wallpaper;
     if (bg != null) {
-      final index = visible.indexWhere((p) => p == bg || baseName(p) == baseName(bg));
+      // The very file the desktop shows (a file of the same name in another theme is not it).
+      final index = visible.indexWhere((p) => p == bg || _sameFile(p, bg));
       if (index > 0) visible = [...visible.sublist(index), ...visible.sublist(0, index)];
     }
   } else {
@@ -179,4 +180,41 @@ Future<bool> setBackground(Ctx ctx, String path, {bool remember = true}) async {
   ctx.current.save(wallpaper: path);
   if (remember && slug.isNotEmpty) rememberWallpaper(ctx, slug, baseName(path));
   return true;
+}
+
+
+/// The current theme's wallpaper the desktop shows, from its flip list: the same file, never a file of
+/// the same name elsewhere. Null when the desktop shows a picture that is not one of them.
+String? pinnedOfCurrent(Ctx ctx, List<String> wallpapers, {String? currentBg}) {
+  final bg = currentBg ?? ctx.desktop.wallpaper() ?? ctx.current.wallpaper;
+  if (bg == null || wallpapers.isEmpty) return null;
+  for (final p in wallpapers) {
+    if (p == bg || _sameFile(p, bg)) return p;
+  }
+  return null;
+}
+
+/// imageSizeProblem, remembered per file (path, size, modification time) for the lists that are read
+/// again and again (every themes.list): each picture's header is inspected once, not on every reload.
+/// At most _maxSizeChecks are remembered; then the oldest go.
+final _sizeChecks = <String, (int, int, String?)>{};
+const _maxSizeChecks = 8192;
+
+String? cachedImageSizeProblem(String path) {
+  final FileStat st;
+  try {
+    st = FileStat.statSync(path);
+  } on FileSystemException {
+    return imageSizeProblem(path);
+  }
+  final key = (st.size, st.modified.microsecondsSinceEpoch);
+  final known = _sizeChecks[path];
+  if (known != null && known.$1 == key.$1 && known.$2 == key.$2) return known.$3;
+  final problem = imageSizeProblem(path);
+  _sizeChecks.remove(path);
+  _sizeChecks[path] = (key.$1, key.$2, problem);
+  while (_sizeChecks.length > _maxSizeChecks) {
+    _sizeChecks.remove(_sizeChecks.keys.first);
+  }
+  return problem;
 }

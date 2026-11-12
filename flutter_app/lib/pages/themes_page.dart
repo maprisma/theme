@@ -823,8 +823,15 @@ String? pinnedWallpaper(Map t, List<String> wallpapers, bool isCurrent, String? 
   final chosen = t['chosen_wallpaper'];
   final first = wallpapers.first;
   final remembered = chosen is String && first.substring(first.lastIndexOf('/') + 1) == chosen ? first : null;
-  // The theme in use: the desktop's wallpaper as reported, else only a remembered one.
-  if (isCurrent) return currentWallpaper ?? remembered;
+  // The theme in use: the one of its own wallpapers the desktop really shows (the core compares the
+  // files, not their names), else only a remembered one.
+  if (isCurrent) {
+    final shown = t['pinned_wallpaper'];
+    if (shown is String && wallpapers.contains(shown)) return shown;
+    // Just pinned here (the list not read again yet): that exact path of this theme.
+    if (currentWallpaper != null && wallpapers.contains(currentWallpaper)) return currentWallpaper;
+    return remembered;
+  }
   if (pinApplyTheme) return null;
   return remembered;
 }
