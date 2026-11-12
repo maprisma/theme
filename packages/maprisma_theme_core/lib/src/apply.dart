@@ -13,10 +13,11 @@ import 'store.dart';
 import 'themes.dart';
 
 /// The wallpaper last chosen per theme (Omarchy's theme-backgrounds state). Read while every
-/// theme card is listed: bounded, never through a link, never waiting on a FIFO, checked on the
-/// opened file itself (Posix.readRegular).
+/// theme card is listed: bounded, never waiting on a FIFO, a regular file checked on the opened
+/// descriptor (Posix.readRegular). A dotfiles link to it is read and written alike (writeAtomic
+/// keeps links), so a pin never replaces the other themes' choices.
 Map<String, String> chosenWallpapers(Ctx ctx) {
-  final bytes = Posix.instance.readRegular('${ctx.paths.state}/theme-backgrounds.json', 256 * 1024, follow: false);
+  final bytes = Posix.instance.readRegular('${ctx.paths.state}/theme-backgrounds.json', 256 * 1024);
   if (bytes == null) return {};
   Object? data;
   try {

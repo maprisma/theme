@@ -130,7 +130,9 @@ Map<String, Handler> themeRoutes(Ctx ctx) => {
       try {
         r = await applyTheme(ctx, slug, wallpaper: wp);
       } catch (_) {
-        if (wp != null) restoreChosenWallpaper(ctx, slug, before); // the pin did not happen
+        // A later step failed: the remembered choice goes back only when the wallpaper never
+        // reached the desktop (applyTheme records it as soon as it is set).
+        if (wp != null && ctx.current.wallpaper != wp) restoreChosenWallpaper(ctx, slug, before);
         rethrow;
       }
       final applied = r['applied'] as String;

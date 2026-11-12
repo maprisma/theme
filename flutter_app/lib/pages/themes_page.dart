@@ -43,7 +43,7 @@ class _ThemesPageState extends State<ThemesPage> {
   final _bigFlip = GlobalKey<FlipPictureState>();
   final _bigClose = FocusNode(debugLabel: 'big preview close');
   // One pin at a time; a click while one runs waits, and only the latest waiting one runs.
-  Future<bool>? _pinRunning;
+  bool _pinBusy = false;
   ({Map t, String wp, Completer<bool> done})? _pinNext;
   int columns = 2;
   final focus = FocusNode();
@@ -79,12 +79,13 @@ class _ThemesPageState extends State<ThemesPage> {
     }
   }
 
-  Future<void> load() async {
+  /// Reads the list again; false when it could not be read (or the page is gone).
+  Future<bool> load() async {
     final r = await app.run('themes.list');
     final labels = app.can('shortcuts') ? await _quiet('shortcuts.labels') : null;
     final ws = app.can('workspaces') ? await _quiet('auto.workspace_themes') : null;
     final schedule = await _quiet('auto.schedule');
-    if (!mounted || r == null) return;
+    if (!mounted || r == null) return false;
     setState(() {
       themes = [for (final t in r['themes'] as List) Map<String, dynamic>.from(t as Map)];
       currentWallpaper = r['current_wallpaper'] as String?;
@@ -104,6 +105,7 @@ class _ThemesPageState extends State<ThemesPage> {
         selected = list.isEmpty ? null : list.first['slug'] as String;
       }
     });
+    return true;
   }
 
   /// The active theme is always listed (marked when hidden), as in the plugin.
@@ -150,42 +152,44 @@ class _ThemesPageState extends State<ThemesPage> {
   }
 
   Future<bool> pinWallpaper(Map t, String wpPath) {
-    if (_pinRunning != null) {
+    if (_pinBusy) {
       _pinNext?.done.complete(false); // superseded by this click
       final done = Completer<bool>();
       _pinNext = (t: t, wp: wpPath, done: done);
       return done.future;
     }
-    return _runPin(t, wpPath);
+    _pinBusy = true;
+    return _drainPins(t, wpPath);
   }
 
-  Future<bool> _runPin(Map t, String wpPath) async {
-    final running = _pin(t, wpPath);
-    _pinRunning = running;
+  /// Runs [t]'s pin, then every pin that waited meanwhile (only the latest each time), one after
+  /// the other with nothing in between: a waiting pin acts on a freshly read list (the pin before it
+  /// may have applied another theme) and is dropped when the list cannot be read or the page is gone.
+  Future<bool> _drainPins(Map t, String wpPath) async {
+    bool first;
     try {
-      return await running;
-    } finally {
-      _pinRunning = null;
-      final next = _pinNext;
+      first = await _pin(t, wpPath);
+    } catch (_) {
+      first = false;
+    }
+    while (_pinNext != null) {
+      final next = _pinNext!;
       _pinNext = null;
-      if (next != null) {
-        if (mounted) {
-          next.done.complete(_runQueued(next.t, next.wp));
-        } else {
-          next.done.complete(false);
+      var ok = false;
+      if (mounted && await load() && mounted) {
+        final fresh = themes.where((x) => x['slug'] == next.t['slug']).firstOrNull;
+        if (fresh != null) {
+          try {
+            ok = await _pin(fresh, next.wp);
+          } catch (_) {
+            ok = false;
+          }
         }
       }
+      next.done.complete(ok);
     }
-  }
-
-  /// A pin that waited: the list is read again first, so it acts on today's state (the pin before it
-  /// may have applied another theme).
-  Future<bool> _runQueued(Map t, String wpPath) async {
-    await load();
-    if (!mounted) return false;
-    final fresh = themes.where((x) => x['slug'] == t['slug']).firstOrNull;
-    if (fresh == null) return false;
-    return _runPin(fresh, wpPath);
+    _pinBusy = false;
+    return first;
   }
 
   Future<bool> _pin(Map t, String wpPath) async {

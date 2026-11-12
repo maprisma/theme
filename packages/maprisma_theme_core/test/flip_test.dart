@@ -166,7 +166,7 @@ void main() {
     expect(chosenWallpapers(env.core.ctx)['dusk'], '1-d.png');
   });
 
-  test('the remembered wallpapers are read bounded, never through a link or a FIFO', () async {
+  test('the remembered wallpapers are read bounded, never waiting on a FIFO, links kept', () async {
     final ctx = env.core.ctx;
     final file = '${ctx.paths.state}/theme-backgrounds.json';
     Directory(ctx.paths.state).createSync(recursive: true);
@@ -176,7 +176,9 @@ void main() {
     final elsewhere = '${ctx.paths.state}/elsewhere.json';
     File(elsewhere).writeAsStringSync('{"nord": "2-n.png"}');
     Link(file).createSync(elsewhere);
-    expect(chosenWallpapers(ctx), isEmpty);
+    expect(chosenWallpapers(ctx), {'nord': '2-n.png'}); // a dotfiles link is read (and written) alike
+    rememberWallpaper(ctx, 'dusk', '1-d.png');
+    expect(jsonDecode(File(elsewhere).readAsStringSync()), {'nord': '2-n.png', 'dusk': '1-d.png'});
     Link(file).deleteSync();
     expect(Process.runSync('mkfifo', [file]).exitCode, 0);
     expect(chosenWallpapers(ctx), isEmpty); // returns at once, no writer needed
