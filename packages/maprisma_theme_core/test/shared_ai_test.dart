@@ -96,7 +96,7 @@ void main() {
       env = TestEnv.create();
       shared = env.paths.sharedAiSettings;
       expect(shared, startsWith(env.root.path), reason: 'never the real config');
-      for (final c in ['copilot', 'gemini']) {
+      for (final c in ['copilot', 'cursor-agent']) {
         final f = File('${env.paths.home}/.local/bin/$c')
           ..parent.createSync(recursive: true)
           ..writeAsStringSync('#!/bin/sh\n');
@@ -112,7 +112,7 @@ void main() {
 
     test('ask.helpers follows the shared file, falls back to the first ready one', () async {
       final ready = await readyIds();
-      expect(ready, containsAll(['gemini', 'copilot']));
+      expect(ready, containsAll(['cursor-agent', 'copilot']));
       var h = await env.core.call('ask.helpers');
       expect((h['choice'], h['chosen']), ('auto', ready.first));
 
@@ -123,9 +123,9 @@ void main() {
 
       File(shared)
         ..parent.createSync(recursive: true)
-        ..writeAsStringSync('{"helper": "gemini"}');
+        ..writeAsStringSync('{"helper": "cursor-agent"}');
       h = await env.core.call('ask.helpers');
-      expect((h['choice'], h['chosen']), ('gemini', 'gemini'), reason: 'read again on every call');
+      expect((h['choice'], h['chosen']), ('cursor-agent', 'cursor-agent'), reason: 'read again on every call');
 
       File(shared).writeAsStringSync('{"helper": "grok"}');
       h = await env.core.call('ask.helpers');
