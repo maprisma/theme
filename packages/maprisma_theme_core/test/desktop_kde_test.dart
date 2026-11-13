@@ -75,6 +75,21 @@ void main() {
     'yellow': '#ebcb8b', 'blue': '#81a1c1', 'magenta': '#b48ead', 'cyan': '#88c0d0',
   };
 
+  test('Plasma tools run with the backend\'s environment, not the parent process\'s', () async {
+    final env = {
+      'HOME': '${root.path}/home', 'PATH': '${root.path}/bin:/usr/bin:/bin', 'XDG_DATA_DIRS': '${root.path}/sys',
+      'MAPRISMA_TEST_MARK': 'from-backend',
+    };
+    tool('plasma-apply-colorscheme', 'echo "mark=\$MAPRISMA_TEST_MARK" >> "$log"; printf "[General]\\nColorScheme=%s\\n" "\$1" > "$config/kdeglobals"');
+    tool('qdbus6', 'echo "mark=\$MAPRISMA_TEST_MARK" >> "$log"; echo \'maprisma-snapshot {}\'');
+    final k = KdeDesktop(paths, env);
+    expect(await k.applyColors(colors), isTrue);
+    await k.snapshotBackground();
+    final marks = RegExp(r'^mark=.*$', multiLine: true).allMatches(logText()).map((m) => m[0]).toList();
+    expect(marks.length, greaterThanOrEqualTo(2)); // the scheme tool and plasmashell's qdbus6
+    expect(marks, everyElement('mark=from-backend'));
+  });
+
   test('colors: alternating scheme names, applied and checked, the other file goes', () async {
     expect(await kde.applyColors(colors), isTrue);
     final schemes = '${paths.data}/color-schemes';
