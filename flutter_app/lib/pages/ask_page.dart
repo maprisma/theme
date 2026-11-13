@@ -35,7 +35,7 @@ List<String> get _examples => [
 const _maxPrompts = 12, _maxRequest = 600;
 String get _description =>
     tr("Find or make a theme from a few words with a coding agent on this computer (Claude Code, Codex, pi or Hermes) or a local model, using your plan or tokens only when you click Ask; a local model uses none and nothing leaves the computer. Each Ask sends your words with the names and main colors of your installed themes, the omarchy.org theme names and your installed font names; nothing else.");
-String get _noHelper => tr("No helper ready: install Claude Code, Codex, pi or Hermes and sign in, or connect pi or Hermes to a local model.");
+String get _noHelper => tr("No helper ready: install a coding agent (Claude Code, Codex, Gemini CLI, pi, Hermes …) and sign in, or connect pi or Hermes to a local model.");
 String get _maprismaText =>
     tr("Maprisma sets up AI for you: online agents and their providers, and local models with llama.cpp or Ollama, connected on one map. Every agent it sets up can answer here too.");
 const _paletteKeys = ['red', 'yellow', 'orange', 'green', 'cyan', 'blue', 'magenta', 'brown'];
@@ -1203,7 +1203,8 @@ class _AskPageState extends State<AskPage> {
     ),
   );
 
-  static String _helperName(Map h) => '${h['name']}${h['local'] == true ? tr(" · on this PC") : ''}';
+  /// A catalog entry nobody has tried with its agent yet is "(untested)".
+  static String _helperName(Map h) => '${h['name']}${h['local'] == true ? tr(" · on this PC") : ''}${h['verified'] == false ? tr(" (untested)") : ''}';
 
   /// Helper: [name ▾] … [?]: the drop-down as wide as its name, the ? at the
   /// right edge (as the plugin's helper row).

@@ -707,5 +707,9 @@
   "Big preview on click": "Pré-visualização grande ao clicar",
   "Clicking or pressing Enter on a theme card opens a large interactive preview overlay inside the window. Off opens the theme’s wallpapers page directly.": "Clicar ou premir Enter num cartão de tema abre uma pré-visualização grande e interativa dentro da janela. Desligado abre diretamente a página de papéis de parede do tema.",
   "Close preview (Esc)": "Fechar pré-visualização (Esc)",
-  "Set the shown wallpaper as background": "Definir o papel de parede mostrado como fundo"
+  "Set the shown wallpaper as background": "Definir o papel de parede mostrado como fundo",
+  " (untested)": " (não testado)",
+  "No helper ready: install a coding agent (Claude Code, Codex, Gemini CLI, pi, Hermes …) and sign in, or connect pi or Hermes to a local model.": "Nenhum assistente pronto: instale um agente de programação (Claude Code, Codex, Gemini CLI, pi, Hermes …) e inicie sessão, ou ligue pi ou Hermes a um modelo local.",
+  "the question is too long for this helper": "a pergunta é demasiado longa para este assistente",
+  "Describe a theme and an installed, signed-in AI helper (Claude Code, Codex, Gemini CLI, pi, Hermes, another coding agent or a local model) suggests it. Off until you turn it on; it runs only when you click Ask.": "Descreva um tema e um assistente de IA instalado e ligado (Claude Code, Codex, Gemini CLI, pi, Hermes, outro agente de programação ou modelo local) sugere-o. Desligado inicialmente; só executa ao clicar em Perguntar."
 }

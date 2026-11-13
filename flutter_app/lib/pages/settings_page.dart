@@ -570,7 +570,7 @@ class _SettingsPageState extends State<SettingsPage> {
       _Row(
         'ask-ai',
         tr("Ask AI"),
-        tr("Describe a theme and an installed, signed-in AI helper (Claude Code, Codex, pi, Hermes or a local model) suggests it. Off until you turn it on; it runs only when you click Ask."),
+        tr("Describe a theme and an installed, signed-in AI helper (Claude Code, Codex, Gemini CLI, pi, Hermes, another coding agent or a local model) suggests it. Off until you turn it on; it runs only when you click Ask."),
         _switch(settings['ask_ai'] == true, (on) => set('ask_ai', on)),
       ),
       _Row(
@@ -583,7 +583,7 @@ class _SettingsPageState extends State<SettingsPage> {
               ? tr("Helpers: not available in this version")
               : ready.isEmpty
               ? tr("Helpers: none is installed and signed in")
-              : trf("Helpers: {0}", [ready.map((h) => '${h['name'] ?? h['id']}${h['local'] == true ? tr(" (on this PC)") : ''}').join(', ')]),
+              : trf("Helpers: {0}", [ready.map((h) => '${h['name'] ?? h['id']}${h['local'] == true ? tr(" (on this PC)") : ''}${h['verified'] == false ? tr(" (untested)") : ''}').join(', ')]),
           style: hintStyle(context),
         ),
       ),
@@ -597,7 +597,7 @@ class _SettingsPageState extends State<SettingsPage> {
             for (final h in helpers)
               (
                 '${h['id']}',
-                '${h['name'] ?? h['id']}${h['local'] == true ? tr(" (on this PC)") : ''}${h['signed_in'] == false ? tr(" — not signed in") : ''}',
+                '${h['name'] ?? h['id']}${h['local'] == true ? tr(" (on this PC)") : ''}${h['verified'] == false ? tr(" (untested)") : ''}${h['signed_in'] == false ? tr(" — not signed in") : ''}',
               ),
           ], (v) => set('ask_ai_helper', v.isEmpty ? null : v)),
         ),

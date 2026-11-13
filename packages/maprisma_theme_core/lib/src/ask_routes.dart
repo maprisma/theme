@@ -43,15 +43,17 @@ Future<List<String>> fontFacts(Ctx ctx) async {
 /// `ask.release`, `ask.signin`, `ask.open_maprisma`.
 Map<String, Handler> askRoutes(Ctx ctx) {
   final runner = AskRunner(home: ctx.paths.home, environment: ctx.environment);
-  List<Map<String, dynamic>> states() => helperStates(ctx.paths.home, ctx.environment);
+  Future<List<Map<String, dynamic>>> states() => helperStates(ctx.paths.home, ctx.environment);
   // Every wallpaper prompt the same: a helper with web tools also searches the
   // web for pictures, unless Settings › Ask AI › Search the web is off.
   bool searchesWeb(String helper) => ctx.settings.get('ask_ai_web') != false && canSearchWeb(helper);
 
   return {
     'ask.helpers': (p) async {
-      final list = [for (final h in states()) {...h, 'web': canSearchWeb(h['id'] as String)}];
+      final list = [for (final h in await states()) {...h, 'web': canSearchWeb(h['id'] as String)}];
       final ready = [for (final h in list) if (h['signed_in'] == true) h['id'] as String];
+      // The saved helper when it is ready; else (automatic, or one unknown or no longer
+      // installed) the first ready one in the catalog's order.
       final saved = ctx.settings.get('ask_ai_helper');
       return {
         'helpers': list,
@@ -69,7 +71,7 @@ Map<String, Handler> askRoutes(Ctx ctx) {
       final helper = str(p, 'helper');
       final request = (p['request'] is String ? p['request'] as String : '').split(RegExp(r'\s+')).join(' ').trim();
       if (request.isEmpty || request.length > maxRequest) throw RouteError('bad_params', 'request');
-      if (!states().any((h) => h['id'] == helper && h['signed_in'] == true)) {
+      if (!(await states()).any((h) => h['id'] == helper && h['signed_in'] == true)) {
         throw RouteError('not_ready', tr("that helper is not installed or not signed in"));
       }
       if (runner.busy) throw RouteError('busy', tr("another Ask is running"));
@@ -115,7 +117,7 @@ Map<String, Handler> askRoutes(Ctx ctx) {
       final slug = str(p, 'slug');
       final theme = themeFacts(ctx).where((t) => t.slug == slug).firstOrNull;
       if (theme == null) throw RouteError('bad_params', 'slug');
-      if (!states().any((h) => h['id'] == helper && h['signed_in'] == true)) {
+      if (!(await states()).any((h) => h['id'] == helper && h['signed_in'] == true)) {
         throw RouteError('not_ready', tr("that helper is not installed or not signed in"));
       }
       if (runner.busy) throw RouteError('busy', tr("another Ask is running"));
@@ -165,7 +167,8 @@ Map<String, Handler> askRoutes(Ctx ctx) {
     'ask.signin': (p) async {
       final id = str(p, 'command');
       final h = helpers.where((h) => h.id == id).firstOrNull;
-      if (h == null) throw RouteError('bad_params', 'command');
+      // a catalog helper has no sign-in command here (it signs in in its own terminal)
+      if (h == null || h.login.isEmpty) throw RouteError('bad_params', 'command');
       final term = _terminal(ctx.environment);
       if (term == null) throw RouteError('no_terminal', tr("no terminal found"));
       final argv = [...term, ...h.login.split(' ')];

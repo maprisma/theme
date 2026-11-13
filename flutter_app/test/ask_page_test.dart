@@ -254,6 +254,51 @@ void main() {
     });
   }
 
+  testWidgets('a catalog agent nobody has tried yet is offered as "(untested)", in every language', (tester) async {
+    tester.view.physicalSize = const Size(1300, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    Future<Map<String, dynamic>> call(String m, [Map<String, dynamic> p = const {}]) async {
+      if (m == 'ask.helpers') {
+        final real = await core.call(m, p);
+        return {
+          ...real,
+          'helpers': [
+            {'id': 'gemini', 'name': 'Gemini CLI', 'installed': true, 'signed_in': true, 'local': false, 'login': '', 'verified': false},
+            {'id': 'claude', 'name': 'Claude Code', 'installed': true, 'signed_in': true, 'local': false, 'login': '', 'verified': true},
+          ],
+          'chosen': 'gemini',
+        };
+      }
+      if (m == 'wallhaven.search') return {'results': <Map>[], 'page': 1, 'last_page': 1};
+      if (m == 'import.omarchy_list') return {'themes': <Map>[]};
+      return core.call(m, p);
+    }
+
+    await core.call('settings.set', {'key': 'ask_ai', 'value': true});
+    await tester.runAsync(() async {
+      await tester.pumpWidget(MaprismaThemeApp(call: call));
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    });
+    final state = tester.state<MaprismaThemeAppState>(find.byType(MaprismaThemeApp));
+    state.navigator.currentState!.push(MaterialPageRoute<void>(builder: (_) => const AskPage()));
+    for (var i = 0; i < 2; i++) {
+      await tester.runAsync(() async {
+        await tester.pump();
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pump(const Duration(seconds: 1));
+    }
+    expect(find.text('Gemini CLI (untested)'), findsWidgets);
+    expect(find.text('Claude Code (untested)'), findsNothing);
+    final before = languageSetting;
+    for (final code in ['de', 'fr', 'es', 'it', 'pt', 'nl', 'pl']) {
+      languageSetting = code;
+      expect(tr(' (untested)'), isNot(' (untested)'), reason: code);
+    }
+    languageSetting = before;
+  });
+
   testWidgets('a new Ask stops the picture being made for the cards it replaces', (tester) async {
     tester.view.physicalSize = const Size(1300, 1000);
     tester.view.devicePixelRatio = 1;

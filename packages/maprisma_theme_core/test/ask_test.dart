@@ -342,9 +342,9 @@ void main() {
     });
     tearDown(() => root.deleteSync(recursive: true));
 
-    Map<String, Map> byId(Map<String, String> env) => {for (final h in helperStates(home, env)) h['id'] as String: h};
+    Future<Map<String, Map>> byId(Map<String, String> env) async => {for (final h in await helperStates(home, env)) h['id'] as String: h};
 
-    test('installed and signed-in by file existence or API key only', () {
+    test('installed and signed-in by file existence or API key only', () async {
       _exe('$bin/claude', 'exit 0');
       _exe('$bin/codex', 'exit 0');
       _exe('$bin/hermes', 'exit 0');
@@ -352,7 +352,7 @@ void main() {
       File('$home/.claude/.credentials.json').writeAsStringSync('');
       Directory('$home/.codex').createSync();
       File('$home/.codex/auth.json').writeAsStringSync('{}');
-      var h = byId({'PATH': bin});
+      var h = await byId({'PATH': bin});
       expect(h['claude']!['installed'], isTrue);
       expect(h['claude']!['signed_in'], isTrue);
       expect(h['codex']!['installed'], isFalse, reason: 'no bwrap: not offered');
@@ -360,12 +360,12 @@ void main() {
       expect(h['hermes']!['signed_in'], isFalse);
       expect(h['pi']!['installed'], isFalse);
       _exe('$bin/bwrap', 'exit 0');
-      h = byId({'PATH': bin, 'OPENROUTER_API_KEY': 'x'});
+      h = await byId({'PATH': bin, 'OPENROUTER_API_KEY': 'x'});
       expect(h['codex']!['signed_in'], isTrue);
       expect(h['hermes']!['signed_in'], isTrue);
     });
 
-    test('pi local models are helpers of their own', () {
+    test('pi local models are helpers of their own', () async {
       _exe('$bin/pi', 'exit 0');
       Directory('$home/.pi/agent').createSync(recursive: true);
       File('$home/.pi/agent/models.json').writeAsStringSync('''
@@ -374,7 +374,7 @@ void main() {
   "remote": {"baseUrl": "https://api.example.com/v1", "models": [{"id": "big"}]}
 }}''');
       File('$home/.pi/agent/settings.json').writeAsStringSync('{"defaultProvider": "llama", "defaultModel": "qwen3-8b"}');
-      final h = byId({'PATH': bin});
+      final h = await byId({'PATH': bin});
       expect(h['pi']!['name'], 'pi · qwen3-8b');
       expect(h['pi']!['local'], isTrue);
       expect(h['pi']!['signed_in'], isTrue);

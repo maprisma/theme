@@ -1403,7 +1403,11 @@ const translationCatalogs = <String, Map<String, String>>{
     "Big preview on click": "Big preview on click",
     "Clicking or pressing Enter on a theme card opens a large interactive preview overlay inside the window. Off opens the theme’s wallpapers page directly.": "Clicking or pressing Enter on a theme card opens a large interactive preview overlay inside the window. Off opens the theme’s wallpapers page directly.",
     "Close preview (Esc)": "Close preview (Esc)",
-    "Set the shown wallpaper as background": "Set the shown wallpaper as background"
+    "Set the shown wallpaper as background": "Set the shown wallpaper as background",
+    " (untested)": " (untested)",
+    "No helper ready: install a coding agent (Claude Code, Codex, Gemini CLI, pi, Hermes …) and sign in, or connect pi or Hermes to a local model.": "No helper ready: install a coding agent (Claude Code, Codex, Gemini CLI, pi, Hermes …) and sign in, or connect pi or Hermes to a local model.",
+    "the question is too long for this helper": "the question is too long for this helper",
+    "Describe a theme and an installed, signed-in AI helper (Claude Code, Codex, Gemini CLI, pi, Hermes, another coding agent or a local model) suggests it. Off until you turn it on; it runs only when you click Ask.": "Describe a theme and an installed, signed-in AI helper (Claude Code, Codex, Gemini CLI, pi, Hermes, another coding agent or a local model) suggests it. Off until you turn it on; it runs only when you click Ask."
   },
   "de": {
     "A key that applies this theme from anywhere": "Eine Taste, die dieses Theme von überall anwendet",
@@ -2808,7 +2812,11 @@ const translationCatalogs = <String, Map<String, String>>{
     "Big preview on click": "Große Vorschau beim Klicken",
     "Clicking or pressing Enter on a theme card opens a large interactive preview overlay inside the window. Off opens the theme’s wallpapers page directly.": "Klicken oder Eingabetaste auf einer Theme-Karte öffnet eine große interaktive Vorschau im Fenster. Aus öffnet direkt die Hintergrundseite des Themes.",
     "Close preview (Esc)": "Vorschau schließen (Esc)",
-    "Set the shown wallpaper as background": "Den gezeigten Hintergrund als Desktop-Hintergrund setzen"
+    "Set the shown wallpaper as background": "Den gezeigten Hintergrund als Desktop-Hintergrund setzen",
+    " (untested)": " (ungetestet)",
+    "No helper ready: install a coding agent (Claude Code, Codex, Gemini CLI, pi, Hermes …) and sign in, or connect pi or Hermes to a local model.": "Kein Helfer bereit: einen Coding-Agenten (Claude Code, Codex, Gemini CLI, pi, Hermes …) installieren und anmelden, oder pi bzw. Hermes mit einem lokalen Modell verbinden.",
+    "the question is too long for this helper": "die Frage ist zu lang für diesen Helfer",
+    "Describe a theme and an installed, signed-in AI helper (Claude Code, Codex, Gemini CLI, pi, Hermes, another coding agent or a local model) suggests it. Off until you turn it on; it runs only when you click Ask.": "Beschreibe ein Theme, und ein installierter, angemeldeter KI-Helfer (Claude Code, Codex, Gemini CLI, pi, Hermes, ein anderer Coding-Agent oder ein lokales Modell) schlägt es vor. Erst nach dem Einschalten aktiv; läuft nur beim Klick auf Fragen."
   },
   "fr": {
     "A key that applies this theme from anywhere": "Une touche qui applique ce thème de partout",
@@ -4213,7 +4221,11 @@ const translationCatalogs = <String, Map<String, String>>{
     "Big preview on click": "Grand aperçu au clic",
     "Clicking or pressing Enter on a theme card opens a large interactive preview overlay inside the window. Off opens the theme’s wallpapers page directly.": "Cliquer ou appuyer sur Entrée sur une carte de thème ouvre un grand aperçu interactif dans la fenêtre. Désactivé ouvre directement la page des fonds d’écran du thème.",
     "Close preview (Esc)": "Fermer l’aperçu (Échap)",
-    "Set the shown wallpaper as background": "Définir le fond d’écran affiché comme arrière-plan"
+    "Set the shown wallpaper as background": "Définir le fond d’écran affiché comme arrière-plan",
+    " (untested)": " (non testé)",
+    "No helper ready: install a coding agent (Claude Code, Codex, Gemini CLI, pi, Hermes …) and sign in, or connect pi or Hermes to a local model.": "Aucun assistant prêt : installez un agent de code (Claude Code, Codex, Gemini CLI, pi, Hermes …) et connectez-vous, ou reliez pi ou Hermes à un modèle local.",
+    "the question is too long for this helper": "la question est trop longue pour cet assistant",
+    "Describe a theme and an installed, signed-in AI helper (Claude Code, Codex, Gemini CLI, pi, Hermes, another coding agent or a local model) suggests it. Off until you turn it on; it runs only when you click Ask.": "Décrivez un thème : un assistant IA installé et connecté (Claude Code, Codex, Gemini CLI, pi, Hermes, un autre agent de code ou un modèle local) le suggère. Désactivé au départ ; ne s’exécute qu’en cliquant sur Demander."
   },
   "es": {
     "A key that applies this theme from anywhere": "Una tecla que aplica este tema desde cualquier lugar",
@@ -5618,7 +5630,11 @@ const translationCatalogs = <String, Map<String, String>>{
     "Big preview on click": "Vista previa grande al hacer clic",
     "Clicking or pressing Enter on a theme card opens a large interactive preview overlay inside the window. Off opens the theme’s wallpapers page directly.": "Hacer clic o pulsar Intro en una tarjeta de tema abre una vista previa grande e interactiva dentro de la ventana. Desactivado abre directamente la página de fondos del tema.",
     "Close preview (Esc)": "Cerrar vista previa (Esc)",
-    "Set the shown wallpaper as background": "Usar el fondo mostrado como fondo de escritorio"
+    "Set the shown wallpaper as background": "Usar el fondo mostrado como fondo de escritorio",
+    " (untested)": " (sin probar)",
+    "No helper ready: install a coding agent (Claude Code, Codex, Gemini CLI, pi, Hermes …) and sign in, or connect pi or Hermes to a local model.": "Ningún ayudante listo: instala un agente de programación (Claude Code, Codex, Gemini CLI, pi, Hermes …) e inicia sesión, o conecta pi o Hermes a un modelo local.",
+    "the question is too long for this helper": "la pregunta es demasiado larga para este ayudante",
+    "Describe a theme and an installed, signed-in AI helper (Claude Code, Codex, Gemini CLI, pi, Hermes, another coding agent or a local model) suggests it. Off until you turn it on; it runs only when you click Ask.": "Describe un tema y un asistente de IA instalado y conectado (Claude Code, Codex, Gemini CLI, pi, Hermes, otro agente de programación o un modelo local) lo sugiere. Desactivado inicialmente; solo se ejecuta al pulsar Preguntar."
   },
   "it": {
     "A key that applies this theme from anywhere": "Un tasto che applica questo tema ovunque",
@@ -7023,7 +7039,11 @@ const translationCatalogs = <String, Map<String, String>>{
     "Big preview on click": "Anteprima grande al clic",
     "Clicking or pressing Enter on a theme card opens a large interactive preview overlay inside the window. Off opens the theme’s wallpapers page directly.": "Fare clic o premere Invio su una scheda del tema apre un’anteprima grande e interattiva nella finestra. Disattivo apre direttamente la pagina degli sfondi del tema.",
     "Close preview (Esc)": "Chiudi anteprima (Esc)",
-    "Set the shown wallpaper as background": "Imposta lo sfondo mostrato come sfondo"
+    "Set the shown wallpaper as background": "Imposta lo sfondo mostrato come sfondo",
+    " (untested)": " (non testato)",
+    "No helper ready: install a coding agent (Claude Code, Codex, Gemini CLI, pi, Hermes …) and sign in, or connect pi or Hermes to a local model.": "Nessun assistente pronto: installa un agente di programmazione (Claude Code, Codex, Gemini CLI, pi, Hermes …) e accedi, oppure collega pi o Hermes a un modello locale.",
+    "the question is too long for this helper": "la domanda è troppo lunga per questo assistente",
+    "Describe a theme and an installed, signed-in AI helper (Claude Code, Codex, Gemini CLI, pi, Hermes, another coding agent or a local model) suggests it. Off until you turn it on; it runs only when you click Ask.": "Descrivi un tema: un assistente IA installato e connesso (Claude Code, Codex, Gemini CLI, pi, Hermes, un altro agente di programmazione o un modello locale) lo propone. Disattivato inizialmente; parte solo facendo clic su Chiedi."
   },
   "pt": {
     "A key that applies this theme from anywhere": "Uma tecla que aplica este tema de qualquer lugar",
@@ -8428,7 +8448,11 @@ const translationCatalogs = <String, Map<String, String>>{
     "Big preview on click": "Pré-visualização grande ao clicar",
     "Clicking or pressing Enter on a theme card opens a large interactive preview overlay inside the window. Off opens the theme’s wallpapers page directly.": "Clicar ou premir Enter num cartão de tema abre uma pré-visualização grande e interativa dentro da janela. Desligado abre diretamente a página de papéis de parede do tema.",
     "Close preview (Esc)": "Fechar pré-visualização (Esc)",
-    "Set the shown wallpaper as background": "Definir o papel de parede mostrado como fundo"
+    "Set the shown wallpaper as background": "Definir o papel de parede mostrado como fundo",
+    " (untested)": " (não testado)",
+    "No helper ready: install a coding agent (Claude Code, Codex, Gemini CLI, pi, Hermes …) and sign in, or connect pi or Hermes to a local model.": "Nenhum assistente pronto: instale um agente de programação (Claude Code, Codex, Gemini CLI, pi, Hermes …) e inicie sessão, ou ligue pi ou Hermes a um modelo local.",
+    "the question is too long for this helper": "a pergunta é demasiado longa para este assistente",
+    "Describe a theme and an installed, signed-in AI helper (Claude Code, Codex, Gemini CLI, pi, Hermes, another coding agent or a local model) suggests it. Off until you turn it on; it runs only when you click Ask.": "Descreva um tema e um assistente de IA instalado e ligado (Claude Code, Codex, Gemini CLI, pi, Hermes, outro agente de programação ou modelo local) sugere-o. Desligado inicialmente; só executa ao clicar em Perguntar."
   },
   "nl": {
     "A key that applies this theme from anywhere": "Een toets die dit thema overal toepast",
@@ -9833,7 +9857,11 @@ const translationCatalogs = <String, Map<String, String>>{
     "Big preview on click": "Groot voorbeeld bij klikken",
     "Clicking or pressing Enter on a theme card opens a large interactive preview overlay inside the window. Off opens the theme’s wallpapers page directly.": "Klikken of op Enter drukken op een themakaart opent een groot interactief voorbeeld in het venster. Uit opent direct de achtergrondpagina van het thema.",
     "Close preview (Esc)": "Voorbeeld sluiten (Esc)",
-    "Set the shown wallpaper as background": "Getoonde achtergrond als bureaubladachtergrond instellen"
+    "Set the shown wallpaper as background": "Getoonde achtergrond als bureaubladachtergrond instellen",
+    " (untested)": " (niet getest)",
+    "No helper ready: install a coding agent (Claude Code, Codex, Gemini CLI, pi, Hermes …) and sign in, or connect pi or Hermes to a local model.": "Geen helper klaar: installeer een codeeragent (Claude Code, Codex, Gemini CLI, pi, Hermes …) en meld je aan, of koppel pi of Hermes aan een lokaal model.",
+    "the question is too long for this helper": "de vraag is te lang voor deze helper",
+    "Describe a theme and an installed, signed-in AI helper (Claude Code, Codex, Gemini CLI, pi, Hermes, another coding agent or a local model) suggests it. Off until you turn it on; it runs only when you click Ask.": "Beschrijf een thema en een geïnstalleerde, aangemelde AI-assistent (Claude Code, Codex, Gemini CLI, pi, Hermes, een andere codeeragent of een lokaal model) stelt het voor. Begint uitgeschakeld; werkt alleen als je op Vragen klikt."
   },
   "pl": {
     "A key that applies this theme from anywhere": "Klawisz, który stosuje ten motyw z dowolnego miejsca",
@@ -11238,6 +11266,10 @@ const translationCatalogs = <String, Map<String, String>>{
     "Big preview on click": "Duży podgląd po kliknięciu",
     "Clicking or pressing Enter on a theme card opens a large interactive preview overlay inside the window. Off opens the theme’s wallpapers page directly.": "Kliknięcie lub naciśnięcie Enter na karcie motywu otwiera duży interaktywny podgląd w oknie. Wyłączone otwiera bezpośrednio stronę tapet motywu.",
     "Close preview (Esc)": "Zamknij podgląd (Esc)",
-    "Set the shown wallpaper as background": "Ustaw pokazaną tapetę jako tło"
+    "Set the shown wallpaper as background": "Ustaw pokazaną tapetę jako tło",
+    " (untested)": " (nieprzetestowany)",
+    "No helper ready: install a coding agent (Claude Code, Codex, Gemini CLI, pi, Hermes …) and sign in, or connect pi or Hermes to a local model.": "Brak gotowego pomocnika: zainstaluj agenta programistycznego (Claude Code, Codex, Gemini CLI, pi, Hermes …) i zaloguj się albo połącz pi lub Hermes z modelem lokalnym.",
+    "the question is too long for this helper": "pytanie jest za długie dla tego pomocnika",
+    "Describe a theme and an installed, signed-in AI helper (Claude Code, Codex, Gemini CLI, pi, Hermes, another coding agent or a local model) suggests it. Off until you turn it on; it runs only when you click Ask.": "Opisz motyw, a zainstalowany i zalogowany asystent AI (Claude Code, Codex, Gemini CLI, pi, Hermes, inny agent programistyczny lub model lokalny) go zaproponuje. Domyślnie wyłączone; działa dopiero po kliknięciu Zapytaj."
   }
 };

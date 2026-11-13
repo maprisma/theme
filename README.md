@@ -21,7 +21,8 @@ and uses the same theme format (Omarchy's `colors.toml`), so themes move freely 
   and saved combinations of theme, wallpaper and workspaces.
 - **Keyboard shortcuts** for themes and actions, a panel applet (COSMIC) or tray daemon (KDE).
 - **Ask AI** (off by default): describe what you want and get up to three themes to look at, from Claude Code,
-  Codex, pi or Hermes, or a local model. It runs only when you click Ask, without tools (Codex read-only in a jail) except, with **Search the
+  Codex, pi or Hermes, a local model, or any other installed coding agent of Maprisma's helpers list (Gemini CLI,
+  Antigravity, Cursor, Copilot, Grok …; one nobody has tried yet is marked "(untested)"). It runs only when you click Ask, without tools (Codex read-only in a jail) except, with **Search the
   web for wallpapers** on, a helper's web search and fetch (now Claude Code), which it may use to find up to
   three pictures per suggestion. It gets only your words, the installed themes' names and colors, the names of up to 300 omarchy.org catalog themes and your
   font names. **Ask AI for wallpapers** (on the wallpaper search page) sends your words and that theme's name
