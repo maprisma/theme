@@ -76,7 +76,9 @@ App id `io.github.ubruckhaus.CosmicMaprismaTheme`, icon: a paint brush (symbolic
 ## `maprisma-theme-core` CLI (Dart, Claude)
 
 `apply <slug>`, `bg next|prev`, `theme next|prev` (favorites), `workspace <n>`, `tick`, `menu`,
-`autostart`, `status`. JSON on stdout.
+`autostart`, `status`, `list`. JSON on stdout. `list` (route `themes.brief`) is for Maprisma
+Manager's Appearance page: `{current, themes: [{slug, name, current, favorite, hidden, preview,
+colors}]}` in the Themes page's order, without wallpapers or desktop queries.
 
 ## COSMIC 1.11 implementation notes
 

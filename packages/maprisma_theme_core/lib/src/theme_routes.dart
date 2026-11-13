@@ -109,6 +109,29 @@ Map<String, Handler> themeRoutes(Ctx ctx) => {
       'show_hidden': s['show_hidden'],
     };
   },
+  // A short list for other apps (Maprisma Manager's Appearance page; CLI `list`): the order of
+  // themes.list, each with its name, preview picture, swatch colours and marks, nothing that
+  // asks the desktop (no wallpapers, no pending looks), so it is quick.
+  'themes.brief': (p) async {
+    final s = ctx.settings.load();
+    final favorites = ctx.lists.favorites, hidden = ctx.lists.hidden;
+    final current = ctx.current.slug;
+    return {
+      'current': current,
+      'themes': [
+        for (final t in orderThemes(ctx.themes(), favorites, ctx.lists.recent, s['sort'] as String))
+          {
+            'slug': t.slug,
+            'name': t.name,
+            'current': t.slug == current,
+            'favorite': favorites.contains(t.slug),
+            'hidden': hidden.contains(t.slug),
+            'preview': t.preview != null && imageSizeProblem(t.preview!) == null ? t.preview : null,
+            'colors': swatches(t.colors),
+          },
+      ],
+    };
+  },
   'themes.get': (p) async {
     final t = ctx.theme(str(p, 'slug'));
     return {

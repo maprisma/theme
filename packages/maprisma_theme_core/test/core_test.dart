@@ -50,6 +50,31 @@ void main() {
       expect(nord['colors']['background'], '#000000');
     });
 
+    test('themes.brief (CLI list): the order of themes.list, name, preview, swatches and marks only', () async {
+      env.addTheme('nord', system: true);
+      env.addTheme('alpha', system: true, bg: '#eff1f5', fg: '#4c4f69');
+      env.addTheme('zeta');
+      await env.core.call('themes.favorite', {'slug': 'zeta', 'favorite': true});
+      await env.core.call('themes.hide', {'slug': 'alpha', 'hidden': true});
+      await env.core.call('themes.apply', {'slug': 'nord'});
+      final r = await env.core.call('themes.brief');
+      expect(r['current'], 'nord');
+      final list = (r['themes'] as List).cast<Map>();
+      final full = (await env.core.call('themes.list'))['themes'] as List;
+      expect(list.map((t) => t['slug']), full.map((t) => t['slug']));
+      expect(list.map((t) => t['slug']), ['zeta', 'alpha', 'nord']);
+      final nord = list.firstWhere((t) => t['slug'] == 'nord');
+      expect(nord.keys.toSet(), {'slug', 'name', 'current', 'favorite', 'hidden', 'preview', 'colors'});
+      expect(nord['current'], isTrue);
+      expect(nord['colors']['background'], '#2e3440');
+      expect(nord['colors']['mode'], 'dark');
+      expect(list.firstWhere((t) => t['slug'] == 'alpha')['hidden'], isTrue);
+      expect(list.firstWhere((t) => t['slug'] == 'alpha')['colors']['mode'], 'light');
+      expect(list.first['favorite'], isTrue);
+      // the CLI prints the same as one JSON object
+      expect(await runCli(['list'], service: env.core), 0);
+    });
+
     test('apply sets COSMIC, wallpaper, terminal, current and recent; unhides', () async {
       env.addTheme('nord', system: true, wallpapers: ['b.png', 'a.png']);
       await env.core.call('themes.hide', {'slug': 'nord', 'hidden': true});

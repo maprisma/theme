@@ -11,7 +11,7 @@ Future<int> runCli(List<String> args, {CoreService? service}) async {
   final core = service ?? CoreService(environment: Platform.environment);
   languageSetting = core.ctx.settings.get('language') as String? ?? 'auto';
   if (args.isEmpty) {
-    stderr.writeln(trf('Usage: {0}', ['maprisma-theme-core apply <slug> | bg next|prev | theme next|prev | workspace <n> | tick | menu | autostart | status']));
+    stderr.writeln(trf('Usage: {0}', ['maprisma-theme-core apply <slug> | bg next|prev | theme next|prev | workspace <n> | tick | menu | autostart | status | list']));
     return 2;
   }
   final (method, params) = switch (args) {
@@ -23,6 +23,7 @@ Future<int> runCli(List<String> args, {CoreService? service}) async {
     ['menu'] => ('auto.menu', <String, dynamic>{}),
     ['autostart'] => ('presets.autostart', <String, dynamic>{}),
     ['status'] => ('core.hello', <String, dynamic>{}),
+    ['list'] => ('themes.brief', <String, dynamic>{}),
     _ => ('', <String, dynamic>{}),
   };
   if (method.isEmpty) {
