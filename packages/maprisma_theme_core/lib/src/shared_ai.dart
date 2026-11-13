@@ -1,4 +1,4 @@
-/// The AI helper chosen for every Maprisma app (Maprisma Manager → AI):
+/// The AI helper chosen for every Maprisma app (Maprisma Settings → AI):
 /// `${XDG_CONFIG_HOME:-$HOME/.config}/maprisma-ai/settings.json`, a JSON object whose `helper` is
 /// `"auto"` or a helper id. A missing or broken file or value is "auto"; unknown keys are kept
 /// when it is written (atomically, folder 0700, file 0600).

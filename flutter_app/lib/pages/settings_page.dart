@@ -70,7 +70,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Map<String, dynamic> settings = {};
   Map<String, dynamic> plan = {};
   List<Map> themes = [], apps = [], helpers = [];
-  /// The helper every Maprisma app uses (Maprisma Manager → AI): the one in use, and whether
+  /// The helper every Maprisma app uses (Maprisma Settings → AI): the one in use, and whether
   /// that is automatic (the first ready one).
   String? helperInUse;
   bool helperAuto = true;
@@ -593,12 +593,12 @@ class _SettingsPageState extends State<SettingsPage> {
           style: hintStyle(context),
         ),
       ),
-      // One helper for every Maprisma app: chosen in Maprisma Manager (or on the Ask AI page).
+      // One helper for every Maprisma app: chosen in Maprisma Settings (or on the Ask AI page).
       if (helpers.isNotEmpty)
         _Row(
           'ask-ai',
           tr("Helper"),
-          tr("Set in Maprisma Manager → AI"),
+          tr("Set in Maprisma Settings → AI"),
           Text(
             [
               if (helperAuto) tr("First ready one"),

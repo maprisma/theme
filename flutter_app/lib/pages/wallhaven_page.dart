@@ -72,7 +72,7 @@ class _WallhavenPageState extends State<WallhavenPage> {
   final aiField = TextEditingController();
   final aiFocus = FocusNode();
   Map? aiHelper;
-  /// The helper chosen for every Maprisma app (Maprisma Manager → AI): "auto" or an id.
+  /// The helper chosen for every Maprisma app (Maprisma Settings → AI): "auto" or an id.
   String aiChoice = 'auto';
   bool asking = false;
 

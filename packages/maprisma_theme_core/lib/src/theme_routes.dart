@@ -109,7 +109,7 @@ Map<String, Handler> themeRoutes(Ctx ctx) => {
       'show_hidden': s['show_hidden'],
     };
   },
-  // A short list for other apps (Maprisma Manager's Theme page; CLI `list`): the order of
+  // A short list for other apps (Maprisma Settings' Theme page; CLI `list`): the order of
   // themes.list, each with its name, preview picture, swatch colours, marks and the wallpapers
   // its card flips to (as themes.list, the one in use first by Theme's own record of it), and the
   // preview settings, so the other app turns its cards as Theme does. Nothing asks the desktop

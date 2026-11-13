@@ -55,7 +55,7 @@ Map<String, Handler> askRoutes(Ctx ctx) {
     'ask.helpers': (p) async {
       final list = [for (final h in await states()) {...h, 'web': canSearchWeb(h['id'] as String)}];
       final ready = [for (final h in list) if (h['signed_in'] == true) h['id'] as String];
-      // The helper chosen for every Maprisma app (Maprisma Manager → AI, read again on every
+      // The helper chosen for every Maprisma app (Maprisma Settings → AI, read again on every
       // call) when it is ready; else (auto, or one unknown or no longer installed) the first
       // ready one in the catalog's order.
       final choice = sharedChoice();

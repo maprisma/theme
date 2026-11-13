@@ -71,7 +71,7 @@ class _AskPageState extends State<AskPage> {
   String heard = '';
   List<Map<String, dynamic>> helpers = [];
   String? helper;
-  /// The helper chosen for every Maprisma app (Maprisma Manager → AI): "auto" or an id.
+  /// The helper chosen for every Maprisma app (Maprisma Settings → AI): "auto" or an id.
   String choice = 'auto';
   bool loaded = false, asking = false, showNote = false;
   int? editing;
