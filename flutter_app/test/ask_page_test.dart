@@ -10,6 +10,7 @@ import 'package:maprisma_theme/pages/ask_page.dart';
 import 'package:maprisma_theme_core/maprisma_theme_core.dart';
 
 import 'page_shots.dart';
+import 'voice_fake.dart';
 
 /// The Ask AI page against the real core in a temporary HOME; the helper
 /// list and the answer are faked (no agent ever runs).
@@ -393,4 +394,53 @@ void main() {
     expect(calls.last, 'cancel');
     expect(tester.takeException(), isNull);
   });
+
+  for (final ready in [false, true]) {
+    testWidgets('mic button (fake maprisma-voice, ready: $ready)', (tester) async {
+      tester.view.physicalSize = const Size(1300, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final voice = (await tester.runAsync(() => FakeVoice.create(ready: ready)))!;
+      addTearDown(() => tester.runAsync(voice.dispose));
+      Future<Map<String, dynamic>> call(String m, [Map<String, dynamic> p = const {}]) async {
+        if (m == 'ask.helpers') {
+          final real = await core.call(m, p);
+          return {
+            ...real,
+            'helpers': [
+              {'id': 'claude', 'name': 'Claude Code', 'installed': true, 'signed_in': true, 'local': false, 'login': '', 'verified': true},
+            ],
+            'chosen': 'claude',
+          };
+        }
+        if (m == 'wallhaven.search') return {'results': <Map>[], 'page': 1, 'last_page': 1};
+        if (m == 'import.omarchy_list') return {'themes': <Map>[]};
+        return core.call(m, p);
+      }
+
+      await core.call('settings.set', {'key': 'ask_ai', 'value': true});
+      await tester.runAsync(() async {
+        await tester.pumpWidget(MaprismaThemeApp(call: call));
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+      });
+      final state = tester.state<MaprismaThemeAppState>(find.byType(MaprismaThemeApp));
+      state.navigator.currentState!.push(MaterialPageRoute<void>(builder: (_) => const AskPage()));
+      await settle(tester);
+      final mic = find.byKey(const ValueKey('voice-mic'));
+      if (!ready) {
+        expect(mic, findsNothing);
+        return;
+      }
+      expect(mic, findsOneWidget);
+      final field = find.ancestor(of: mic, matching: find.byType(TextField));
+      await tester.enterText(field, 'dark');
+      await tester.tap(mic);
+      await settle(tester);
+      expect(find.text('hello'), findsOneWidget);
+      await tester.tap(mic);
+      await settle(tester);
+      expect(tester.widget<TextField>(field).controller!.text, 'dark hello world');
+      expect(voice.args.last, 'dictate --events --release --app-id com.maprisma.Theme');
+    });
+  }
 }

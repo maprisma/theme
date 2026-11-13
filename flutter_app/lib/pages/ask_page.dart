@@ -1,4 +1,5 @@
 import '../i18n.dart';
+import '../mic_button.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
@@ -56,12 +57,18 @@ final class _Card {
   TextEditingController? refine;
   TextEditingController? search;
   Object token = Object();
+
+  /// What dictation heard so far for the refine field (greyed under it).
+  String heard = '';
 }
 
 class _AskPageState extends State<AskPage> {
   final request = TextEditingController();
   final promptEdit = TextEditingController();
   final _field = FocusNode();
+
+  /// What dictation heard so far for the request (greyed under the field); empty: nothing.
+  String heard = '';
   List<Map<String, dynamic>> helpers = [];
   String? helper;
   /// The helper chosen for every Maprisma app (Maprisma Manager → AI): "auto" or an id.
@@ -1024,6 +1031,18 @@ class _AskPageState extends State<AskPage> {
             decoration: InputDecoration(
               isDense: true,
               counterText: '',
+              helperText: card.heard.isEmpty ? null : card.heard,
+              helperMaxLines: 2,
+              suffixIcon: MicButton(
+                appId: 'com.maprisma.Theme',
+                tr: tr,
+                controller: card.refine,
+                size: 32,
+                iconSize: 18,
+                onPartial: (t) {
+                  if (mounted) setState(() => card.heard = t);
+                },
+              ),
               hintText: query is String
                   ? trf("How should it change? e.g. “warmer”, “another picture like {0}”", [query])
                   : tr("How should it change? e.g. “warmer”, “another wallpaper”"),
@@ -1321,6 +1340,17 @@ class _AskPageState extends State<AskPage> {
             decoration: InputDecoration(
               counterText: '',
               hintText: tr("What do you want? e.g. “blue borders, red text and a dog wallpaper”"),
+              helperText: heard.isEmpty ? null : heard,
+              helperMaxLines: 2,
+              suffixIcon: MicButton(
+                appId: 'com.maprisma.Theme',
+                tr: tr,
+                controller: request,
+                focusNode: _field,
+                onPartial: (t) {
+                  if (mounted) setState(() => heard = t);
+                },
+              ),
             ),
             onSubmitted: (_) => _ask(),
           ),

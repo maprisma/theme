@@ -712,5 +712,9 @@
   "No helper ready: install a coding agent (Claude Code, Codex, Gemini CLI, pi, Hermes …) and sign in, or connect pi or Hermes to a local model.": "No helper ready: install a coding agent (Claude Code, Codex, Gemini CLI, pi, Hermes …) and sign in, or connect pi or Hermes to a local model.",
   "the question is too long for this helper": "the question is too long for this helper",
   "Describe a theme and an installed, signed-in AI helper (Claude Code, Codex, Gemini CLI, pi, Hermes, another coding agent or a local model) suggests it. Off until you turn it on; it runs only when you click Ask.": "Describe a theme and an installed, signed-in AI helper (Claude Code, Codex, Gemini CLI, pi, Hermes, another coding agent or a local model) suggests it. Off until you turn it on; it runs only when you click Ask.",
-  "Set in Maprisma Manager → AI": "Set in Maprisma Manager → AI"
+  "Set in Maprisma Manager → AI": "Set in Maprisma Manager → AI",
+  "Dictate": "Dictate",
+  "Stop and insert": "Stop and insert",
+  "Listening…": "Listening…",
+  "Dictation is not available: {0}": "Dictation is not available: {0}"
 }
