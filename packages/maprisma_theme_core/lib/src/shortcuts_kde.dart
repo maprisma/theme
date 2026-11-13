@@ -28,6 +28,23 @@ const maxStateFileBytes = 4 * 1024 * 1024;
 
 const kdeKeyPrefix = 'maprisma-theme-key-';
 
+/// The desktop file of a shortcut's target, one per target: letters, digits and '-' stay,
+/// every other byte (also '_') becomes `_XX` (hex), so `apply:a.b`, `apply:a+b` and `apply:a_b`
+/// never share a file. Files of the older name scheme are no longer wanted and go with the next
+/// write (their kglobalaccel entries with the next sync).
+String kdeKeyFileName(String target) {
+  final out = StringBuffer(kdeKeyPrefix);
+  for (final b in utf8.encode(target)) {
+    final c = String.fromCharCode(b);
+    if (RegExp(r'^[A-Za-z0-9-]$').hasMatch(c)) {
+      out.write(c);
+    } else {
+      out.write('_${b.toRadixString(16).toUpperCase().padLeft(2, '0')}');
+    }
+  }
+  return '$out.desktop';
+}
+
 /// The session bus of [environment] (never the process's own when the
 /// environment has none: tests and other sessions stay apart), or null.
 DBusClient? sessionBus(Map<String, String> environment) {
@@ -218,7 +235,7 @@ final class KdeShortcutBinder implements ShortcutBinder {
     for (final b in bindings) {
       final code = qtCombo(b.combo);
       if (code == null) continue;
-      final name = '$kdeKeyPrefix${b.target.replaceAll(RegExp('[^A-Za-z0-9_-]'), '_')}.desktop';
+      final name = kdeKeyFileName(b.target);
       final label = plainText(b.label(), 100).replaceAll(RegExp(r'[\[\]=]'), '');
       wanted[name] =
           '[Desktop Entry]\nType=Application\nName=$label\nExec=${b.command()}\nNoDisplay=true\n'
@@ -398,7 +415,7 @@ Future<bool> _sync(Paths paths, Map<String, String> environment, DBusClient? cli
     for (final e in wanted.entries) {
       final aid = id(e.key, '_launch', 'Maprisma Theme', e.value.$3);
       for (var attempt = 0; ; attempt++) {
-        if (sycoca != null) await runBounded([sycoca], timeout: const Duration(seconds: 30));
+        if (sycoca != null) await runBounded([sycoca], timeout: const Duration(seconds: 30), environment: environment);
         await c('doRegister', [aid]);
         await c('setForeignShortcutKeys', [
           aid,

@@ -360,15 +360,52 @@ final class Daemon {
     automation = readJsonMap(ctx.paths.automationFile);
   }
 
-  /// shortcuts.json changed (or first start): kglobalaccel made to match.
-  Future<void> _syncShortcuts() async {
-    if (!ctx.desktop.caps.contains(Cap.shortcuts) || ctx.desktop.id != 'kde') return;
+  /// How the shortcuts reach kglobalaccel (tests replace it); true when every call went through.
+  late Future<bool> Function() syncShortcuts = () => syncKdeShortcuts(ctx.paths, ctx.environment);
+
+  var _shortcutsSyncing = false;
+  var _shortcutsFailures = 0;
+  DateTime? _shortcutsRetryAt;
+
+  /// shortcuts.json changed (or first start): kglobalaccel made to match. A failed sync
+  /// (kglobalaccel not there yet) is tried again, after 5 s, 10 s, … up to 5 min; a new
+  /// kglobalaccel ([shortcutsServiceRestarted]) gets them again at once.
+  Future<void> syncShortcutsIfChanged() async {
+    if (!ctx.desktop.caps.contains(Cap.shortcuts) || ctx.desktop.id != 'kde' || _shortcutsSyncing) return;
     final f = File(ctx.paths.file('shortcuts.json'));
     final stamp = f.existsSync() ? f.lastModifiedSync() : DateTime.fromMillisecondsSinceEpoch(0);
     if (stamp == _shortcutsStamp) return;
-    _shortcutsStamp = stamp;
-    await syncKdeShortcuts(ctx.paths, ctx.environment);
+    final now = DateTime.now();
+    if (_shortcutsRetryAt != null && now.isBefore(_shortcutsRetryAt!)) return;
+    _shortcutsSyncing = true;
+    try {
+      bool ok;
+      try {
+        ok = await syncShortcuts();
+      } on Object {
+        ok = false;
+      }
+      if (ok) {
+        _shortcutsStamp = stamp;
+        _shortcutsFailures = 0;
+        _shortcutsRetryAt = null;
+      } else {
+        _shortcutsFailures++;
+        _shortcutsRetryAt = now.add(Duration(seconds: (5 << (_shortcutsFailures - 1).clamp(0, 6)).clamp(5, 300)));
+      }
+    } finally {
+      _shortcutsSyncing = false;
+    }
   }
+
+  /// kglobalaccel has a new owner (restarted): it registers ours again on the next check.
+  void shortcutsServiceRestarted() {
+    _shortcutsStamp = null;
+    _shortcutsRetryAt = null;
+    _shortcutsFailures = 0;
+  }
+
+  Future<void> _syncShortcuts() => syncShortcutsIfChanged();
 
   Future<void> run(Job j) async {
     queue.add(j);
@@ -479,6 +516,10 @@ final class Daemon {
         .listen((s) {
       if (s.values[0].asString() == 'org.kde.StatusNotifierWatcher' && s.values[2].asString().isNotEmpty) {
         unawaited(_registerTray().catchError((_) {}));
+      }
+      if (s.values[0].asString() == 'org.kde.kglobalaccel' && s.values[2].asString().isNotEmpty) {
+        shortcutsServiceRestarted();
+        unawaited(_syncShortcuts().catchError((_) {}));
       }
     }));
     if (claimAutostart(ctx.environment) && automation['autostart'] == true) unawaited(run(CoreJob('presets.autostart')));

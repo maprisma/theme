@@ -5,6 +5,7 @@ import 'package:dbus/dbus.dart';
 import 'support.dart';
 
 import 'package:maprisma_theme_core/src/daemon.dart';
+import 'package:maprisma_theme_core/src/desktop.dart' show FakeDesktop;
 import 'package:maprisma_theme_core/src/shortcuts_kde.dart';
 import 'package:test/test.dart';
 
@@ -18,6 +19,36 @@ void main() {
     final daemon = Daemon(env.core, bus);
     await daemon.run(OverflowJob('new', 1));
     expect(env.desktop.calls, isEmpty);
+  });
+
+  test('KDE shortcuts: a failed sync is tried again (with a pause), a restarted kglobalaccel gets them again', () async {
+    final env = TestEnv.create(desktop: FakeDesktop(id: 'kde', name: 'KDE'));
+    addTearDown(env.dispose);
+    final bus = DBusClient(DBusAddress('unix:path=${env.root.path}/unused-bus'));
+    addTearDown(bus.close);
+    File(env.paths.file('shortcuts.json'))
+      ..createSync(recursive: true)
+      ..writeAsStringSync('{}');
+    var calls = 0;
+    var answer = false;
+    final daemon = Daemon(env.core, bus)
+      ..syncShortcuts = () async {
+        calls++;
+        return answer;
+      };
+    await daemon.syncShortcutsIfChanged();
+    expect(calls, 1);
+    await daemon.syncShortcutsIfChanged(); // within the pause: not yet
+    expect(calls, 1);
+    daemon.shortcutsServiceRestarted(); // kglobalaccel came (back): at once
+    answer = true;
+    await daemon.syncShortcutsIfChanged();
+    expect(calls, 2);
+    await daemon.syncShortcutsIfChanged(); // done and unchanged: nothing more
+    expect(calls, 2);
+    daemon.shortcutsServiceRestarted();
+    await daemon.syncShortcutsIfChanged();
+    expect(calls, 3);
   });
 
   group('window limits (the applet rule)', () {
@@ -99,6 +130,13 @@ void main() {
       expect(withSeq([chord], a), [chord, a]);
       expect(withSeq([a, chord], a), [a, chord]); // already there: unchanged
       expect(withoutSeq([[0x10000031]], a), isEmpty); // short and padded forms are the same
+    });
+
+    test('one desktop file per target: dots, plus signs and underscores never collide', () {
+      final names = {for (final t in ['apply:foo.bar', 'apply:foo+bar', 'apply:foo_bar', 'apply:foo-bar']) kdeKeyFileName(t)};
+      expect(names, hasLength(4));
+      expect(kdeKeyFileName('open'), 'maprisma-theme-key-open.desktop');
+      expect(kdeKeyFileName('apply:foo_bar'), 'maprisma-theme-key-apply_3Afoo_5Fbar.desktop');
     });
 
     test('owners: every component and service, ours left out', () {
