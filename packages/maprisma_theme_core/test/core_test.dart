@@ -64,7 +64,8 @@ void main() {
       expect(list.map((t) => t['slug']), full.map((t) => t['slug']));
       expect(list.map((t) => t['slug']), ['zeta', 'alpha', 'nord']);
       final nord = list.firstWhere((t) => t['slug'] == 'nord');
-      expect(nord.keys.toSet(), {'slug', 'name', 'current', 'favorite', 'hidden', 'preview', 'colors'});
+      expect(nord.keys.toSet(), {'slug', 'name', 'current', 'favorite', 'hidden', 'preview', 'wallpapers', 'colors'});
+      expect(nord['wallpapers'], isEmpty, reason: 'no preview: no flip');
       expect(nord['current'], isTrue);
       expect(nord['colors']['background'], '#2e3440');
       expect(nord['colors']['mode'], 'dark');
@@ -73,6 +74,25 @@ void main() {
       expect(list.first['favorite'], isTrue);
       // the CLI prints the same as one JSON object
       expect(await runCli(['list'], service: env.core), 0);
+    });
+
+    test('themes.brief: the wallpapers a card flips to (the one in use first) and the preview settings', () async {
+      final nordDir = env.addTheme('nord', wallpapers: ['a.png', 'b.png', 'c.png']);
+      File('$nordDir/preview.png').writeAsBytesSync(tinyPng);
+      final zetaDir = env.addTheme('zeta', wallpapers: ['x.png', 'y.png']);
+      File('$zetaDir/preview.png').writeAsBytesSync(tinyPng);
+      await env.core.call('themes.apply', {'slug': 'nord', 'wallpaper': '$nordDir/backgrounds/b.png'});
+      await env.core.call('settings.set', {'key': 'preview_big_auto_rotate', 'value': false});
+      await env.core.call('settings.set', {'key': 'preview_flip_delay', 'value': 1.5});
+      final r = await env.core.call('themes.brief');
+      final bySlug = {for (final t in (r['themes'] as List).cast<Map>()) t['slug']: t};
+      String names(Object? l) => (l as List).map((p) => (p as String).split('/').last).join(',');
+      expect(names(bySlug['nord']!['wallpapers']), 'b.png,c.png,a.png');
+      expect(names(bySlug['zeta']!['wallpapers']), 'x.png,y.png');
+      // the same lists as themes.list (Theme's own cards)
+      final full = {for (final t in ((await env.core.call('themes.list'))['themes'] as List).cast<Map>()) t['slug']: t};
+      expect(bySlug['zeta']!['wallpapers'], full['zeta']!['wallpapers']);
+      expect(r['settings'], {'preview_flip_3d': true, 'preview_flip_delay': 1.5, 'preview_big_auto_rotate': false});
     });
 
     test('apply sets COSMIC, wallpaper, terminal, current and recent; unhides', () async {

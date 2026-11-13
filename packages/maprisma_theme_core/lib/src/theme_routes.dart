@@ -109,27 +109,41 @@ Map<String, Handler> themeRoutes(Ctx ctx) => {
       'show_hidden': s['show_hidden'],
     };
   },
-  // A short list for other apps (Maprisma Manager's Appearance page; CLI `list`): the order of
-  // themes.list, each with its name, preview picture, swatch colours and marks, nothing that
-  // asks the desktop (no wallpapers, no pending looks), so it is quick.
+  // A short list for other apps (Maprisma Manager's Theme page; CLI `list`): the order of
+  // themes.list, each with its name, preview picture, swatch colours, marks and the wallpapers
+  // its card flips to (as themes.list, the one in use first by Theme's own record of it), and the
+  // preview settings, so the other app turns its cards as Theme does. Nothing asks the desktop
+  // (no pending looks, no desktop wallpaper query), so it is quick.
   'themes.brief': (p) async {
     final s = ctx.settings.load();
     final favorites = ctx.lists.favorites, hidden = ctx.lists.hidden;
     final current = ctx.current.slug;
+    final hiddenWalls = loadHiddenWallpapers(ctx.paths);
+    final chosen = chosenWallpapers(ctx);
+    final recordedBg = ctx.current.wallpaper ?? '';
     return {
       'current': current,
       'themes': [
         for (final t in orderThemes(ctx.themes(), favorites, ctx.lists.recent, s['sort'] as String))
-          {
-            'slug': t.slug,
-            'name': t.name,
-            'current': t.slug == current,
-            'favorite': favorites.contains(t.slug),
-            'hidden': hidden.contains(t.slug),
-            'preview': t.preview != null && imageSizeProblem(t.preview!) == null ? t.preview : null,
-            'colors': swatches(t.colors),
-          },
+          (() {
+            final preview = t.preview != null && imageSizeProblem(t.preview!) == null ? t.preview : null;
+            return {
+              'slug': t.slug,
+              'name': t.name,
+              'current': t.slug == current,
+              'favorite': favorites.contains(t.slug),
+              'hidden': hidden.contains(t.slug),
+              'preview': preview,
+              'wallpapers': preview == null
+                  ? const <String>[]
+                  : flipWallpapers(ctx, t, isCurrent: t.slug == current, hidden: hiddenWalls, chosen: chosen, currentBg: recordedBg),
+              'colors': swatches(t.colors),
+            };
+          })(),
       ],
+      'settings': {
+        for (final k in ['preview_flip_3d', 'preview_flip_delay', 'preview_big_auto_rotate']) k: s[k],
+      },
     };
   },
   'themes.get': (p) async {
