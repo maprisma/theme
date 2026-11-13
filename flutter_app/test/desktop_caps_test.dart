@@ -208,4 +208,30 @@ void main() {
       expect(app.can('fonts'), isTrue);
     },
   );
+
+  testWidgets('Hyprland: a Keyboard shortcuts pane chosen before desktop.info answered falls back, never blank', (tester) async {
+    tester.view.physicalSize = const Size(1200, 950);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final info = Completer<Map<String, dynamic>>();
+    Future<Map<String, dynamic>> call(String method, [Map<String, dynamic> params = const {}]) =>
+        method == 'desktop.info' ? info.future : core.call(method, params);
+    await tester.runAsync(() async {
+      await tester.pumpWidget(MaprismaThemeApp(call: call));
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
+    final app = tester.state<MaprismaThemeAppState>(find.byType(MaprismaThemeApp));
+    app.openPage('settings');
+    await settle(tester);
+    // the first caps (COSMIC's) offer it
+    await tester.tap(find.text('Keyboard shortcuts').first);
+    await settle(tester);
+    info.complete({'id': 'hyprland', 'name': 'Hyprland', 'terminal': null, 'caps': ['appearance', 'wallpaper']});
+    await settle(tester);
+    expect(find.text('Keyboard shortcuts'), findsNothing);
+    expect(find.text('Keyboard shortcuts are not available on Hyprland yet.'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }
+

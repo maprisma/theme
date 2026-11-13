@@ -430,6 +430,8 @@ final class KdeDesktop extends DesktopBase {
   }
 
   String? _program(String name) {
+    // Plasma may ship only `qdbus` (no qdbus6): KWin's reconfigure goes through either.
+    if (name == 'qdbus6') return _qdbus;
     for (final dir in const ['/usr/lib', '/usr/libexec']) {
       if (name == 'plasma-changeicons' && Posix.instance.executable('$dir/$name')) return '$dir/$name';
     }
@@ -491,6 +493,12 @@ final class KdeDesktop extends DesktopBase {
       writeText('$dir/$name.colors', text, mode: 420);
     } on FileSystemException {
       return false;
+    }
+    // A custom accent in kdeglobals ([General] AccentColor, from System Settings) would tint the
+    // new scheme with the old accent and win over the theme's own in every reader: it goes, so the
+    // theme's accent applies (System Settings keeps LastUsedCustomAccentColor to pick it again).
+    if (iniValue(_text(_kdeglobals), 'General', 'AccentColor') != null) {
+      await _run(['kwriteconfig6', '--file', 'kdeglobals', '--group', 'General', '--key', 'AccentColor', '--delete']);
     }
     if (!await _run(['plasma-apply-colorscheme', name])) return false;
     if (iniValue(_text(_kdeglobals), 'General', 'ColorScheme') != name) return false;

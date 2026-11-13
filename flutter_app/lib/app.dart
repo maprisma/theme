@@ -147,6 +147,8 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
   late final _windowSize = WindowSizeKeeper(
     geometry: AppWindow.instance.geometry,
     save: (w, h) => call('settings.set', {'key': 'size', 'value': [w, h]}),
+    // Maprisma Tiling on KDE sizes the window without GTK knowing (window_size.dart)
+    tiled: () => tiledByMaprismaTiling('com.maprisma.Theme'),
   );
 
   @override

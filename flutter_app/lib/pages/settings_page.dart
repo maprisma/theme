@@ -77,6 +77,11 @@ class _SettingsPageState extends State<SettingsPage> {
   Map<String, dynamic> shortcuts = {}, health = {}, animations = {};
   bool helpersKnown = false, loading = true, animationBusy = false;
   String section = 'general', search = '';
+
+  /// The section shown: one the sidebar offers. Keyboard shortcuts leaves it when the desktop
+  /// turns out to have none (Hyprland: the first caps are COSMIC's until desktop.info answers),
+  /// and a pane chosen meanwhile would stay blank.
+  String get _shown => section == 'shortcuts' && !app.can('shortcuts') ? 'general' : section;
   final _search = TextEditingController();
   final _searchFocus = FocusNode();
 
@@ -687,7 +692,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   bool _matches(_Row r) {
     final q = search.trim().toLowerCase();
-    if (q.isEmpty) return r.section == section;
+    if (q.isEmpty) return r.section == _shown;
     final name = _sectionName(r.section).toLowerCase();
     return name.contains(q) || '${r.title} ${r.hint}'.toLowerCase().contains(q);
   }
@@ -742,10 +747,10 @@ class _SettingsPageState extends State<SettingsPage> {
       }
       children.add(_rowWidget(r));
     }
-    if (search.trim().isEmpty && section == 'general' && !app.can('shortcuts')) {
+    if (search.trim().isEmpty && _shown == 'general' && !app.can('shortcuts')) {
       children.add(Text(trf("Keyboard shortcuts are not available on {0} yet.", [app.desktopName]), style: hintStyle(context)));
     }
-    if (search.trim().isEmpty && section == 'wallpapers' && !app.can('workspaces')) {
+    if (search.trim().isEmpty && _shown == 'wallpapers' && !app.can('workspaces')) {
       children.add(Text(trf("Workspaces are not available on {0} yet.", [app.desktopName]), style: hintStyle(context)));
     }
     if (shown.isEmpty && search.trim().isNotEmpty) {
@@ -826,7 +831,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                   );
                   Widget navButton(String key, String name, {bool chip = false}) {
-                    final active = search.isEmpty && section == key;
+                    final active = search.isEmpty && _shown == key;
                     final c = cornerSizes(context).control;
                     return Material(
                       color: active ? look.selection : Colors.transparent,

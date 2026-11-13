@@ -419,6 +419,39 @@ void main() {
     expect(logText(), contains('org.kde.KWin /KWin reconfigure'));
   });
 
+  test('a custom accent in kdeglobals goes before the scheme applies, so the theme\'s accent wins', () async {
+    statefulKwriteconfig();
+    // the fake scheme tool keeps what is there and sets the scheme (as the real one does)
+    tool('plasma-apply-colorscheme', 'grep -v "^ColorScheme=" "$config/kdeglobals" > "$config/kg.tmp"; '
+        'sed "s/^\\[General\\]\$/[General]\\nColorScheme=\$1/" "$config/kg.tmp" > "$config/kdeglobals"');
+    File('$config/kdeglobals').writeAsStringSync('[General]\nAccentColor=255,0,0\nLastUsedCustomAccentColor=255,0,0\n');
+    expect(await kde.applyColors(colors), isTrue);
+    final kdeglobals = File('$config/kdeglobals').readAsStringSync();
+    expect(kdeglobals, isNot(contains('AccentColor=255,0,0\n[')));
+    expect(iniValue(kdeglobals, 'General', 'AccentColor'), isNull);
+    expect(iniValue(kdeglobals, 'General', 'LastUsedCustomAccentColor'), '255,0,0');
+    final text = logText();
+    expect(text.indexOf('--key AccentColor --delete'), lessThan(text.indexOf('plasma-apply-colorscheme')));
+    // none set: nothing deleted
+    File(log).writeAsStringSync('');
+    expect(await kde.applyColors({...colors, 'accent': '#bf616a'}), isTrue);
+    expect(logText(), isNot(contains('AccentColor')));
+  });
+
+  test('only qdbus (no qdbus6): KWin is still told to reconfigure', () async {
+    final only = Directory('${root.path}/only')..createSync();
+    void put(String name, String body) {
+      final f = File('${only.path}/$name')..writeAsStringSync('#!/bin/sh\necho "$name \$*" >> "$log"\n$body\n');
+      chmodPath(f.path, 493);
+    }
+    put('plasma-apply-colorscheme', 'printf "[General]\\nColorScheme=%s\\n" "\$1" > "$config/kdeglobals"');
+    put('kwriteconfig6', '');
+    put('qdbus', '');
+    final env = {'HOME': '${root.path}/home', 'PATH': only.path, 'XDG_DATA_DIRS': '${root.path}/sys'};
+    expect(await KdeDesktop(paths, env).applyColors(colors), isTrue);
+    expect(logText(), contains('qdbus org.kde.KWin /KWin reconfigure'));
+  });
+
   test('two themes applied at once: one after the other; the frame is the colour of the scheme in use', () async {
     final red = {...colors, 'accent': '#bf616a'};
     final results = await Future.wait([kde.applyColors(colors), kde.applyColors(red)]);
