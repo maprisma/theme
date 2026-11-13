@@ -3,6 +3,8 @@
 #include "desktop_session.h"
 
 #include <flutter_linux/flutter_linux.h>
+#include <glib/gstdio.h>
+#include <unistd.h>
 
 #include "flutter/generated_plugin_registrant.h"
 
@@ -31,6 +33,27 @@ static void invoke(MyApplication* self, const char* method, FlValue* args) {
 }
 
 static void notify_shown(MyApplication* self) { invoke(self, "shown", nullptr); }
+
+// XDG_RUNTIME_DIR/maprisma-theme/window-shown holds this pid while the window is mapped:
+// the tray daemon draws its bar icon in the accent then (every Maprisma bar icon is in the accent when on).
+static gchar* shown_marker() {
+  return g_build_filename(g_get_user_runtime_dir(), "maprisma-theme", "window-shown", nullptr);
+}
+
+static void set_shown_marker(gboolean shown) {
+  g_autofree gchar* path = shown_marker();
+  if (!shown) {
+    g_unlink(path);
+    return;
+  }
+  g_autofree gchar* dir = g_path_get_dirname(path);
+  g_mkdir_with_parents(dir, 0700);
+  g_autofree gchar* pid = g_strdup_printf("%d\n", (int)getpid());
+  g_file_set_contents(path, pid, -1, nullptr);
+}
+
+static void window_map_cb(GtkWidget* widget, gpointer user_data) { set_shown_marker(TRUE); }
+static void window_unmap_cb(GtkWidget* widget, gpointer user_data) { set_shown_marker(FALSE); }
 
 static gboolean focus_changed_cb(GtkWidget* widget, GdkEventFocus* event,
                                  gpointer user_data) {
@@ -274,6 +297,8 @@ static void my_application_activate(GApplication* application) {
   gtk_window_set_titlebar(window, GTK_WIDGET(header_bar));
   gtk_window_set_default_size(window, 980, 700);
   gtk_window_set_icon_name(window, APPLICATION_ID);
+  g_signal_connect(window, "map", G_CALLBACK(window_map_cb), self);
+  g_signal_connect(window, "unmap", G_CALLBACK(window_unmap_cb), self);
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
   fl_dart_project_set_dart_entrypoint_arguments(project, self->dart_entrypoint_arguments);
@@ -357,6 +382,7 @@ static void my_application_startup(GApplication* application) {
 }
 
 static void my_application_shutdown(GApplication* application) {
+  set_shown_marker(FALSE);
   G_APPLICATION_CLASS(my_application_parent_class)->shutdown(application);
 }
 

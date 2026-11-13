@@ -27,6 +27,21 @@ use std::{
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
 const APP_ID: &str = "io.github.ubruckhaus.CosmicMaprismaTheme";
 const ICON: &str = "io.github.ubruckhaus.CosmicMaprismaTheme-symbolic";
+/// The window is shown: its runner keeps XDG_RUNTIME_DIR/maprisma-theme/window-shown (its pid)
+/// while it is mapped; the bar icon is drawn in the theme accent then, as every Maprisma bar icon
+/// that is on. A marker left by a crashed app counts as hidden.
+fn window_shown(runtime: Option<&std::path::Path>, proc: &std::path::Path) -> bool {
+    let Some(runtime) = runtime else { return false };
+    std::fs::read_to_string(runtime.join("maprisma-theme/window-shown"))
+        .ok()
+        .and_then(|s| s.trim().parse::<u32>().ok())
+        .is_some_and(|pid| pid > 0 && proc.join(pid.to_string()).is_dir())
+}
+fn on_svg() -> theme::Svg {
+    theme::Svg::custom(|theme: &cosmic::Theme| cosmic::iced::widget::svg::Style {
+        color: Some(theme.cosmic().accent_color().into()),
+    })
+}
 static AUTO: LazyLock<Id> = LazyLock::new(|| Id::new("maprisma-theme-autosize"));
 fn main() -> iced::Result {
     cosmic::applet::run::<Applet>(())
@@ -52,6 +67,7 @@ enum Message {
 }
 struct Applet {
     core: Core,
+    shown: bool,
     popup: Option<window::Id>,
     menu: Option<Value>,
     error: Option<String>,
@@ -157,6 +173,7 @@ impl cosmic::Application for Applet {
         let now = Instant::now();
         let mut app = Self {
             core,
+            shown: false,
             popup: None,
             menu: None,
             error: None,
@@ -246,6 +263,10 @@ impl cosmic::Application for Applet {
             }
             Message::Pulse => {
                 self.reload();
+                self.shown = window_shown(
+                    std::env::var_os("XDG_RUNTIME_DIR").map(PathBuf::from).as_deref(),
+                    std::path::Path::new("/proc"),
+                );
                 if self.automation.tiling.active
                     && self.last_tiling.elapsed() >= Duration::from_secs(15)
                 {
@@ -299,7 +320,11 @@ impl cosmic::Application for Applet {
     fn view(&self) -> Element<'_, Message> {
         let size = self.core.applet.suggested_size(true).0;
         let padding = self.core.applet.suggested_padding(true).0;
-        let button = button::custom(icon::from_name(ICON).size(size).icon())
+        let mut glyph = icon::from_name(ICON).symbolic(true).size(size).icon();
+        if self.shown {
+            glyph = glyph.class(on_svg());
+        }
+        let button = button::custom(glyph)
             .padding(padding)
             .on_press_down(Message::Toggle)
             .class(theme::Button::AppletIcon);
@@ -592,6 +617,20 @@ fn overflow_event(
 mod tests {
     use super::*;
     use serde_json::json;
+    #[test]
+    fn bar_icon_is_on_while_the_window_is_shown() {
+        let dir = std::env::temp_dir().join(format!("maprisma-theme-shown-{}", std::process::id()));
+        let proc = dir.join("proc");
+        std::fs::create_dir_all(dir.join("maprisma-theme")).unwrap();
+        std::fs::create_dir_all(&proc).unwrap();
+        assert!(!window_shown(Some(&dir), &proc));
+        std::fs::write(dir.join("maprisma-theme/window-shown"), "4242\n").unwrap();
+        assert!(!window_shown(Some(&dir), &proc)); // a crashed app's marker
+        std::fs::create_dir(proc.join("4242")).unwrap();
+        assert!(window_shown(Some(&dir), &proc));
+        assert!(!window_shown(None, &proc));
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
     #[test]
     fn disabled_start_consumes_session() {
         let mut claimed = false;

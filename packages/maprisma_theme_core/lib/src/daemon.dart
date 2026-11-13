@@ -149,6 +149,30 @@ bool claimAutostart(Map<String, String> env) {
   }
 }
 
+// --- the bar icon's state ---------------------------------------------------------------------
+
+/// The tray icon while the window is hidden: the white brush, as every Maprisma bar icon.
+const trayIconOff = 'io.github.ubruckhaus.CosmicMaprismaTheme-symbolic';
+
+/// The tray icon while the window is shown: the brush in the theme accent (class
+/// ColorScheme-Highlight; Maprisma Shell tints every -active-symbolic icon in the accent).
+const trayIconActive = 'io.github.ubruckhaus.CosmicMaprismaTheme-active-symbolic';
+
+String trayIconFor({required bool shown}) => shown ? trayIconActive : trayIconOff;
+
+/// The window is shown: the app's runner keeps XDG_RUNTIME_DIR/maprisma-theme/window-shown
+/// (its pid) while the window is mapped. A marker left by a crashed app counts as hidden.
+bool windowShown(Map<String, String> env, {String proc = '/proc'}) {
+  final runtime = env['XDG_RUNTIME_DIR'];
+  if (runtime == null || runtime.isEmpty) return false;
+  try {
+    final pid = int.tryParse(File('$runtime/maprisma-theme/window-shown').readAsStringSync().trim());
+    return pid != null && pid > 0 && Directory('$proc/$pid').existsSync();
+  } on FileSystemException {
+    return false;
+  }
+}
+
 // --- the tray icon: StatusNotifierItem + com.canonical.dbusmenu ---------------------------------
 
 final class _Tray extends DBusObject {
@@ -162,12 +186,12 @@ final class _Tray extends DBusObject {
     'Id': const DBusString('maprisma-theme'),
     'Title': const DBusString('Maprisma Theme'),
     'Status': const DBusString('Active'),
-    'IconName': const DBusString('com.maprisma.Theme'),
+    'IconName': DBusString(trayIconFor(shown: d.shown)),
     'IconThemePath': const DBusString(''),
     'ItemIsMenu': const DBusBoolean(false),
     'Menu': DBusObjectPath('/MenuBar'),
     'ToolTip': DBusStruct([
-      const DBusString('com.maprisma.Theme'),
+      DBusString(trayIconFor(shown: d.shown)),
       DBusArray(DBusSignature('(iiay)'), const []),
       const DBusString('Maprisma Theme'),
       DBusString(d.theme.isEmpty ? tr('Scroll: wallpaper · right-click: favorites') : trf('{0} · scroll: wallpaper', [d.theme])),
@@ -343,6 +367,9 @@ final class Daemon {
   var _busy = false;
   Map<String, dynamic> automation = const {};
   String theme = '';
+
+  /// The window is shown (the tray icon is in the accent then).
+  bool shown = false;
   late final _tray = _Tray(this);
   late final _menu = _Menu(this);
   final _subs = <StreamSubscription<dynamic>>[];
@@ -533,6 +560,14 @@ final class Daemon {
         }
       }));
     }
+    shown = windowShown(ctx.environment);
+    // The bar icon follows the window within a second; NewIcon only when it changes.
+    _timers.add(Timer.periodic(const Duration(seconds: 1), (_) {
+      final now = windowShown(ctx.environment);
+      if (now == shown) return;
+      shown = now;
+      if (_trayRegistered) unawaited(_tray.emitSignal('org.kde.StatusNotifierItem', 'NewIcon').catchError((_) {}));
+    }));
     var minute = 0;
     var lastLanguage = currentLanguage;
     _timers.add(Timer.periodic(const Duration(seconds: 5), (_) {

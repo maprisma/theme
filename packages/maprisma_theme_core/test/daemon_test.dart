@@ -111,6 +111,41 @@ void main() {
     });
   });
 
+  group('bar icon', () {
+    test('accent while the window is shown, white otherwise', () {
+      expect(trayIconFor(shown: true), 'io.github.ubruckhaus.CosmicMaprismaTheme-active-symbolic');
+      expect(trayIconFor(shown: false), 'io.github.ubruckhaus.CosmicMaprismaTheme-symbolic');
+    });
+
+    test('the runner\'s marker counts only while its process lives', () {
+      final dir = Directory.systemTemp.createTempSync('maprisma-theme-shown');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final proc = Directory('${dir.path}/proc')..createSync();
+      final env = {'XDG_RUNTIME_DIR': dir.path};
+      expect(windowShown(env, proc: proc.path), isFalse); // no marker
+      File('${dir.path}/maprisma-theme/window-shown')
+        ..createSync(recursive: true)
+        ..writeAsStringSync('4242\n');
+      expect(windowShown(env, proc: proc.path), isFalse); // a crashed app's marker
+      Directory('${proc.path}/4242').createSync();
+      expect(windowShown(env, proc: proc.path), isTrue);
+      File('${dir.path}/maprisma-theme/window-shown').writeAsStringSync('junk');
+      expect(windowShown(env, proc: proc.path), isFalse);
+      expect(windowShown(const {}), isFalse);
+    });
+
+    test('both icons ship with the colour classes the bars read', () {
+      final icons = '${Directory.current.path}/../../cosmic/applet/data/icons';
+      final off = File('$icons/io.github.ubruckhaus.CosmicMaprismaTheme-symbolic.svg').readAsStringSync();
+      final on = File('$icons/io.github.ubruckhaus.CosmicMaprismaTheme-active-symbolic.svg').readAsStringSync();
+      expect(off, contains('class="ColorScheme-Text"'));
+      expect(on, contains('class="ColorScheme-Highlight"'));
+      expect(on, isNot(contains('ColorScheme-Text"')));
+      final install = File('${Directory.current.path}/../../tools/install-local').readAsStringSync();
+      expect(install, contains(r'$id-active-symbolic.svg'));
+    });
+  });
+
   group('KDE keys', () {
     test('combos as Qt key codes and back from kglobalshortcutsrc', () {
       expect(qtCombo({'mods': ['SUPER', 'CTRL'], 'key': 'T'}), 0x10000000 | 0x04000000 | 0x54);

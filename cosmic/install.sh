@@ -18,5 +18,6 @@ text = pathlib.Path(source).read_text()
 pathlib.Path(target).write_text('\n'.join('Exec=' + quoted if line.startswith('Exec=') else line for line in text.splitlines()) + '\n')
 PY
 install -Dm644 "applet/data/icons/$maprisma_id-symbolic.svg" "$maprisma_data/icons/hicolor/scalable/apps/$maprisma_id-symbolic.svg"
+install -Dm644 "applet/data/icons/$maprisma_id-active-symbolic.svg" "$maprisma_data/icons/hicolor/scalable/apps/$maprisma_id-active-symbolic.svg"
 if command -v gtk-update-icon-cache >/dev/null; then gtk-update-icon-cache -f -t "$maprisma_data/icons/hicolor" || true; fi
 printf '%s\n' 'Installed Maprisma Theme helper and applet. Panel configuration was not changed.'
