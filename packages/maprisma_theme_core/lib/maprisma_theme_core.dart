@@ -13,6 +13,7 @@ export 'src/posix.dart';
 export 'src/screenshot.dart';
 export 'src/protocol.dart';
 export 'src/settings.dart';
+export 'src/shared_ai.dart';
 export 'src/store.dart';
 export 'src/themes.dart';
 export 'src/cli.dart';

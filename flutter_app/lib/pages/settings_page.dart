@@ -70,6 +70,10 @@ class _SettingsPageState extends State<SettingsPage> {
   Map<String, dynamic> settings = {};
   Map<String, dynamic> plan = {};
   List<Map> themes = [], apps = [], helpers = [];
+  /// The helper every Maprisma app uses (Maprisma Manager → AI): the one in use, and whether
+  /// that is automatic (the first ready one).
+  String? helperInUse;
+  bool helperAuto = true;
   Map<String, dynamic> shortcuts = {}, health = {}, animations = {};
   bool helpersKnown = false, loading = true, animationBusy = false;
   String section = 'general', search = '';
@@ -121,6 +125,8 @@ class _SettingsPageState extends State<SettingsPage> {
       shortcuts = results[4] ?? const {};
       final h = results[5]?['helpers'];
       helpersKnown = h is List;
+      helperInUse = results[5]?['chosen'] as String?;
+      helperAuto = results[5]?['choice'] is! String || results[5]?['choice'] == 'auto' || results[5]?['choice'] != helperInUse;
       helpers = [
         for (final x in h is List ? h : const [])
           if (x is Map && x['installed'] != false) x,
@@ -587,19 +593,19 @@ class _SettingsPageState extends State<SettingsPage> {
           style: hintStyle(context),
         ),
       ),
+      // One helper for every Maprisma app: chosen in Maprisma Manager (or on the Ask AI page).
       if (helpers.isNotEmpty)
         _Row(
           'ask-ai',
           tr("Helper"),
-          tr("The first ready one unless you choose"),
-          _dropdown<String>('${settings['ask_ai_helper'] ?? ''}', [
-            ('', tr("First ready one")),
-            for (final h in helpers)
-              (
-                '${h['id']}',
-                '${h['name'] ?? h['id']}${h['local'] == true ? tr(" (on this PC)") : ''}${h['verified'] == false ? tr(" (untested)") : ''}${h['signed_in'] == false ? tr(" — not signed in") : ''}',
-              ),
-          ], (v) => set('ask_ai_helper', v.isEmpty ? null : v)),
+          tr("Set in Maprisma Manager → AI"),
+          Text(
+            [
+              if (helperAuto) tr("First ready one"),
+              ?helpers.where((h) => h['id'] == helperInUse).map((h) => '${h['name'] ?? h['id']}').firstOrNull,
+            ].join(' · '),
+            style: hintStyle(context),
+          ),
         ),
       _Row(
         'ask-ai',

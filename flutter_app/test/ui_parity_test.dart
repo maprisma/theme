@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -61,6 +62,7 @@ void main() {
   late CoreService core;
   final shots = shotsDir;
   var aiOn = false;
+  var aiChoice = 'auto'; // the shared Maprisma AI helper choice the fake ask.helpers reports
   var createAnswer = false, generatorReady = true;
   var made = 0;
   var settingUp = false;
@@ -70,6 +72,7 @@ void main() {
 
   setUp(() async {
     aiOn = false;
+    aiChoice = 'auto';
     createAnswer = false;
     generatorReady = true;
     made = 0;
@@ -142,11 +145,16 @@ void main() {
                 {'id': 'claude', 'name': 'Claude Code', 'signed_in': true, 'web': true},
                 {'id': 'codex', 'name': 'Codex', 'signed_in': true, 'web': false},
               ],
-              'chosen': 'claude',
+              'choice': aiChoice,
+              'chosen': aiChoice == 'codex' ? 'codex' : 'claude',
               'enabled': true,
               'web': true,
             }
           : {'helpers': <Map>[], 'chosen': null, 'enabled': false};
+    }
+    if (m == 'ask.choose') {
+      aiChoice = p['helper'] as String;
+      return core.call(m, p); // the real shared file (in the temporary HOME)
     }
     if (m == 'create.status') {
       return {
@@ -360,8 +368,10 @@ void main() {
     await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 300)));
     await settle(tester);
     expect(find.descendant(of: choice, matching: find.text('Codex')), findsOneWidget);
-    final saved = await tester.runAsync(() => core.call('settings.get', {}));
-    expect((saved?['settings'] ?? saved)['ask_ai_helper'], 'codex');
+    // One choice for every Maprisma app: the shared file, not Maprisma Theme's own settings.
+    final shared = jsonDecode(File(core.ctx.paths.sharedAiSettings).readAsStringSync()) as Map;
+    expect(shared['helper'], 'codex');
+    expect(core.ctx.paths.sharedAiSettings, startsWith(root.path));
     expect(tester.takeException(), isNull);
   });
 

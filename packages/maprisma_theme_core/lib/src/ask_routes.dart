@@ -4,6 +4,7 @@ import 'dart:io';
 import 'ask_ai.dart';
 import 'context.dart';
 import 'posix.dart';
+import 'shared_ai.dart';
 import 'theme_ai.dart';
 
 const maprismaUrl = 'https://plugins.omarchy.org/plugin.html?id=ubruckhaus.maprisma';
@@ -39,7 +40,7 @@ Future<List<String>> fontFacts(Ctx ctx) async {
   }
 }
 
-/// Routes of the ask module: `ask.helpers`, `ask.run`, `ask.cancel`,
+/// Routes of the ask module: `ask.helpers`, `ask.choose`, `ask.run`, `ask.cancel`,
 /// `ask.release`, `ask.signin`, `ask.open_maprisma`.
 Map<String, Handler> askRoutes(Ctx ctx) {
   final runner = AskRunner(home: ctx.paths.home, environment: ctx.environment);
@@ -47,17 +48,21 @@ Map<String, Handler> askRoutes(Ctx ctx) {
   // Every wallpaper prompt the same: a helper with web tools also searches the
   // web for pictures, unless Settings › Ask AI › Search the web is off.
   bool searchesWeb(String helper) => ctx.settings.get('ask_ai_web') != false && canSearchWeb(helper);
+  // The shared choice; Maprisma Theme's own old one while the shared file is not there yet.
+  String sharedChoice() => effectiveSharedHelper(ctx.paths.sharedAiSettings, ctx.settings.get('ask_ai_helper'));
 
   return {
     'ask.helpers': (p) async {
       final list = [for (final h in await states()) {...h, 'web': canSearchWeb(h['id'] as String)}];
       final ready = [for (final h in list) if (h['signed_in'] == true) h['id'] as String];
-      // The saved helper when it is ready; else (automatic, or one unknown or no longer
-      // installed) the first ready one in the catalog's order.
-      final saved = ctx.settings.get('ask_ai_helper');
+      // The helper chosen for every Maprisma app (Maprisma Manager → AI, read again on every
+      // call) when it is ready; else (auto, or one unknown or no longer installed) the first
+      // ready one in the catalog's order.
+      final choice = sharedChoice();
       return {
         'helpers': list,
-        'chosen': ready.contains(saved) ? saved : ready.firstOrNull,
+        'choice': choice,
+        'chosen': resolveSharedHelper(choice, ready),
         'enabled': ctx.settings.get('ask_ai') == true,
         'web': ctx.settings.get('ask_ai_web') != false,
         'busy': runner.busy,
@@ -151,6 +156,17 @@ Map<String, Handler> askRoutes(Ctx ctx) {
         throw RouteError('bad_answer', tr("no usable search words in the answer"));
       }
       return {'summary': summary, 'queries': queries, 'images': images, 'web': web, 'picture_prompt': picturePrompt};
+    },
+    // The helper for every Maprisma app: "auto" or a helper id, written to the shared file.
+    'ask.choose': (p) async {
+      final helper = str(p, 'helper');
+      if (helper != sharedHelperAuto && !validSharedHelperId(helper)) throw RouteError('bad_params', 'helper');
+      try {
+        writeSharedHelper(ctx.paths.sharedAiSettings, helper);
+      } on FileSystemException {
+        throw RouteError('write_failed', tr("Could not save the setting"));
+      }
+      return {'choice': helper};
     },
     'ask.cancel': (p) async {
       runner.cancel();

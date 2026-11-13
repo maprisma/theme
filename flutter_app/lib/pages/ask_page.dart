@@ -64,6 +64,8 @@ class _AskPageState extends State<AskPage> {
   final _field = FocusNode();
   List<Map<String, dynamic>> helpers = [];
   String? helper;
+  /// The helper chosen for every Maprisma app (Maprisma Manager → AI): "auto" or an id.
+  String choice = 'auto';
   bool loaded = false, asking = false, showNote = false;
   int? editing;
   String status = '';
@@ -150,7 +152,10 @@ class _AskPageState extends State<AskPage> {
       setState(() {
         helpers = [for (final h in r['helpers'] as List) Map<String, dynamic>.from(h as Map)];
         final ids = ready.map((h) => h['id']).toSet();
-        helper = ids.contains(helper) ? helper : r['chosen'] as String?;
+        // The shared choice decides (it may have changed in another Maprisma app).
+        final now = r['chosen'] as String?;
+        helper = now != null && ids.contains(now) ? now : null;
+        choice = r['choice'] is String ? r['choice'] as String : 'auto';
         loaded = true;
       });
     } catch (e) {
@@ -177,13 +182,26 @@ class _AskPageState extends State<AskPage> {
   /// it on, so an answer still on its way never replaces the cards.
   int _askGen = 0;
 
-  void _chooseHelper(String? id) {
-    if (id == null || id == helper) return;
-    _askGen++;
-    if (asking) app.call('ask.cancel').ignore(); // the old helper's answer is not this one's
-    setState(() => helper = id);
-    _release(id); // another model or an online agent: the old model's memory back
-    _set('ask_ai_helper', id);
+  /// The menu's value for automatic (the first ready helper in the catalog's order).
+  static const _auto = 'auto';
+
+  /// Whether automatic is in use: chosen so, or the chosen helper is not ready.
+  bool get _isAuto => choice == _auto || !ready.any((h) => h['id'] == choice);
+
+  /// Another helper (or automatic): it is the choice of every Maprisma app from now on.
+  void _chooseHelper(String? picked) {
+    if (picked == null || picked == choice) return;
+    final id = picked == _auto ? (ready.firstOrNull?['id'] as String?) : picked;
+    if (id != helper) {
+      _askGen++;
+      if (asking) app.call('ask.cancel').ignore(); // the old helper's answer is not this one's
+      if (id != null) _release(id); // another model or an online agent: the old model's memory back
+    }
+    setState(() {
+      helper = id;
+      choice = picked;
+    });
+    app.run('ask.choose', {'helper': picked}, tr("Could not save the setting")).ignore();
   }
 
   // --- suggestions ----------------------------------------------------------------------
@@ -398,6 +416,9 @@ class _AskPageState extends State<AskPage> {
   }
 
   Future<void> _ask({_Card? parent, String? words}) async {
+    if (asking || _tidy(words ?? request.text).isEmpty) return;
+    await _load(); // the shared helper choice again: another Maprisma app may have changed it
+    if (!mounted) return;
     final h = chosen;
     final text = _tidy(words ?? request.text);
     if (asking || h == null || text.isEmpty) return;
@@ -1225,8 +1246,10 @@ class _AskPageState extends State<AskPage> {
               onSelected: _chooseHelper,
               position: PopupMenuPosition.under,
               itemBuilder: (_) => [
+                CheckedPopupMenuItem(value: _auto, checked: _isAuto, child: Text(tr("First ready one"))),
                 for (final h in list)
-                  CheckedPopupMenuItem(value: h['id'] as String, checked: h['id'] == helper, child: Text(_helperName(h))),
+                  CheckedPopupMenuItem(
+                      value: h['id'] as String, checked: !_isAuto && h['id'] == helper, child: Text(_helperName(h))),
               ],
               child: Container(
                 padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),

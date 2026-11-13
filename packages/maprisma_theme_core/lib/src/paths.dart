@@ -48,6 +48,9 @@ final class Paths {
   String get backgrounds => '$config/backgrounds';
   String get backups => '$config/backups';
   String file(String name) => '$config/$name';
+
+  /// The AI helper choice shared by every Maprisma app (shared_ai.dart).
+  String get sharedAiSettings => '${File(config).parent.path}/maprisma-ai/settings.json';
   String get settingsFile => file('settings.json');
   String get automationFile => file('automation.json');
   String get currentFile => '$state/current.json';

@@ -72,6 +72,8 @@ class _WallhavenPageState extends State<WallhavenPage> {
   final aiField = TextEditingController();
   final aiFocus = FocusNode();
   Map? aiHelper;
+  /// The helper chosen for every Maprisma app (Maprisma Manager → AI): "auto" or an id.
+  String aiChoice = 'auto';
   bool asking = false;
 
   /// Each Ask (and Next's web ask) belongs to this number; a new search, another
@@ -127,7 +129,9 @@ class _WallhavenPageState extends State<WallhavenPage> {
     loadHelper();
   }
 
-  Future<void> loadHelper() async {
+  /// The shared helper choice, read again on open and before each Ask ([focus]: the Ask field
+  /// gets the focus when the page opened for Ask AI).
+  Future<void> loadHelper({bool focus = true}) async {
     Map<String, dynamic>? r;
     try {
       r = await app.call('ask.helpers');
@@ -143,23 +147,31 @@ class _WallhavenPageState extends State<WallhavenPage> {
     setState(() {
       aiReady = ready;
       aiWebAllowed = r!['web'] != false;
-      aiHelper = h;
+      aiChoice = r['choice'] is String ? r['choice'] as String : 'auto';
       aiWeb = h['web'] == true && aiWebAllowed;
+      aiHelper = h;
     });
-    if (widget.askAi) WidgetsBinding.instance.addPostFrameCallback((_) => aiFocus.requestFocus());
+    if (focus && widget.askAi) WidgetsBinding.instance.addPostFrameCallback((_) => aiFocus.requestFocus());
   }
 
-  /// Another helper chosen: it asks from now on (an answer on its way stays),
-  /// and the Ask AI page uses it too (the same remembered choice).
+  /// Automatic: chosen so, or the chosen helper is not ready.
+  bool get aiAuto => aiChoice == 'auto' || !aiReady.any((h) => h['id'] == aiChoice);
+
+  /// Another helper (or 'auto', the first ready one) chosen: it asks from now on (an answer on
+  /// its way stays), and every Maprisma app uses it too (the shared choice).
   Future<void> chooseHelper(String id) async {
-    final h = aiReady.where((h) => h['id'] == id).firstOrNull;
-    if (h == null || h['id'] == aiHelper?['id']) return;
+    if (id == aiChoice) return;
+    final h = id == 'auto' ? aiReady.firstOrNull : aiReady.where((h) => h['id'] == id).firstOrNull;
+    if (h == null) return;
     setState(() {
-      dropAsk(); // the old helper's answer is not this helper's
+      if (h['id'] != aiHelper?['id']) {
+        dropAsk(); // the old helper's answer is not this helper's
+        aiWeb = h['web'] == true && aiWebAllowed;
+      }
       aiHelper = h;
-      aiWeb = h['web'] == true && aiWebAllowed;
+      aiChoice = id;
     });
-    await app.run('settings.set', {'key': 'ask_ai_helper', 'value': id}, tr("Could not save the setting"));
+    await app.run('ask.choose', {'helper': id}, tr("Could not save the setting"));
     app.changed();
   }
 
@@ -176,8 +188,10 @@ class _WallhavenPageState extends State<WallhavenPage> {
       onSelected: chooseHelper,
       position: PopupMenuPosition.under,
       itemBuilder: (_) => [
+        CheckedPopupMenuItem(value: 'auto', checked: aiAuto, child: Text(tr("First ready one"))),
         for (final h in aiReady)
-          CheckedPopupMenuItem(value: h['id'] as String, checked: h['id'] == current['id'], child: Text(helperName(h))),
+          CheckedPopupMenuItem(
+              value: h['id'] as String, checked: !aiAuto && h['id'] == current['id'], child: Text(helperName(h))),
       ],
       child: Container(
         constraints: const BoxConstraints(maxWidth: 200),
@@ -194,6 +208,9 @@ class _WallhavenPageState extends State<WallhavenPage> {
   }
 
   Future<void> askAi() async {
+    if (aiField.text.trim().isEmpty || asking) return;
+    await loadHelper(focus: false); // the shared helper choice again: another app may have changed it
+    if (!mounted) return;
     final words = aiField.text.trim();
     final helper = aiHelper;
     if (words.isEmpty || helper == null || asking) return;
