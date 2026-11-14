@@ -170,6 +170,9 @@ impl cosmic::Application for Applet {
         &mut self.core
     }
     fn init(core: Core, _: ()) -> (Self, Task<Message>) {
+        // Opaque popup also when the COSMIC theme has frosted applets on (the family rule: all solid).
+        let mut core = core;
+        core.set_auto_blur(Default::default());
         let now = Instant::now();
         let mut app = Self {
             core,
