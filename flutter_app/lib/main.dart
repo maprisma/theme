@@ -16,5 +16,5 @@ Future<void> main(List<String> args) async {
   } on Object {
     // the default size
   }
-  runApp(MaprismaThemeApp(call: backend.call));
+  runApp(MaprismaThemeApp(call: backend.call, windowStyle: true));
 }

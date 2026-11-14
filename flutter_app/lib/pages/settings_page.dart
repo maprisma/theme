@@ -9,6 +9,7 @@ import 'package:maprisma_theme_core/maprisma_theme_core.dart' show flipDelayChoi
 import '../app.dart';
 import '../theme.dart';
 import '../widgets.dart';
+import '../window_style.dart';
 import 'shortcut_page.dart';
 
 /// One row of the settings: its section, its words (for the search) and its control.
@@ -83,6 +84,19 @@ class _SettingsPageState extends State<SettingsPage> {
   /// and a pane chosen meanwhile would stay blank.
   String get _shown => section == 'shortcuts' && !app.can('shortcuts') ? 'general' : section;
   final _search = TextEditingController();
+
+  String windowStyle = chosenWindowStyle();
+
+  /// Settings › App windows: written to the file all Maprisma apps read.
+  Future<void> _windowStyle(String value) async {
+    try {
+      await writeWindowsSetting('style', value);
+      WindowStyleWatcher.refreshAll();
+      if (mounted) setState(() => windowStyle = value);
+    } on Object {
+      if (mounted) app.notify(tr('Could not save the setting.'));
+    }
+  }
   final _searchFocus = FocusNode();
 
   @override
@@ -391,6 +405,12 @@ class _SettingsPageState extends State<SettingsPage> {
           _animationSwitch('window'),
         ),
       ],
+      _Row(
+        'general',
+        tr('App windows'),
+        tr('For all Maprisma apps: see-through windows, blurred behind where the desktop blurs (Glassy). Follow the desktop uses Omarchy\'s window style, elsewhere Glassy while Maprisma Theme has blur on.'),
+        _dropdown(windowStyle, windowStyleChoices(tr), _windowStyle, key: const ValueKey('settings-window-style')),
+      ),
       _Row(
         'themes',
         tr("Sort the list"),

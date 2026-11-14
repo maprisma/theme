@@ -603,7 +603,7 @@ class SubPage extends StatelessWidget {
         return KeyEventResult.handled;
       },
       child: Scaffold(
-        backgroundColor: look.bg,
+        backgroundColor: pageBackground(context),
         floatingActionButton: floating,
         body: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Row(children: [

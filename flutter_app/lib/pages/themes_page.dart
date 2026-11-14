@@ -563,7 +563,6 @@ class _ThemesPageState extends State<ThemesPage> {
   @override
   Widget build(BuildContext context) {
     AppScope.of(context);
-    final look = Look.of(context);
     final list = shown;
     final hiddenCount = hiddenOut;
     final footer = Padding(
@@ -587,7 +586,7 @@ class _ThemesPageState extends State<ThemesPage> {
       autofocus: true,
       onKeyEvent: onKey,
       child: Scaffold(
-        backgroundColor: look.bg,
+        backgroundColor: pageBackground(context),
         body: loading
             ? const Center(child: CircularProgressIndicator())
             : LayoutBuilder(builder: (context, box) {

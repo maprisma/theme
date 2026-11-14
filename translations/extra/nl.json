@@ -718,5 +718,12 @@
   "Listening…": "Aan het luisteren…",
   "Dictation is not available: {0}": "Dicteren is niet beschikbaar: {0}",
   "Switched off in Maprisma Settings › AI": "Uitgeschakeld in Maprisma Settings › AI",
-  "Maprisma Settings › AI": "Maprisma Settings › AI"
+  "Maprisma Settings › AI": "Maprisma Settings › AI",
+  "App windows": "App-vensters",
+  "Solid": "Dekkend",
+  "Transparent": "Doorzichtig",
+  "Glassy (blurred)": "Glas (vervaagd)",
+  "Follow the desktop": "Zoals het bureaublad",
+  "For all Maprisma apps: see-through windows, blurred behind where the desktop blurs (Glassy). Follow the desktop uses Omarchy's window style, elsewhere Glassy while Maprisma Theme has blur on.": "Voor alle Maprisma-apps: doorzichtige vensters, erachter vervaagd waar het bureaublad dat doet (Glas). „Zoals het bureaublad” volgt de vensterstijl van Omarchy, elders Glas zolang Maprisma Theme vervaging aan heeft.",
+  "Could not save the setting.": "De instelling kon niet worden opgeslagen."
 }

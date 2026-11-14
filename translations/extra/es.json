@@ -718,5 +718,12 @@
   "Listening…": "Escuchando…",
   "Dictation is not available: {0}": "El dictado no está disponible: {0}",
   "Switched off in Maprisma Settings › AI": "Desactivado en Maprisma Settings › IA",
-  "Maprisma Settings › AI": "Maprisma Settings › IA"
+  "Maprisma Settings › AI": "Maprisma Settings › IA",
+  "App windows": "Ventanas de las apps",
+  "Solid": "Opacas",
+  "Transparent": "Transparentes",
+  "Glassy (blurred)": "Cristal (desenfocado)",
+  "Follow the desktop": "Como el escritorio",
+  "For all Maprisma apps: see-through windows, blurred behind where the desktop blurs (Glassy). Follow the desktop uses Omarchy's window style, elsewhere Glassy while Maprisma Theme has blur on.": "Para todas las apps de Maprisma: ventanas transparentes, desenfocadas detrás donde el escritorio desenfoca (Cristal). «Como el escritorio» sigue el estilo de ventanas de Omarchy; en otros, Cristal mientras Maprisma Theme tenga el desenfoque activado.",
+  "Could not save the setting.": "No se pudo guardar el ajuste."
 }

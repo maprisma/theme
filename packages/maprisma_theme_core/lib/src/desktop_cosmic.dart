@@ -8,6 +8,7 @@ import 'shortcuts.dart';
 import 'shortcuts_cosmic.dart';
 import 'store.dart';
 import 'themes.dart';
+import 'window_style_flag.dart';
 
 /// The applet's id in COSMIC's panels.
 const appletId = 'io.github.ubruckhaus.CosmicMaprismaTheme';
@@ -113,7 +114,10 @@ final class CosmicDesktop extends DesktopBase {
     };
     if (modes.isEmpty) return false;
     final r = await helperJson(['set-blur', jsonEncode(modes)]);
-    return r != null && r['error'] == null;
+    if (r == null || r['error'] != null) return false;
+    // Settings › App windows › Follow the desktop: Glassy while the blur is on.
+    writeThemeBlurFlag(blurAsLook(state)['on'] == true, environment);
+    return true;
   }
 
   @override

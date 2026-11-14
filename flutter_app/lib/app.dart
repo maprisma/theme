@@ -18,6 +18,7 @@ import 'screenshots.dart';
 import 'theme.dart';
 import 'material_translations.dart';
 import 'window.dart';
+import 'window_style.dart';
 import 'window_size.dart';
 
 /// What every page reaches through `AppScope.of(context)`.
@@ -54,8 +55,12 @@ List<String> headerOrder(Object? saved) {
 const defaultWindowSize = Size(980, 700);
 
 class MaprismaThemeApp extends StatefulWidget {
-  const MaprismaThemeApp({super.key, required this.call});
+  const MaprismaThemeApp({super.key, required this.call, this.windowStyle = false});
   final CoreCall call;
+
+  /// Settings › App windows (window_style.dart): follow ~/.config/maprisma/windows.json. Only
+  /// the real app (main.dart) does; widget tests keep solid windows whatever the file says.
+  final bool windowStyle;
   @override
   State<MaprismaThemeApp> createState() => MaprismaThemeAppState();
 }
@@ -129,6 +134,7 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
     // A theme applied elsewhere (the tray popup, the CLI, an automation) or new window corners
     // show without a restart.
     _lookTimer = Timer.periodic(const Duration(seconds: 5), (_) => pollLook());
+    if (widget.windowStyle) _windowStyle = WindowStyleWatcher();
     HardwareKeyboard.instance.addHandler(_f12);
   }
 
@@ -170,6 +176,7 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
     _windowSize.dispose();
     _maxTimer?.cancel();
     _lookTimer?.cancel();
+    _windowStyle?.dispose();
     for (final s in _subs) {
       s.cancel();
     }
@@ -197,6 +204,9 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
   }
 
   Timer? _lookTimer;
+
+  /// Settings › App windows: see-through windows for all Maprisma apps (window_style.dart).
+  WindowStyleWatcher? _windowStyle;
   bool _polling = false;
 
   /// Back in the window: the desktop's look may have changed meanwhile.
@@ -349,6 +359,12 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
   Widget build(BuildContext context) {
     final radius = cornerRadius(settings['corners'] as String? ?? 'windows', windowRadius);
     final platform = MediaQuery.platformBrightnessOf(context);
+    final style = _windowStyle;
+    if (style == null) return _app(radius, platform, 1);
+    return ValueListenableBuilder<double>(valueListenable: style, builder: (context, alpha, _) => _app(radius, platform, alpha));
+  }
+
+  Widget _app(double radius, Brightness platform, double alpha) {
     return AppScope(
       state: this,
       child: MaterialApp(
@@ -360,7 +376,7 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
         navigatorKey: navigator,
         navigatorObservers: [_observer, _esc],
         scaffoldMessengerKey: messenger,
-        theme: appTheme(platform, colors, radius),
+        theme: withWindowAlpha(appTheme(platform, colors, radius), alpha),
         // Esc's last word sits outside the header too (its buttons can have the keyboard).
         builder: (context, child) => _esc.wrap(CallbackShortcuts(
           bindings: {
@@ -406,9 +422,9 @@ class _Card extends StatelessWidget {
   final Widget child;
   @override
   Widget build(BuildContext context) {
-    final look = Look.of(context);
+    // The window's background: see-through with Settings › App windows (window_style.dart).
     return Material(
-      color: look.bg,
+      color: Theme.of(context).scaffoldBackgroundColor,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [

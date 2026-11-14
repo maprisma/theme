@@ -718,5 +718,12 @@
   "Listening…": "Słucham…",
   "Dictation is not available: {0}": "Dyktowanie jest niedostępne: {0}",
   "Switched off in Maprisma Settings › AI": "Wyłączono w Maprisma Settings › AI",
-  "Maprisma Settings › AI": "Maprisma Settings › AI"
+  "Maprisma Settings › AI": "Maprisma Settings › AI",
+  "App windows": "Okna aplikacji",
+  "Solid": "Nieprzezroczyste",
+  "Transparent": "Przezroczyste",
+  "Glassy (blurred)": "Szkło (rozmyte)",
+  "Follow the desktop": "Jak pulpit",
+  "For all Maprisma apps: see-through windows, blurred behind where the desktop blurs (Glassy). Follow the desktop uses Omarchy's window style, elsewhere Glassy while Maprisma Theme has blur on.": "Dla wszystkich aplikacji Maprisma: przezroczyste okna, rozmyte z tyłu tam, gdzie pulpit rozmywa (Szkło). „Jak pulpit” korzysta ze stylu okien Omarchy, gdzie indziej Szkło, gdy Maprisma Theme ma włączone rozmycie.",
+  "Could not save the setting.": "Nie można zapisać ustawienia."
 }

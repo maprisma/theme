@@ -22,6 +22,7 @@ import 'posix.dart';
 import 'shortcuts.dart';
 import 'shortcuts_kde.dart';
 import 'store.dart';
+import 'window_style_flag.dart';
 
 /// The two scheme names Maprisma Theme alternates between:
 /// plasma-apply-colorscheme skips the scheme already in use, so a changed
@@ -372,6 +373,8 @@ final class KdeDesktop extends DesktopBase {
       await write(before['enabled'] as String?, before['strength'] as String?, before['loaded'] as bool);
       return false;
     }
+    // Settings › App windows › Follow the desktop: Glassy while the blur is on.
+    writeThemeBlurFlag(blurAsLook(state)['on'] == true, environment);
     return true;
   }
 

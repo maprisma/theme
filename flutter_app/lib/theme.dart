@@ -90,6 +90,14 @@ Color _darker(Color c) {
 TextStyle textRole(TextStyle? role) =>
     TextStyle(fontSize: role?.fontSize, fontWeight: role?.fontWeight, letterSpacing: role?.letterSpacing, height: role?.height);
 
+/// A page's background over the window card (app.dart _Card), which paints the window's
+/// background once: see-through with Settings › App windows (window_style.dart), the page then
+/// stays as see-through as the window instead of adding a second layer.
+Color pageBackground(BuildContext context) {
+  final bg = Theme.of(context).scaffoldBackgroundColor;
+  return bg.a < 1 ? Colors.transparent : bg;
+}
+
 double corners(BuildContext context) => Theme.of(context).extension<Corners>()?.radius ?? 12;
 
 /// Settings › Corners in its three sizes (see [Corners]).

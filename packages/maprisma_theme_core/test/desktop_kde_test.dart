@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:maprisma_theme_core/maprisma_theme_core.dart';
@@ -603,10 +604,14 @@ void main() {
       expect(kwinrc('Effect-blur', 'BlurStrength'), '4');
       expect(kwinrc('Effect-blur', 'NoiseStrength'), '3');
       expect(logText(), contains('reconfigureEffect blur'));
+      // Settings › App windows › Follow the desktop reads it (window_style.dart)
+      final windows = File('${root.path}/home/.config/maprisma/windows.json');
+      expect(jsonDecode(windows.readAsStringSync()), {'theme_blur': true});
 
       expect(await kde.restoreBlur(kde.blurTarget(target, on: false, strength: 4)), isTrue);
       expect(live(), isNot(contains('blur')));
       expect(plugin('blur'), 'false');
+      expect(jsonDecode(windows.readAsStringSync()), {'theme_blur': false});
 
       // back: no keys, and the effect not running, as before
       expect(await kde.restoreBlur(before), isTrue);
@@ -621,6 +626,7 @@ void main() {
       final before = (await kde.blurState())!;
       expect(await kde.restoreBlur(kde.blurTarget(before, on: true, strength: 2)), isFalse);
       expect(await kde.blurState(), before);
+      expect(File('${root.path}/home/.config/maprisma/windows.json').existsSync(), isFalse);
 
       File('${root.path}/refuse').deleteSync();
       File('$loaded/blur').createSync();

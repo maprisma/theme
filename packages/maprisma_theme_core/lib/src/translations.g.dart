@@ -1414,7 +1414,14 @@ const translationCatalogs = <String, Map<String, String>>{
     "Listening…": "Listening…",
     "Dictation is not available: {0}": "Dictation is not available: {0}",
     "Switched off in Maprisma Settings › AI": "Switched off in Maprisma Settings › AI",
-    "Maprisma Settings › AI": "Maprisma Settings › AI"
+    "Maprisma Settings › AI": "Maprisma Settings › AI",
+    "App windows": "App windows",
+    "Solid": "Solid",
+    "Transparent": "Transparent",
+    "Glassy (blurred)": "Glassy (blurred)",
+    "Follow the desktop": "Follow the desktop",
+    "For all Maprisma apps: see-through windows, blurred behind where the desktop blurs (Glassy). Follow the desktop uses Omarchy's window style, elsewhere Glassy while Maprisma Theme has blur on.": "For all Maprisma apps: see-through windows, blurred behind where the desktop blurs (Glassy). Follow the desktop uses Omarchy's window style, elsewhere Glassy while Maprisma Theme has blur on.",
+    "Could not save the setting.": "Could not save the setting."
   },
   "de": {
     "A key that applies this theme from anywhere": "Eine Taste, die dieses Theme von überall anwendet",
@@ -2830,7 +2837,14 @@ const translationCatalogs = <String, Map<String, String>>{
     "Listening…": "Höre zu…",
     "Dictation is not available: {0}": "Diktieren ist nicht verfügbar: {0}",
     "Switched off in Maprisma Settings › AI": "In Maprisma Settings › KI ausgeschaltet",
-    "Maprisma Settings › AI": "Maprisma Settings › KI"
+    "Maprisma Settings › AI": "Maprisma Settings › KI",
+    "App windows": "App-Fenster",
+    "Solid": "Deckend",
+    "Transparent": "Durchsichtig",
+    "Glassy (blurred)": "Glas (unscharf)",
+    "Follow the desktop": "Wie der Desktop",
+    "For all Maprisma apps: see-through windows, blurred behind where the desktop blurs (Glassy). Follow the desktop uses Omarchy's window style, elsewhere Glassy while Maprisma Theme has blur on.": "Für alle Maprisma-Apps: durchsichtige Fenster, dahinter unscharf, wo der Desktop das kann (Glas). „Wie der Desktop“ nimmt Omarchys Fensterart, sonst Glas, solange Maprisma Theme die Unschärfe an hat.",
+    "Could not save the setting.": "Einstellung konnte nicht gespeichert werden."
   },
   "fr": {
     "A key that applies this theme from anywhere": "Une touche qui applique ce thème de partout",
@@ -4246,7 +4260,14 @@ const translationCatalogs = <String, Map<String, String>>{
     "Listening…": "À l’écoute…",
     "Dictation is not available: {0}": "La dictée n’est pas disponible : {0}",
     "Switched off in Maprisma Settings › AI": "Désactivé dans Maprisma Settings › IA",
-    "Maprisma Settings › AI": "Maprisma Settings › IA"
+    "Maprisma Settings › AI": "Maprisma Settings › IA",
+    "App windows": "Fenêtres des apps",
+    "Solid": "Opaques",
+    "Transparent": "Transparentes",
+    "Glassy (blurred)": "Verre (flouté)",
+    "Follow the desktop": "Comme le bureau",
+    "For all Maprisma apps: see-through windows, blurred behind where the desktop blurs (Glassy). Follow the desktop uses Omarchy's window style, elsewhere Glassy while Maprisma Theme has blur on.": "Pour toutes les apps Maprisma : fenêtres transparentes, floutées derrière là où le bureau sait flouter (Verre). « Comme le bureau » suit le style de fenêtres d’Omarchy, ailleurs Verre tant que Maprisma Theme a le flou activé.",
+    "Could not save the setting.": "Impossible d'enregistrer le réglage."
   },
   "es": {
     "A key that applies this theme from anywhere": "Una tecla que aplica este tema desde cualquier lugar",
@@ -5662,7 +5683,14 @@ const translationCatalogs = <String, Map<String, String>>{
     "Listening…": "Escuchando…",
     "Dictation is not available: {0}": "El dictado no está disponible: {0}",
     "Switched off in Maprisma Settings › AI": "Desactivado en Maprisma Settings › IA",
-    "Maprisma Settings › AI": "Maprisma Settings › IA"
+    "Maprisma Settings › AI": "Maprisma Settings › IA",
+    "App windows": "Ventanas de las apps",
+    "Solid": "Opacas",
+    "Transparent": "Transparentes",
+    "Glassy (blurred)": "Cristal (desenfocado)",
+    "Follow the desktop": "Como el escritorio",
+    "For all Maprisma apps: see-through windows, blurred behind where the desktop blurs (Glassy). Follow the desktop uses Omarchy's window style, elsewhere Glassy while Maprisma Theme has blur on.": "Para todas las apps de Maprisma: ventanas transparentes, desenfocadas detrás donde el escritorio desenfoca (Cristal). «Como el escritorio» sigue el estilo de ventanas de Omarchy; en otros, Cristal mientras Maprisma Theme tenga el desenfoque activado.",
+    "Could not save the setting.": "No se pudo guardar el ajuste."
   },
   "it": {
     "A key that applies this theme from anywhere": "Un tasto che applica questo tema ovunque",
@@ -7078,7 +7106,14 @@ const translationCatalogs = <String, Map<String, String>>{
     "Listening…": "In ascolto…",
     "Dictation is not available: {0}": "La dettatura non è disponibile: {0}",
     "Switched off in Maprisma Settings › AI": "Disattivato in Maprisma Settings › IA",
-    "Maprisma Settings › AI": "Maprisma Settings › IA"
+    "Maprisma Settings › AI": "Maprisma Settings › IA",
+    "App windows": "Finestre delle app",
+    "Solid": "Opache",
+    "Transparent": "Trasparenti",
+    "Glassy (blurred)": "Vetro (sfocato)",
+    "Follow the desktop": "Come il desktop",
+    "For all Maprisma apps: see-through windows, blurred behind where the desktop blurs (Glassy). Follow the desktop uses Omarchy's window style, elsewhere Glassy while Maprisma Theme has blur on.": "Per tutte le app Maprisma: finestre trasparenti, sfocate dietro dove il desktop sfoca (Vetro). «Come il desktop» segue lo stile delle finestre di Omarchy, altrove Vetro finché Maprisma Theme ha la sfocatura attiva.",
+    "Could not save the setting.": "Impossibile salvare l'impostazione."
   },
   "pt": {
     "A key that applies this theme from anywhere": "Uma tecla que aplica este tema de qualquer lugar",
@@ -8494,7 +8529,14 @@ const translationCatalogs = <String, Map<String, String>>{
     "Listening…": "A ouvir…",
     "Dictation is not available: {0}": "O ditado não está disponível: {0}",
     "Switched off in Maprisma Settings › AI": "Desativado em Maprisma Settings › IA",
-    "Maprisma Settings › AI": "Maprisma Settings › IA"
+    "Maprisma Settings › AI": "Maprisma Settings › IA",
+    "App windows": "Janelas das apps",
+    "Solid": "Opacas",
+    "Transparent": "Transparentes",
+    "Glassy (blurred)": "Vidro (desfocado)",
+    "Follow the desktop": "Como o ambiente de trabalho",
+    "For all Maprisma apps: see-through windows, blurred behind where the desktop blurs (Glassy). Follow the desktop uses Omarchy's window style, elsewhere Glassy while Maprisma Theme has blur on.": "Para todas as apps Maprisma: janelas transparentes, desfocadas atrás onde o ambiente de trabalho desfoca (Vidro). «Como o ambiente de trabalho» segue o estilo de janelas do Omarchy; noutros, Vidro enquanto o Maprisma Theme tiver o desfoque ligado.",
+    "Could not save the setting.": "Não foi possível guardar a definição."
   },
   "nl": {
     "A key that applies this theme from anywhere": "Een toets die dit thema overal toepast",
@@ -9910,7 +9952,14 @@ const translationCatalogs = <String, Map<String, String>>{
     "Listening…": "Aan het luisteren…",
     "Dictation is not available: {0}": "Dicteren is niet beschikbaar: {0}",
     "Switched off in Maprisma Settings › AI": "Uitgeschakeld in Maprisma Settings › AI",
-    "Maprisma Settings › AI": "Maprisma Settings › AI"
+    "Maprisma Settings › AI": "Maprisma Settings › AI",
+    "App windows": "App-vensters",
+    "Solid": "Dekkend",
+    "Transparent": "Doorzichtig",
+    "Glassy (blurred)": "Glas (vervaagd)",
+    "Follow the desktop": "Zoals het bureaublad",
+    "For all Maprisma apps: see-through windows, blurred behind where the desktop blurs (Glassy). Follow the desktop uses Omarchy's window style, elsewhere Glassy while Maprisma Theme has blur on.": "Voor alle Maprisma-apps: doorzichtige vensters, erachter vervaagd waar het bureaublad dat doet (Glas). „Zoals het bureaublad” volgt de vensterstijl van Omarchy, elders Glas zolang Maprisma Theme vervaging aan heeft.",
+    "Could not save the setting.": "De instelling kon niet worden opgeslagen."
   },
   "pl": {
     "A key that applies this theme from anywhere": "Klawisz, który stosuje ten motyw z dowolnego miejsca",
@@ -11326,6 +11375,13 @@ const translationCatalogs = <String, Map<String, String>>{
     "Listening…": "Słucham…",
     "Dictation is not available: {0}": "Dyktowanie jest niedostępne: {0}",
     "Switched off in Maprisma Settings › AI": "Wyłączono w Maprisma Settings › AI",
-    "Maprisma Settings › AI": "Maprisma Settings › AI"
+    "Maprisma Settings › AI": "Maprisma Settings › AI",
+    "App windows": "Okna aplikacji",
+    "Solid": "Nieprzezroczyste",
+    "Transparent": "Przezroczyste",
+    "Glassy (blurred)": "Szkło (rozmyte)",
+    "Follow the desktop": "Jak pulpit",
+    "For all Maprisma apps: see-through windows, blurred behind where the desktop blurs (Glassy). Follow the desktop uses Omarchy's window style, elsewhere Glassy while Maprisma Theme has blur on.": "Dla wszystkich aplikacji Maprisma: przezroczyste okna, rozmyte z tyłu tam, gdzie pulpit rozmywa (Szkło). „Jak pulpit” korzysta ze stylu okien Omarchy, gdzie indziej Szkło, gdy Maprisma Theme ma włączone rozmycie.",
+    "Could not save the setting.": "Nie można zapisać ustawienia."
   }
 };

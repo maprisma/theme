@@ -718,5 +718,12 @@
   "Listening…": "In ascolto…",
   "Dictation is not available: {0}": "La dettatura non è disponibile: {0}",
   "Switched off in Maprisma Settings › AI": "Disattivato in Maprisma Settings › IA",
-  "Maprisma Settings › AI": "Maprisma Settings › IA"
+  "Maprisma Settings › AI": "Maprisma Settings › IA",
+  "App windows": "Finestre delle app",
+  "Solid": "Opache",
+  "Transparent": "Trasparenti",
+  "Glassy (blurred)": "Vetro (sfocato)",
+  "Follow the desktop": "Come il desktop",
+  "For all Maprisma apps: see-through windows, blurred behind where the desktop blurs (Glassy). Follow the desktop uses Omarchy's window style, elsewhere Glassy while Maprisma Theme has blur on.": "Per tutte le app Maprisma: finestre trasparenti, sfocate dietro dove il desktop sfoca (Vetro). «Come il desktop» segue lo stile delle finestre di Omarchy, altrove Vetro finché Maprisma Theme ha la sfocatura attiva.",
+  "Could not save the setting.": "Impossibile salvare l'impostazione."
 }

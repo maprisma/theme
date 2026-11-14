@@ -718,5 +718,12 @@
   "Listening…": "Listening…",
   "Dictation is not available: {0}": "Dictation is not available: {0}",
   "Switched off in Maprisma Settings › AI": "Switched off in Maprisma Settings › AI",
-  "Maprisma Settings › AI": "Maprisma Settings › AI"
+  "Maprisma Settings › AI": "Maprisma Settings › AI",
+  "App windows": "App windows",
+  "Solid": "Solid",
+  "Transparent": "Transparent",
+  "Glassy (blurred)": "Glassy (blurred)",
+  "Follow the desktop": "Follow the desktop",
+  "For all Maprisma apps: see-through windows, blurred behind where the desktop blurs (Glassy). Follow the desktop uses Omarchy's window style, elsewhere Glassy while Maprisma Theme has blur on.": "For all Maprisma apps: see-through windows, blurred behind where the desktop blurs (Glassy). Follow the desktop uses Omarchy's window style, elsewhere Glassy while Maprisma Theme has blur on.",
+  "Could not save the setting.": "Could not save the setting."
 }
