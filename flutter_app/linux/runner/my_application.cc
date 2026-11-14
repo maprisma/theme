@@ -4,6 +4,7 @@
 
 #include <flutter_linux/flutter_linux.h>
 #include <glib/gstdio.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "flutter/generated_plugin_registrant.h"
@@ -187,6 +188,44 @@ static FlValue* window_geometry(GtkWindow* window) {
   return map;
 }
 
+// --- the header bar's colours (as Maprisma Settings' runner) -----------------------
+
+// "#rrggbb" or null.
+static const gchar* hex_arg(FlValue* map, const gchar* key) {
+  FlValue* v = fl_value_lookup_string(map, key);
+  if (v == nullptr || fl_value_get_type(v) != FL_VALUE_TYPE_STRING) return nullptr;
+  const gchar* s = fl_value_get_string(v);
+  if (strlen(s) != 7 || s[0] != '#') return nullptr;
+  for (int i = 1; i < 7; i++) {
+    if (!g_ascii_isxdigit(s[i])) return nullptr;
+  }
+  return s;
+}
+
+// GTK draws the header bar with the GTK theme's colours, read once at start (and on Hyprland
+// GTK's theme is Breeze's own): a theme applied while the window is open would leave the old
+// colours in it. So the header takes the palette's background and text from Dart, which
+// re-reads the look while running, through a CSS provider of its own.
+static void set_header_colors(const gchar* bg, const gchar* fg, const gchar* border) {
+  static GtkCssProvider* provider = nullptr;
+  GdkScreen* screen = gdk_screen_get_default();
+  if (screen == nullptr) return;
+  if (provider == nullptr) {
+    provider = gtk_css_provider_new();
+    gtk_style_context_add_provider_for_screen(screen, GTK_STYLE_PROVIDER(provider),
+                                              GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+  }
+  g_autofree gchar* css = g_strdup_printf(
+      "headerbar, headerbar:backdrop, .titlebar, .titlebar:backdrop {"
+      " background: %s; background-image: none; color: %s;"
+      " border-color: %s; box-shadow: none; }"
+      " headerbar .title, headerbar button, headerbar button image {"
+      " color: %s; }"
+      " headerbar:backdrop .title, headerbar:backdrop button { color: alpha(%s, 0.7); }",
+      bg, fg, border, fg, fg);
+  gtk_css_provider_load_from_data(provider, css, -1, nullptr);
+}
+
 // --- the window channel ---------------------------------------------------------
 
 static void window_call_cb(FlMethodChannel* channel, FlMethodCall* call,
@@ -200,6 +239,17 @@ static void window_call_cb(FlMethodChannel* channel, FlMethodCall* call,
     if (args != nullptr && fl_value_get_type(args) == FL_VALUE_TYPE_BOOL) {
       g_object_set(gtk_settings_get_default(), "gtk-application-prefer-dark-theme",
                    fl_value_get_bool(args), nullptr);
+    } else if (args != nullptr && fl_value_get_type(args) == FL_VALUE_TYPE_MAP) {
+      // {dark, background, foreground, border}: light/dark and the header's own colours.
+      FlValue* dark = fl_value_lookup_string(args, "dark");
+      if (dark != nullptr && fl_value_get_type(dark) == FL_VALUE_TYPE_BOOL) {
+        g_object_set(gtk_settings_get_default(), "gtk-application-prefer-dark-theme",
+                     fl_value_get_bool(dark), nullptr);
+      }
+      const gchar* bg = hex_arg(args, "background");
+      const gchar* fg = hex_arg(args, "foreground");
+      const gchar* border = hex_arg(args, "border");
+      if (bg != nullptr && fg != nullptr) set_header_colors(bg, fg, border != nullptr ? border : bg);
     }
     response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
   } else if (g_strcmp0(name, "hide") == 0) {

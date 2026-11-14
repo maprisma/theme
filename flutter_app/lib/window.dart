@@ -61,7 +61,10 @@ final class AppWindow {
 
   Future<void> hide() => _call('hide');
   Future<void> present() => _call('present');
-  Future<void> titlebar(bool dark) => _call('titlebar', dark);
+  /// Light or dark, and the header bar in the palette's [background], [foreground] and [border]
+  /// (`#rrggbb`), also when the theme changes while the window is open.
+  Future<void> titlebar(bool dark, {String? background, String? foreground, String? border}) =>
+      _call('titlebar', {'dark': dark, 'background': ?background, 'foreground': ?foreground, 'border': ?border});
   Future<void> resize(int width, int height) => _call('size', [width, height]);
   Future<void> maximize(bool on) => _call('maximize', on);
 

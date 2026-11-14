@@ -213,7 +213,7 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
         settings = Map<String, dynamic>.from(s['settings'] as Map);
         languageSetting = settings['language'] as String? ?? 'auto';
       });
-      AppWindow.instance.titlebar(look['is_dark'] != false);
+      _titlebar(look['is_dark'] != false);
     } catch (_) {
       // the core is not ready: keep the defaults
     }
@@ -224,6 +224,14 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
   /// Settings › App windows: see-through windows for all Maprisma apps (window_style.dart).
   WindowStyleWatcher? _windowStyle;
   bool _polling = false;
+
+  /// The GTK title bar in the palette's colours (the window's own surface, text and border).
+  void _titlebar(bool dark) {
+    final platform = WidgetsBinding.instance.platformDispatcher.platformBrightness;
+    final s = appTheme(platform, colors, 12, fonts: fonts).colorScheme;
+    String hex(Color c) => '#${(c.toARGB32() & 0xffffff).toRadixString(16).padLeft(6, '0')}';
+    AppWindow.instance.titlebar(dark, background: hex(s.surface), foreground: hex(s.onSurface), border: hex(s.outlineVariant));
+  }
 
   /// Back in the window: the desktop's look may have changed meanwhile.
   @override
@@ -248,7 +256,7 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
         fonts = freshFonts;
         windowRadius = radius;
       });
-      AppWindow.instance.titlebar(look['is_dark'] != false);
+      _titlebar(look['is_dark'] != false);
     } catch (_) {
       // the core is busy or gone: the old look stays
     } finally {
