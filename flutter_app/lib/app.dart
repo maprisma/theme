@@ -130,7 +130,15 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     // The saved size was given to the window before the first frame (main.dart).
-    refreshLook().then((_) => _windowSize.saved ??= parseWindowSize(settings['size']));
+    refreshLook().then((_) {
+      _windowSize.saved ??= parseWindowSize(settings['size']);
+      if (!mounted) return;
+      // Hyprland: the window's place, kept and put back each time it shows (window_size.dart).
+      _windowPlace = WindowPlaceKeeper(
+        saved: parseWindowPosition(settings['window_position']),
+        save: (x, y) => call('settings.set', {'key': 'window_position', 'value': [x, y]}),
+      )..start();
+    });
     refreshAsk();
     _esc.attach();
     _subs.add(AppWindow.instance.shown.stream.listen((_) => refreshLook()));
@@ -150,6 +158,9 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
   }
 
   Timer? _maxTimer;
+
+  /// Made once the settings are read (initState); null before.
+  WindowPlaceKeeper? _windowPlace;
 
   /// The window's size is remembered (settings `size`, GTK's size with the title bar), half a
   /// second after the last resize, not while maximized, fullscreen or tiled (rule 5a).
@@ -177,6 +188,7 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
     HardwareKeyboard.instance.removeHandler(_f12);
     _esc.detach();
     _windowSize.dispose();
+    _windowPlace?.dispose();
     _maxTimer?.cancel();
     _lookTimer?.cancel();
     _windowStyle?.dispose();
@@ -216,6 +228,7 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
   /// Back in the window: the desktop's look may have changed meanwhile.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    _windowPlace?.lifecycle(AppLifecycleStateName.values.byName(state.name));
     if (state == AppLifecycleState.resumed) pollLook();
   }
 
