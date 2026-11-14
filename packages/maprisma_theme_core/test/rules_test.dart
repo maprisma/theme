@@ -357,6 +357,9 @@ void main(List<String> args) {
           rules({
             'actions': {'theme.apply': false},
           });
+        } else {
+          // Simulate the lock holder dying mid-record while the next writer waits.
+          File(askAiLogFile(e.paths)).writeAsStringSync('{"time":');
         }
         holder.stdin.writeln('release');
         await holder.stdin.flush();
@@ -369,11 +372,36 @@ void main(List<String> args) {
         if (kind == 'settings') {
           expect(askAiAllowed(e.paths, 'theme.apply'), isFalse);
         } else {
+          expect(log(), hasLength(1));
           expect(log().last['op'], 'child');
         }
       }
     },
   );
+  test('log append removes an unterminated tail and preserves complete records', () {
+    final file = File(askAiLogFile(e.paths))
+      ..parent.createSync(recursive: true);
+    final complete = '${jsonEncode({'op': 'previous'})}\n';
+    for (final prefix in ['', complete]) {
+      for (final tail in ['{"time":', 'x' * 9000, '{"target":"é']) {
+        file.writeAsStringSync('$prefix$tail');
+        appendAskAiLog(
+          e.paths,
+          op: 'next',
+          app: 'theme',
+          action: 'theme.apply',
+          target: 'nord',
+          result: 'done',
+        );
+        expect(log().map((entry) => entry['op']).toList(), [
+          if (prefix.isNotEmpty) 'previous',
+          'next',
+        ]);
+        expect(file.readAsStringSync().startsWith(prefix), isTrue);
+        expect(file.readAsStringSync().endsWith('\n'), isTrue);
+      }
+    }
+  });
   test('log rotation, private modes, stable lock and symlink refusal', () {
     for (var i = 0; i < 1002; i++) {
       appendAskAiLog(

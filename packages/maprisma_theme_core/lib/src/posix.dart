@@ -30,6 +30,13 @@ final class Posix {
         IntPtr Function(Int, Pointer<Uint8>, IntPtr),
         int Function(int, Pointer<Uint8>, int)
       >('write');
+  static final _pread = _lib.lookupFunction<
+    IntPtr Function(Int, Pointer<Uint8>, IntPtr, Int64),
+    int Function(int, Pointer<Uint8>, int, int)
+  >('pread');
+  static final _ftruncate = _lib.lookupFunction<
+    Int Function(Int, Int64), int Function(int, int)
+  >('ftruncate');
   static final _fchmod = _lib.lookupFunction<Int Function(Int, Uint32), int Function(int, int)>('fchmod');
   static final _fsync = _lib
       .lookupFunction<Int Function(Int), int Function(int)>('fsync');
@@ -116,11 +123,14 @@ final class Posix {
   }
 
   /// O_NOFOLLOW append, checking the opened descriptor's type and owner.
-  bool appendPrivate(String path, List<int> bytes) {
-    final fd = _withPath(path, (name) => _open(name, 1 | 0x400 | 0x40 | _noFollow | _cloexec | _nonBlock, 0x180)) ?? -1;
+  /// With [trimIncompleteLine], discard bytes after the last newline first.
+  /// The caller must hold the shared writer lock for repair and append.
+  bool appendPrivate(String path, List<int> bytes, {bool trimIncompleteLine = false}) {
+    final fd = _withPath(path, (name) => _open(name, (trimIncompleteLine ? 2 : 1) | 0x400 | 0x40 | _noFollow | _cloexec | _nonBlock, 0x180)) ?? -1;
     if (fd < 0) return false;
     try {
       if (!_ownedRegular(fd) || _fchmod(fd, 0x180) != 0) return false;
+      if (trimIncompleteLine && !_trimIncompleteLine(fd)) return false;
       final buffer = calloc<Uint8>(bytes.length);
       try {
         buffer.asTypedList(bytes.length).setAll(0, bytes);
@@ -133,6 +143,31 @@ final class Posix {
         return true;
       } finally { calloc.free(buffer); }
     } finally { _close(fd); }
+  }
+
+  bool _trimIncompleteLine(int fd) {
+    final info = _fstat(fd);
+    if (info == null) return false;
+    var end = info.$2;
+    final buffer = calloc<Uint8>(4096);
+    try {
+      while (end > 0) {
+        final start = max(0, end - 4096);
+        final count = end - start;
+        // A short read is unexpected under the writer lock; leave the log alone.
+        if (_pread(fd, buffer, count, start) != count) return false;
+        for (var i = count - 1; i >= 0; i--) {
+          if (buffer[i] == 10) {
+            final length = start + i + 1;
+            return length == info.$2 || _ftruncate(fd, length) == 0;
+          }
+        }
+        end = start;
+      }
+      return info.$2 == 0 || _ftruncate(fd, 0) == 0;
+    } finally {
+      calloc.free(buffer);
+    }
   }
 
   bool _ownedRegular(int fd) {

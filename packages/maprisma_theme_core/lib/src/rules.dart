@@ -214,6 +214,7 @@ void appendAskAiLog(
       if (!Posix.instance.appendPrivate(
         path,
         utf8.encode('${jsonEncode(entry)}\n'),
+        trimIncompleteLine: true,
       )) {
         return;
       }
