@@ -53,3 +53,61 @@ and keyboard shortcuts (`lib/src/cli.dart`):
 maprisma-theme-core apply <slug> | bg next|prev | theme next|prev | workspace <n> | tick | menu | autostart | status
 maprisma-theme-core daemon
 ```
+
+## Shared Ask AI rules and provenance
+
+Theme implements the shared contract in
+`../maprisma-settings/docs/ask-ai-rules.md`. Manual requests omit `proposal` and
+remain unrestricted. `ask.run` returns a random session-only `proposal` on every
+candidate; `ask.wallpapers` returns one for its theme's wallpaper workflow. The
+core keeps its action ids, theme target and catalog source in memory. Unknown
+ids, mismatched actions/targets/sources and disallowed steps fail with
+`ask_ai_blocked`, message `Switched off in Maprisma Settings › AI`.
+Editor proposals retain their identity when the user edits their target.
+
+These execution routes accept optional `proposal`:
+
+| Routes | Required action ids |
+| --- | --- |
+| `themes.apply`, `wallpapers.set` | `theme.apply` |
+| `import.omarchy_install`, `import.cosmic_install`, `import.kde_install` | `theme.install`; also `theme.apply` with `apply: true` |
+| `custom.save` | `theme.edit`; also `theme.apply` with `apply: true` or when editing the current theme |
+| `create.make`, `create.setup` | `theme.generate` |
+| `wallhaven.add`, `webimg.add`, `create.add` | `theme.wallpapers`; also `theme.apply` with `set: true` |
+
+`themes.apply` and `custom.save` also accept `with_wallpaper: true` for the
+Ask card's following wallpaper step: both `theme.wallpapers` and `theme.apply`
+are checked before the first change. The wallpaper step keeps the same proposal
+and checks again. The GUI carries provenance through cards, the editor, search
+phrase buttons, generated pictures, previews' result items and already-added
+wallpaper paths. Manual searches clear their search provenance.
+
+`ask.rules {}` returns `{level, actions, sources, folders, broken}` read afresh
+from the shared settings. The GUI uses this when showing Ask actions and
+refreshes visible results every two seconds. A disabled action shows the shared
+message and a Settings link. `ask.open_settings {}` starts
+`maprisma-settings --page ai` detached with argv, without a shell. Answers,
+searches and previews remain available.
+
+The core checks at entry and after preparation before publishing changes.
+Request-local Dart zones carry the check into asynchronous preparation without
+mixing concurrent manual requests. Every attempted Ask execution records its
+proposal as `op`, app `theme`, action id(s), target and `done`, `failed`,
+`cancelled` or `blocked`. Background generator setup reports its eventual
+outcome, rather than treating setup launch as completion. Logging is best effort.
+
+Rules live in `$XDG_CONFIG_HOME/maprisma-ai/settings.json` (fallback
+`~/.config`). Missing rules allow actions; unreadable/oversized/non-object files
+and malformed values are restrictive. Explicit JSON null is malformed; absent
+keys retain defaults. Only Settings writes rules. Theme's helper writer takes
+libc `flock(LOCK_EX)` on persistent `settings.lock`, rereads under the lock,
+refuses an existing broken file, creates an O_EXCL 0600 temporary file, writes
+and fsyncs it, then renames it over the settings, preserving other keys.
+
+The shared log is `$XDG_STATE_HOME/maprisma-ai/actions.jsonl` (fallback
+`~/.local/state`). Writers lock persistent `actions.lock` with libc flock,
+then open the log O_APPEND|O_CREAT|O_NOFOLLOW, checking the open descriptor is a
+regular file owned by the user. Writes loop to completion. Folder mode is 0700,
+file and lock modes 0600. Above 1000 lines or 1 MiB, rotation keeps the newest
+500 complete lines using an O_EXCL, fsynced temporary file and rename under the
+same lock. A symlink/unowned log folder or unsafe log/lock file is refused.

@@ -1,4 +1,5 @@
 import '../i18n.dart';
+import '../ask_ai_gate.dart';
 import '../mic_button.dart';
 import 'dart:async';
 import 'dart:io';
@@ -652,6 +653,8 @@ class _AskPageState extends State<AskPage> {
   /// Makes one wallpaper from the card's description and shows it first;
   /// waits its turn (one picture at a time). Not set up: the card offers it.
   Future<void> _makeFor(_Card card) async {
+    final rules = await app.call('ask.rules');
+    if (rules['level'] == 'answers' || (rules['actions'] as Map? ?? const {})['theme.generate'] == false) return;
     final st = await _generatorStatus();
     if (st == null || st['ready'] != true || !mounted) return;
     final prompt = card.c['picture_prompt'] as String;
@@ -660,7 +663,7 @@ class _AskPageState extends State<AskPage> {
       if (!mounted || !cards.contains(card)) return;
       _makingCard = card;
       try {
-        final r = await app.call('create.make', {'prompt': prompt, 'seed': math.Random().nextInt(1 << 31)});
+        final r = await app.call('create.make', {'proposal': card.c['proposal'], 'prompt': prompt, 'seed': math.Random().nextInt(1 << 31)});
         if (!mounted || !cards.contains(card)) return; // replaced meanwhile: not shown
         final path = r['path'] as String;
         setState(() {
@@ -688,9 +691,9 @@ class _AskPageState extends State<AskPage> {
     await _generatorStatus();
   }
 
-  Future<void> _setUpGenerator() async {
+  Future<void> _setUpGenerator(_Card card) async {
     try {
-      final st = await app.call('create.setup');
+      final st = await app.call('create.setup', {'proposal': card.c['proposal']});
       if (mounted) setState(() => generator = st);
     } catch (e) {
       if (mounted) setState(() => status = trf("Could not set up the picture generator: {0}", [_why(e)]));
@@ -738,9 +741,9 @@ class _AskPageState extends State<AskPage> {
     switch (c['kind']) {
       case 'installed':
         final wall = _chosenWall(card);
-        final r = await app.run('themes.apply', {'slug': slug});
+        final r = await app.run('themes.apply', {'slug': slug, 'proposal': c['proposal'], 'with_wallpaper': wall != null});
         if (r != null) {
-          if (wall != null) await _addWall(slug, wall);
+          if (wall != null) await _addWall(slug, wall, c['proposal'] as String?);
           app.notify(trf("Applied {0}", [c['name']]));
           app.changed();
         }
@@ -749,12 +752,16 @@ class _AskPageState extends State<AskPage> {
         final overlay = Overlay.of(context).context.findRenderObject() as RenderBox?;
         if (box == null || overlay == null) return;
         final at = box.localToGlobal(Offset(0, box.size.height), ancestor: overlay);
+        final rules = await app.call('ask.rules');
+        if (!mounted || !buttonContext.mounted) return;
+        final canApply = rules['level'] != 'answers' && (rules['actions'] as Map? ?? const {})['theme.apply'] != false;
         final action = await showMenu<VoidCallback>(
           context: context,
           position: RelativeRect.fromLTRB(at.dx, at.dy, overlay.size.width - at.dx, 0),
           items: [
-            item(Icons.download_outlined, tr("Install"), () => _install(slug, false)),
-            item(Icons.check_circle_outline, tr("Install and apply"), () => _install(slug, true)),
+            item(Icons.download_outlined, tr("Install"), () => _install(slug, false, c['proposal'] as String?)),
+            item(Icons.check_circle_outline, canApply ? tr("Install and apply") : tr('Switched off in Maprisma Settings › AI'), () => _install(slug, true, c['proposal'] as String?), enabled: canApply),
+            if (!canApply) item(Icons.settings, tr('Maprisma Settings › AI'), () => app.run('ask.open_settings')),
           ],
         );
         action?.call();
@@ -772,6 +779,8 @@ class _AskPageState extends State<AskPage> {
         final saved = await Navigator.of(context).push<Object?>(
           MaterialPageRoute(
             builder: (_) => EditorPage(
+              proposal: c['proposal'] as String?,
+              withWallpaper: wall != null,
               base: edit ? null : slug,
               edit: edit ? slug : null,
               initial: initial,
@@ -782,7 +791,7 @@ class _AskPageState extends State<AskPage> {
           ),
         );
         if (saved is String && saved.isNotEmpty && wall != null) {
-          await _addWall(saved, wall);
+          await _addWall(saved, wall, c['proposal'] as String?);
           app.changed();
         }
     }
@@ -800,18 +809,18 @@ class _AskPageState extends State<AskPage> {
 
   /// Adds the card's wallpaper to [slug]; shown right away when [slug] is the
   /// theme in use (the core only sets it then).
-  Future<void> _addWall(String slug, Map<String, dynamic> wall) async {
+  Future<void> _addWall(String slug, Map<String, dynamic> wall, String? proposal) async {
     if (wall['kind'] == 'created') {
-      await app.run('create.add', {'slug': slug, 'path': wall['path'], 'set': true}, tr("Could not add the wallpaper"));
+      await app.run('create.add', {'proposal': proposal, 'slug': slug, 'path': wall['path'], 'set': true}, tr("Could not add the wallpaper"));
     } else if (wall['kind'] == 'web') {
-      await app.run('webimg.add', {'slug': slug, 'url': wall['url'], 'set': true}, tr("Could not add the wallpaper"));
+      await app.run('webimg.add', {'proposal': proposal, 'slug': slug, 'url': wall['url'], 'set': true}, tr("Could not add the wallpaper"));
     } else {
-      await app.run('wallhaven.add', {'slug': slug, 'item': wall, 'set': true}, tr("Could not add the wallpaper"));
+      await app.run('wallhaven.add', {'proposal': proposal, 'slug': slug, 'item': wall, 'set': true}, tr("Could not add the wallpaper"));
     }
   }
 
-  Future<void> _install(String slug, bool apply) async {
-    final r = await app.run('import.omarchy_install', {'name': slug, 'apply': apply}, trf("Could not install {0}", [slug]));
+  Future<void> _install(String slug, bool apply, String? proposal) async {
+    final r = await app.run('import.omarchy_install', {'proposal': proposal, 'name': slug, 'apply': apply}, trf("Could not install {0}", [slug]));
     if (r != null) {
       app.notify(apply ? trf("Installed and applied {0}", [slug]) : trf("Installed {0}", [slug]));
       app.changed();
@@ -939,12 +948,15 @@ class _AskPageState extends State<AskPage> {
             runSpacing: 8,
             children: [
               Builder(
-                builder: (b) => FilledButton.icon(
+                builder: (b) => AskAiGate(proposal: c['proposal'] as String?, actions: [
+                  if (c['kind'] == 'installed') 'theme.apply' else if (c['kind'] == 'catalog') 'theme.install' else 'theme.edit',
+                  if (_chosenWall(card) != null) ...['theme.wallpapers', 'theme.apply'],
+                ], builder: (allowed) => FilledButton.icon(
                   style: _small,
-                  onPressed: () => _use(card, b),
+                  onPressed: allowed ? () => _use(card, b) : null,
                   icon: const Icon(Icons.check, size: 16),
                   label: Text(tr("Use")),
-                ),
+                )),
               ),
               OutlinedButton.icon(
                 style: _small,
@@ -1147,7 +1159,9 @@ class _AskPageState extends State<AskPage> {
   }
 
   /// Make another wallpaper; or set the picture generator up first.
-  Widget _makeButton(_Card card) {
+  Widget _makeButton(_Card card) => AskAiGate(proposal: card.c['proposal'] as String?, actions: const ['theme.generate'], builder: (allowed) => _makeButtonBody(card, allowed));
+
+  Widget _makeButtonBody(_Card card, bool allowed) {
     const tight = VisualDensity(horizontal: -4, vertical: -4);
     final g = generator;
     if (g != null && g['ready'] != true) {
@@ -1159,7 +1173,7 @@ class _AskPageState extends State<AskPage> {
         );
       }
       return TextButton.icon(
-        onPressed: _setUpGenerator,
+        onPressed: allowed ? () => _setUpGenerator(card) : null,
         icon: const Icon(Icons.download, size: 16),
         label: Text(tr("Set up")),
       );
@@ -1167,7 +1181,7 @@ class _AskPageState extends State<AskPage> {
     return IconButton(
       tooltip: tr("Make another wallpaper on this computer (no tokens)"),
       visualDensity: tight,
-      onPressed: card.making ? null : () => _makeFor(card),
+      onPressed: card.making || !allowed ? null : () => _makeFor(card),
       icon: const Icon(Icons.auto_awesome_outlined, size: 18),
     );
   }

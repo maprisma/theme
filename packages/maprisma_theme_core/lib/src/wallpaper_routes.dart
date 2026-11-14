@@ -1,3 +1,4 @@
+import 'proposals.dart';
 import 'i18n.dart';
 import 'dart:convert';
 import 'dart:io';
@@ -143,6 +144,7 @@ Map<String, Handler> wallpaperRoutes(Ctx ctx, {Fetch? fetch}) {
       if (problem != null) throw RouteError('bad_image', problem);
       if (theme.slug != ctx.current.slug) {
         // Another theme: its start wallpaper next time it is applied.
+        checkAskAiBoundary();
         rememberWallpaper(ctx, theme.slug, w.name);
         return {'set': false, 'remembered': true};
       }
@@ -239,6 +241,7 @@ Map<String, Handler> wallpaperRoutes(Ctx ctx, {Fetch? fetch}) {
         throw RouteError('bad_params', 'path');
       }
       final bytes = readCachedBytes(path, maxBackgroundBytes) ?? (throw RouteError('bad_params', 'path'));
+      checkAskAiBoundary();
       final added = addBackgroundBytes(ctx, theme.slug, bytes, baseName(path));
       var set = false;
       if (boolParam(p, 'set', fallback: false) && theme.slug == ctx.current.slug) set = await setBackground(ctx, added);

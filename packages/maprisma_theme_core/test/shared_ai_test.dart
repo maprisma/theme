@@ -73,7 +73,7 @@ void main() {
     writeSharedHelper(file, 'auto');
     expect(jsonDecode(File(file).readAsStringSync()), {'helper': 'auto', 'model': {'a': 1}, 'other': [1]});
     expect(Directory(p.dirname(file)).statSync().mode & 511, 448);
-    expect(Directory(p.dirname(file)).listSync().map((e) => p.basename(e.path)), ['settings.json'],
+    expect(Directory(p.dirname(file)).listSync().map((e) => p.basename(e.path)), unorderedEquals(['settings.json', 'settings.lock']),
         reason: 'no temporary file left');
     for (final bad in ['', 'a b', '-x', '../x', 'a' * 162]) {
       expect(() => writeSharedHelper(file, bad), throwsArgumentError, reason: bad);

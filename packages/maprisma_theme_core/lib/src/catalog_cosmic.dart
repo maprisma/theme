@@ -1,3 +1,4 @@
+import 'proposals.dart';
 import 'i18n.dart';
 import 'dart:convert';
 import 'dart:io';
@@ -305,6 +306,7 @@ Future<String> installCosmicRon(Ctx ctx, int id, String ron, {CosmicTheme? entry
   var base = slugify(name);
   if (base.isEmpty || !slugRe.hasMatch(base)) base = 'cosmic-theme-$id';
   final root = ctx.paths.userThemes;
+  checkAskAiBoundary();
   Directory(root).createSync(recursive: true);
   final tmp = '$root/.import-cosmic-$id-$pid-${Random().nextInt(1 << 32)}';
   Directory(tmp).createSync();
@@ -343,6 +345,7 @@ Future<String> installCosmicRon(Ctx ctx, int id, String ron, {CosmicTheme? entry
         continue;
       }
       try {
+        checkAskAiBoundary();
         Directory(tmp).renameSync(dest);
       } on FileSystemException {
         continue;

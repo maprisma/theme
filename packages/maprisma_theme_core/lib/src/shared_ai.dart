@@ -10,6 +10,9 @@
 library;
 
 import 'dart:io';
+import 'dart:convert';
+import 'paths.dart';
+import 'posix.dart';
 
 import 'store.dart';
 
@@ -40,16 +43,35 @@ void writeSharedHelper(String path, String helper) {
   if (helper != sharedHelperAuto && !validSharedHelperId(helper)) {
     throw ArgumentError.value(helper, 'helper');
   }
-  final data = readJsonMap(path)..['helper'] = helper;
-  writeJson(path, data);
-  final dir = File(path).parent.path;
-  if (FileSystemEntity.typeSync(dir, followLinks: false) == FileSystemEntityType.directory &&
-      FileStat.statSync(dir).mode & 511 != 448) {
-    chmodPath(dir, 448 /* 0700 */);
-  }
+  final dir = File(path).parent;
+  dir.createSync(recursive: true);
+  chmodPath(dir.path, 448);
+  Posix.instance.withFlock('${dir.path}/settings.lock', () {
+    final data = readSharedObjectPath(path);
+    if (FileSystemEntity.typeSync(path, followLinks: false) != FileSystemEntityType.notFound && data == null) {
+      throw FileSystemException('Shared AI settings cannot be read', path);
+    }
+    final tmp = '${dir.path}/.settings.$pid.${DateTime.now().microsecondsSinceEpoch}.tmp';
+    if (!Posix.instance.writeNewPrivate(tmp, utf8.encode('${jsonEncode({...?data, 'helper': helper})}\n'))) {
+      throw FileSystemException('Could not write shared AI settings', path);
+    }
+    File(tmp).renameSync(path);
+  });
 }
 
 /// The helper to use: [choice] when it is among [ready] (ids in the catalog's order), else the
 /// first ready one (auto); null when none is ready.
 String? resolveSharedHelper(String choice, List<String> ready) =>
     choice != sharedHelperAuto && ready.contains(choice) ? choice : ready.firstOrNull;
+
+const sharedAiDir = 'maprisma-ai';
+Map<String, dynamic>? readSharedObjectPath(String path) {
+  final bytes = Posix.instance.readRegular(path, 65536, follow: false);
+  if (bytes == null) return null;
+  try {
+    final value = jsonDecode(utf8.decode(bytes));
+    return value is Map<String, dynamic> ? value : null;
+  } on FormatException { return null; }
+}
+Map<String, dynamic>? readSharedObject(Paths paths) => readSharedObjectPath(paths.sharedAiSettings);
+bool sharedFileBroken(Paths paths) => FileSystemEntity.typeSync(paths.sharedAiSettings, followLinks: false) != FileSystemEntityType.notFound && readSharedObject(paths) == null;

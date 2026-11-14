@@ -1,3 +1,4 @@
+import 'proposals.dart';
 import 'i18n.dart';
 import 'dart:convert';
 import 'dart:io';
@@ -282,6 +283,7 @@ String installKdeColors(Ctx ctx, KdeStoreTheme entry, String text) {
   var base = slugify(entry.name);
   if (base.isEmpty || !slugRe.hasMatch(base)) base = 'kde-scheme-${entry.id}';
   final root = ctx.paths.userThemes;
+  checkAskAiBoundary();
   Directory(root).createSync(recursive: true);
   final tmp = '$root/.import-kde-${entry.id}-$pid-${Random().nextInt(1 << 32)}';
   Directory(tmp).createSync();

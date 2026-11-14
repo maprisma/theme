@@ -716,5 +716,7 @@
   "Dictate": "Dicter",
   "Stop and insert": "Arrêter et insérer",
   "Listening…": "À l’écoute…",
-  "Dictation is not available: {0}": "La dictée n’est pas disponible : {0}"
+  "Dictation is not available: {0}": "La dictée n’est pas disponible : {0}",
+  "Switched off in Maprisma Settings › AI": "Désactivé dans Maprisma Settings › IA",
+  "Maprisma Settings › AI": "Maprisma Settings › IA"
 }

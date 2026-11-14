@@ -30,6 +30,7 @@ final class Posix {
         IntPtr Function(Int, Pointer<Uint8>, IntPtr),
         int Function(int, Pointer<Uint8>, int)
       >('write');
+  static final _fchmod = _lib.lookupFunction<Int Function(Int, Uint32), int Function(int, int)>('fchmod');
   static final _fsync = _lib
       .lookupFunction<Int Function(Int), int Function(int)>('fsync');
   static final _access = _lib
@@ -114,6 +115,36 @@ final class Posix {
     }
   }
 
+  /// O_NOFOLLOW append, checking the opened descriptor's type and owner.
+  bool appendPrivate(String path, List<int> bytes) {
+    final fd = _withPath(path, (name) => _open(name, 1 | 0x400 | 0x40 | _noFollow | _cloexec | _nonBlock, 0x180)) ?? -1;
+    if (fd < 0) return false;
+    try {
+      if (!_ownedRegular(fd) || _fchmod(fd, 0x180) != 0) return false;
+      final buffer = calloc<Uint8>(bytes.length);
+      try {
+        buffer.asTypedList(bytes.length).setAll(0, bytes);
+        var done = 0;
+        while (done < bytes.length) {
+          final n = _write(fd, buffer + done, bytes.length - done);
+          if (n <= 0) return false;
+          done += n;
+        }
+        return true;
+      } finally { calloc.free(buffer); }
+    } finally { _close(fd); }
+  }
+
+  bool _ownedRegular(int fd) {
+    final buffer = calloc<Uint8>(256);
+    final empty = ''.toNativeUtf8();
+    try {
+      if (_statx(fd, empty, _emptyPath, 0x7ff, buffer) != 0) return false;
+      final data = ByteData.sublistView(buffer.asTypedList(256));
+      return data.getUint16(28, Endian.host) & 0xf000 == 0x8000 && data.getUint32(20, Endian.host) == uid;
+    } finally { calloc.free(buffer); calloc.free(empty); }
+  }
+
   T? _withPath<T>(String path, T Function(Pointer<Utf8>) action) {
     if (path.isEmpty || path.contains('\x00')) return null;
     final native = path.toNativeUtf8();
@@ -159,6 +190,7 @@ final class Posix {
         -1;
     if (fd < 0) throw FileSystemException(tr("Could not open the lock"), lockPath);
     try {
+      if (!_ownedRegular(fd) || _fchmod(fd, 0x180) != 0) throw FileSystemException("Unsafe lock", lockPath);
       if (_flock(fd, 2) != 0) {
         throw FileSystemException(tr("Could not lock"), lockPath);
       }

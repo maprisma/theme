@@ -1,4 +1,5 @@
 import 'i18n.dart';
+import 'rules.dart';
 import 'dart:io';
 
 import 'ask_ai.dart';
@@ -52,6 +53,14 @@ Map<String, Handler> askRoutes(Ctx ctx) {
   String sharedChoice() => effectiveSharedHelper(ctx.paths.sharedAiSettings, ctx.settings.get('ask_ai_helper'));
 
   return {
+    'ask.rules': (p) async {
+      final r = readAskAiRules(ctx.paths);
+      return {'level': r.level, 'actions': r.actions, 'sources': r.sources, 'folders': r.folders, 'broken': r.broken};
+    },
+    'ask.open_settings': (p) async {
+      await Process.start('maprisma-settings', ['--page', 'ai'], environment: ctx.environment, mode: ProcessStartMode.detached);
+      return {'opened': true};
+    },
     'ask.helpers': (p) async {
       final list = [for (final h in await states()) {...h, 'web': canSearchWeb(h['id'] as String)}];
       final ready = [for (final h in list) if (h['signed_in'] == true) h['id'] as String];
@@ -108,7 +117,7 @@ Map<String, Handler> askRoutes(Ctx ctx) {
           parent: parent, limit: limit, current: ctx.current.slug, web: web, canCreate: true);
       return {
         'summary': summary,
-        'candidates': candidates,
+        'candidates': [for (final c in candidates) ctx.proposals.candidate(c)],
         if (parent != null && candidates.isEmpty) 'unchanged': true,
       };
     },
@@ -155,7 +164,8 @@ Map<String, Handler> askRoutes(Ctx ctx) {
       if (queries.isEmpty && images.isEmpty && picturePrompt == null) {
         throw RouteError('bad_answer', tr("no usable search words in the answer"));
       }
-      return {'summary': summary, 'queries': queries, 'images': images, 'web': web, 'picture_prompt': picturePrompt};
+      return {'summary': summary, 'queries': queries, 'images': images, 'web': web, 'picture_prompt': picturePrompt,
+        'proposal': ctx.proposals.issue({'theme.wallpapers', 'theme.apply', if (picturePrompt != null) 'theme.generate'}, slug, picturePrompt: picturePrompt)};
     },
     // The helper for every Maprisma app: "auto" or a helper id, written to the shared file.
     'ask.choose': (p) async {

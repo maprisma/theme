@@ -1412,7 +1412,9 @@ const translationCatalogs = <String, Map<String, String>>{
     "Dictate": "Dictate",
     "Stop and insert": "Stop and insert",
     "Listening…": "Listening…",
-    "Dictation is not available: {0}": "Dictation is not available: {0}"
+    "Dictation is not available: {0}": "Dictation is not available: {0}",
+    "Switched off in Maprisma Settings › AI": "Switched off in Maprisma Settings › AI",
+    "Maprisma Settings › AI": "Maprisma Settings › AI"
   },
   "de": {
     "A key that applies this theme from anywhere": "Eine Taste, die dieses Theme von überall anwendet",
@@ -2826,7 +2828,9 @@ const translationCatalogs = <String, Map<String, String>>{
     "Dictate": "Diktieren",
     "Stop and insert": "Stoppen und einfügen",
     "Listening…": "Höre zu…",
-    "Dictation is not available: {0}": "Diktieren ist nicht verfügbar: {0}"
+    "Dictation is not available: {0}": "Diktieren ist nicht verfügbar: {0}",
+    "Switched off in Maprisma Settings › AI": "In Maprisma Settings › KI ausgeschaltet",
+    "Maprisma Settings › AI": "Maprisma Settings › KI"
   },
   "fr": {
     "A key that applies this theme from anywhere": "Une touche qui applique ce thème de partout",
@@ -4240,7 +4244,9 @@ const translationCatalogs = <String, Map<String, String>>{
     "Dictate": "Dicter",
     "Stop and insert": "Arrêter et insérer",
     "Listening…": "À l’écoute…",
-    "Dictation is not available: {0}": "La dictée n’est pas disponible : {0}"
+    "Dictation is not available: {0}": "La dictée n’est pas disponible : {0}",
+    "Switched off in Maprisma Settings › AI": "Désactivé dans Maprisma Settings › IA",
+    "Maprisma Settings › AI": "Maprisma Settings › IA"
   },
   "es": {
     "A key that applies this theme from anywhere": "Una tecla que aplica este tema desde cualquier lugar",
@@ -5654,7 +5660,9 @@ const translationCatalogs = <String, Map<String, String>>{
     "Dictate": "Dictar",
     "Stop and insert": "Detener e insertar",
     "Listening…": "Escuchando…",
-    "Dictation is not available: {0}": "El dictado no está disponible: {0}"
+    "Dictation is not available: {0}": "El dictado no está disponible: {0}",
+    "Switched off in Maprisma Settings › AI": "Desactivado en Maprisma Settings › IA",
+    "Maprisma Settings › AI": "Maprisma Settings › IA"
   },
   "it": {
     "A key that applies this theme from anywhere": "Un tasto che applica questo tema ovunque",
@@ -7068,7 +7076,9 @@ const translationCatalogs = <String, Map<String, String>>{
     "Dictate": "Detta",
     "Stop and insert": "Ferma e inserisci",
     "Listening…": "In ascolto…",
-    "Dictation is not available: {0}": "La dettatura non è disponibile: {0}"
+    "Dictation is not available: {0}": "La dettatura non è disponibile: {0}",
+    "Switched off in Maprisma Settings › AI": "Disattivato in Maprisma Settings › IA",
+    "Maprisma Settings › AI": "Maprisma Settings › IA"
   },
   "pt": {
     "A key that applies this theme from anywhere": "Uma tecla que aplica este tema de qualquer lugar",
@@ -8482,7 +8492,9 @@ const translationCatalogs = <String, Map<String, String>>{
     "Dictate": "Ditar",
     "Stop and insert": "Parar e inserir",
     "Listening…": "A ouvir…",
-    "Dictation is not available: {0}": "O ditado não está disponível: {0}"
+    "Dictation is not available: {0}": "O ditado não está disponível: {0}",
+    "Switched off in Maprisma Settings › AI": "Desativado em Maprisma Settings › IA",
+    "Maprisma Settings › AI": "Maprisma Settings › IA"
   },
   "nl": {
     "A key that applies this theme from anywhere": "Een toets die dit thema overal toepast",
@@ -9896,7 +9908,9 @@ const translationCatalogs = <String, Map<String, String>>{
     "Dictate": "Dicteren",
     "Stop and insert": "Stoppen en invoegen",
     "Listening…": "Aan het luisteren…",
-    "Dictation is not available: {0}": "Dicteren is niet beschikbaar: {0}"
+    "Dictation is not available: {0}": "Dicteren is niet beschikbaar: {0}",
+    "Switched off in Maprisma Settings › AI": "Uitgeschakeld in Maprisma Settings › AI",
+    "Maprisma Settings › AI": "Maprisma Settings › AI"
   },
   "pl": {
     "A key that applies this theme from anywhere": "Klawisz, który stosuje ten motyw z dowolnego miejsca",
@@ -11310,6 +11324,8 @@ const translationCatalogs = <String, Map<String, String>>{
     "Dictate": "Dyktuj",
     "Stop and insert": "Zatrzymaj i wstaw",
     "Listening…": "Słucham…",
-    "Dictation is not available: {0}": "Dyktowanie jest niedostępne: {0}"
+    "Dictation is not available: {0}": "Dyktowanie jest niedostępne: {0}",
+    "Switched off in Maprisma Settings › AI": "Wyłączono w Maprisma Settings › AI",
+    "Maprisma Settings › AI": "Maprisma Settings › AI"
   }
 };

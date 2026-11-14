@@ -1,4 +1,5 @@
 import '../i18n.dart';
+import '../ask_ai_gate.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
@@ -30,6 +31,16 @@ class WallhavenPage extends StatefulWidget {
 }
 
 class _WallhavenPageState extends State<WallhavenPage> {
+  String? aiProposal, searchProposal;
+  Timer? rulesPoll;
+  Map<String, dynamic> aiRules = {};
+  bool permitted(Map w, List<String> ids) => w['proposal'] == null || (aiRules['level'] != 'answers' && ids.every((id) => (aiRules['actions'] as Map? ?? const {})[id] != false));
+  Future<void> loadRules() async {
+    try {
+      final r = await app.call('ask.rules');
+      if (mounted) setState(() => aiRules = r);
+    } catch (_) { if (mounted) setState(() => aiRules = {'level': 'answers'}); }
+  }
   late final MaprismaThemeAppState app;
   final field = TextEditingController();
   final fieldFocus = FocusNode();
@@ -127,6 +138,7 @@ class _WallhavenPageState extends State<WallhavenPage> {
     count = saved is int && const {5, 10, 20}.contains(saved) ? saved : 10;
     WidgetsBinding.instance.addPostFrameCallback((_) => fieldFocus.requestFocus());
     loadHelper();
+    rulesPoll = Timer.periodic(const Duration(seconds: 2), (_) { if (aiProposal != null) loadRules(); });
   }
 
   /// The shared helper choice, read again on open and before each Ask ([focus]: the Ask field
@@ -237,10 +249,13 @@ class _WallhavenPageState extends State<WallhavenPage> {
       error = failText(e);
     }
     if (!mounted || mine != askGen) return; // a new search, another helper: stale
+    aiProposal = r?['proposal'] as String?;
+    await loadRules();
+    if (!mounted || mine != askGen) return;
     final queries = [for (final q in (r?['queries'] as List?) ?? const []) if (q is String) q];
     final pictures = [
       for (final (i, e) in ((r?['images'] as List?) ?? const []).indexed)
-        if (e is Map && e['url'] is String) webItem(e, i),
+        if (e is Map && e['url'] is String) {...webItem(e, i), 'proposal': r?['proposal']},
     ];
     final prompt = r?['picture_prompt'];
     setState(() {
@@ -276,7 +291,10 @@ class _WallhavenPageState extends State<WallhavenPage> {
   Future<void> makePictures() async {
     final prompt = picturePrompt;
     if (prompt == null || making) return;
+    await loadRules();
+    if (!permitted({'proposal': aiProposal}, ['theme.generate'])) return;
     final mine = makeGen;
+    final proposal = aiProposal;
     Map<String, dynamic> st;
     try {
       st = await app.call('create.status');
@@ -301,10 +319,10 @@ class _WallhavenPageState extends State<WallhavenPage> {
     for (var i = 0; i < batchSize && !stopMaking && mounted && mine == makeGen; i++) {
       setState(() => status = trf("Making picture {0} of {1} on this computer…", [i + 1, batchSize]));
       try {
-        final r = await app.call('create.make', {'prompt': prompt, 'seed': random.nextInt(1 << 31)});
+        final r = await app.call('create.make', {'proposal': proposal, 'prompt': prompt, 'seed': random.nextInt(1 << 31)});
         if (!mounted || mine != makeGen || picturePrompt != prompt) break; // a newer Ask or search
         final path = r['path'] as String;
-        final item = {'kind': 'created', 'id': 'made${created.length}:$path', 'path': path, 'file_name': trf("Created picture {0}", [created.length + 1])};
+        final item = {'proposal': proposal, 'kind': 'created', 'id': 'made${created.length}:$path', 'path': path, 'file_name': trf("Created picture {0}", [created.length + 1])};
         setState(() {
           thumbs[item['id'] as String] = path;
           created.add(item);
@@ -334,7 +352,7 @@ class _WallhavenPageState extends State<WallhavenPage> {
 
   Future<void> setUpGenerator() async {
     try {
-      final st = await app.call('create.setup');
+      final st = await app.call('create.setup', {'proposal': aiProposal});
       if (mounted) setState(() => generator = st);
     } catch (e) {
       if (mounted) setState(() => status = trf("Could not set up the picture generator: {0}", [failText(e)]));
@@ -407,7 +425,7 @@ class _WallhavenPageState extends State<WallhavenPage> {
     if (!mounted || mine != askGen) return; // a new search, another helper: stale
     final fresh = [
       for (final (i, e) in ((r?['images'] as List?) ?? const []).indexed)
-        if (e is Map && e['url'] is String && !webPictures.any((w) => w['url'] == e['url'])) webItem(e, webPictures.length + i),
+        if (e is Map && e['url'] is String && !webPictures.any((w) => w['url'] == e['url'])) {...webItem(e, webPictures.length + i), 'proposal': r?['proposal']},
     ];
     setState(() {
       asking = false;
@@ -472,6 +490,7 @@ class _WallhavenPageState extends State<WallhavenPage> {
 
   @override
   void dispose() {
+    rulesPoll?.cancel();
     generation++;
     askGen++;
     makeGen++;
@@ -499,6 +518,7 @@ class _WallhavenPageState extends State<WallhavenPage> {
   Future<void> search({bool fromAsk = false}) async {
     final q = field.text.trim();
     if (q.isEmpty) return;
+    searchProposal = fromAsk ? aiProposal : null;
     generation++;
     endPreview(); // the old search's preview ends; one still loading never shows
     dropAsk(); // a new search: an Ask still on its way never starts its own
@@ -539,7 +559,7 @@ class _WallhavenPageState extends State<WallhavenPage> {
       }
       page = next;
       lastPage = (r['last_page'] as num?)?.toInt() ?? 1;
-      final fresh = [for (final x in (r['results'] as List?) ?? const []) Map<String, dynamic>.from(x as Map)];
+      final fresh = [for (final x in (r['results'] as List?) ?? const []) {...Map<String, dynamic>.from(x as Map), 'proposal': searchProposal}];
       final known = {for (final x in results) x['id']};
       results.addAll(fresh.where((x) => !known.contains(x['id'])));
       _thumbQueue.addAll(fresh.where((x) => !thumbs.containsKey(x['id'])));
@@ -589,10 +609,10 @@ class _WallhavenPageState extends State<WallhavenPage> {
     setState(() => status = trf("Downloading {0}…", [item['file_name']]));
     try {
       final r = isMade(item)
-          ? await app.call('create.add', {'slug': widget.slug, 'path': item['path'], 'set': set})
+          ? await app.call('create.add', {'proposal': item['proposal'], 'slug': widget.slug, 'path': item['path'], 'set': set})
           : isWeb(item)
-          ? await app.call('webimg.add', {'slug': widget.slug, 'url': item['url'], 'set': set})
-          : await app.call('wallhaven.add', {'slug': widget.slug, 'item': _plain(item), 'set': set});
+          ? await app.call('webimg.add', {'proposal': item['proposal'], 'slug': widget.slug, 'url': item['url'], 'set': set})
+          : await app.call('wallhaven.add', {'proposal': item['proposal'], 'slug': widget.slug, 'item': _plain(item), 'set': set});
       if (!mounted) return;
       setState(() {
         item['added'] = true;
@@ -623,10 +643,10 @@ class _WallhavenPageState extends State<WallhavenPage> {
       }
       if (path == null) {
         final r = isMade(item)
-            ? await app.call('create.add', {'slug': widget.slug, 'path': item['path']})
+            ? await app.call('create.add', {'proposal': item['proposal'], 'slug': widget.slug, 'path': item['path'], 'set': true})
             : isWeb(item)
-            ? await app.call('webimg.add', {'slug': widget.slug, 'url': item['url']})
-            : await app.call('wallhaven.add', {'slug': widget.slug, 'item': _plain(item)});
+            ? await app.call('webimg.add', {'proposal': item['proposal'], 'slug': widget.slug, 'url': item['url'], 'set': true})
+            : await app.call('wallhaven.add', {'proposal': item['proposal'], 'slug': widget.slug, 'item': _plain(item), 'set': true});
         path = r['path'] as String;
         if (mounted) {
           setState(() {
@@ -635,8 +655,8 @@ class _WallhavenPageState extends State<WallhavenPage> {
           });
         }
       }
-      await app.call('wallpapers.set', {'slug': widget.slug, 'path': path});
-      if (!widget.current) await app.call('themes.apply', {'slug': widget.slug});
+      await app.call('wallpapers.set', {'proposal': item['proposal'], 'slug': widget.slug, 'path': path});
+      if (!widget.current) await app.call('themes.apply', {'proposal': item['proposal'], 'slug': widget.slug});
       if (!mounted) return;
       setState(() => status = trf("Applied {0} with {1}.", [widget.themeName, item['file_name']]));
       app.notify(trf("Applied {0} with {1}.", [widget.themeName, item['file_name']]));
@@ -704,15 +724,18 @@ class _WallhavenPageState extends State<WallhavenPage> {
   }
 
   List<PopupMenuEntry<VoidCallback>> menuFor(Map<String, dynamic> w) => [
+    if (!permitted(w, ['theme.wallpapers', 'theme.apply']))
+      item(Icons.settings, tr('Switched off in Maprisma Settings › AI'), () => app.run('ask.open_settings')),
     if (app.can('wallpaper'))
-      item(Icons.check_circle_outline, tr("Apply"), () => applyNow(w),
+      item(Icons.check_circle_outline, permitted(w, ['theme.apply', if (w['added'] != true) 'theme.wallpapers']) ? tr("Apply") : tr('Switched off in Maprisma Settings › AI'), () => applyNow(w),
+          enabled: permitted(w, ['theme.apply', if (w['added'] != true) 'theme.wallpapers']),
           tooltip: widget.current
               ? trf("Adds it to {0} and sets it as the background", [widget.themeName])
               : trf("Adds it to {0}, applies {0} and sets it as the background", [widget.themeName])),
     if (w['added'] == true)
       item_(Icons.check, tr("Already added"), null)
     else ...[
-      item(Icons.add, trf("Add to {0}", [widget.themeName]), () => add(w), tooltip: trf("Saved in ~/.config/maprisma-theme/backgrounds/{0}/", [widget.slug])),
+      item(Icons.add, permitted(w, ['theme.wallpapers']) ? trf("Add to {0}", [widget.themeName]) : tr('Switched off in Maprisma Settings › AI'), () => add(w), enabled: permitted(w, ['theme.wallpapers']), tooltip: trf("Saved in ~/.config/maprisma-theme/backgrounds/{0}/", [widget.slug])),
     ],
     if (app.can('wallpaper'))
       item(Icons.visibility_outlined, tr("Preview on desktop"), () => preview(w, seconds: previewSeconds),
@@ -890,7 +913,7 @@ class _WallhavenPageState extends State<WallhavenPage> {
           ].join(' ')),
         ),
         const SizedBox(width: 8),
-        FilledButton.icon(onPressed: setUpGenerator, icon: const Icon(Icons.download, size: 16), label: Text(tr("Set up"))),
+        AskAiGate(proposal: aiProposal, actions: const ['theme.generate'], builder: (allowed) => FilledButton.icon(onPressed: allowed ? setUpGenerator : null, icon: const Icon(Icons.download, size: 16), label: Text(tr("Set up")))),
       ]);
     }
     return Container(
@@ -958,7 +981,7 @@ class _WallhavenPageState extends State<WallhavenPage> {
               label: Text(q),
               tooltip: trf("Search for “{0}”", [q]),
               visualDensity: VisualDensity.compact,
-              onPressed: () => searchFor(q),
+              onPressed: () => searchFor(q, fromAsk: true),
             ),
         ]),
       ],

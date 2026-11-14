@@ -1,3 +1,4 @@
+import 'proposals.dart';
 import 'i18n.dart';
 import 'dart:convert';
 import 'dart:io';
@@ -191,6 +192,7 @@ final class Wallhaven {
     slug = ctx.theme(validSlug(slug)).slug;
     if (alreadyAdded(slug, w)) throw RouteError('exists', trf("{0} is already in this theme", [w.fileName]));
     final data = await _download(w);
+    checkAskAiBoundary();
     return addBackgroundBytes(ctx, slug, data, w.fileName);
   }
 

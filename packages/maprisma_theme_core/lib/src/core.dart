@@ -34,7 +34,7 @@ final class CoreService {
     final handler = routes[method];
     if (handler == null) throw RouteError('unknown_route', method);
     try {
-      return await handler(params);
+      return await ctx.proposals.execute(ctx, method, params, handler);
     } on TrashUnavailable catch (e) {
       throw RouteError('no_trash', '$e');
     }
@@ -62,5 +62,5 @@ final class CoreService {
     }
   }
 
-  void dispose() {}
+  void dispose() => ctx.proposals.clear();
 }

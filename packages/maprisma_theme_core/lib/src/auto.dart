@@ -8,6 +8,7 @@
 library;
 
 import 'i18n.dart';
+import 'proposals.dart';
 
 import 'dart:async';
 import 'dart:io';
@@ -421,6 +422,7 @@ Future<bool> showChosenBackground(Ctx ctx, ThemeInfo theme, String target) async
   var own = false;
   if (workspaceWallpapersEnabled(ctx)) {
     final ws = await activeWorkspace(ctx);
+    checkAskAiBoundary();
     final assignments = loadWorkspaceMap(ctx)[theme.slug] ?? const <int, String>{};
     if (ws != null && assignments.containsKey(ws)) {
       setWorkspaceWallpaper(ctx, theme.slug, ws, baseName(target));

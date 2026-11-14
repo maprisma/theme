@@ -19,6 +19,7 @@ Future<Map<String, dynamic>> _maybeApply(Ctx ctx, String slug, bool apply) async
     });
     return {'slug': slug, 'applied': true};
   } on RouteError catch (e) {
+    if (e.code == 'ask_ai_blocked') rethrow;
     return {'slug': slug, 'applied': false, 'apply_error': e.message ?? e.code};
   }
 }

@@ -1,3 +1,4 @@
+import 'proposals.dart';
 import 'i18n.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -302,9 +303,12 @@ final class CreatedPictures {
     () async {
       try {
         await setup();
+        reportAskAiOutcome('done');
       } on SetupCancelled {
+        reportAskAiOutcome('cancelled');
         setupError = tr('Cancelled');
       } on Object catch (e) {
+        reportAskAiOutcome(e is RouteError && e.code == 'ask_ai_blocked' ? 'blocked' : 'failed');
         setupError = _line('$e'.replaceFirst(RegExp(r'^(Bad state|Invalid argument\(s\)|FileSystemException): '), ''));
       } finally {
         _settingUp = false;
@@ -329,6 +333,7 @@ final class CreatedPictures {
   /// The whole setup (also used directly by tests): program, then models.
   Future<void> setup() async {
     _cancelSetup = false;
+    checkAskAiBoundary();
     Directory(data).createSync(recursive: true);
     chmodPath(data, 448);
     final lockFile = File('$data/.setup.lock').openSync(mode: FileMode.write);
@@ -488,6 +493,7 @@ final class CreatedPictures {
     final text = prompt.replaceAll(RegExp(r'[\x00-\x1f\x7f]'), ' ').split(RegExp(r'\s+')).where((w) => w.isNotEmpty).join(' ');
     if (text.isEmpty) throw RouteError('bad_params', 'prompt');
     final words = text.length > maxPicturePrompt ? text.substring(0, maxPicturePrompt) : text;
+    checkAskAiBoundary();
     ensurePrivateCache(cacheDir, uid: Posix.instance.uid, ownerOf: Posix.instance.owner);
     final out = '$cacheDir/created-${DateTime.now().millisecondsSinceEpoch}-${seed & 0x7fffffff}.png';
     _cancelled = false;

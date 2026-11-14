@@ -1,3 +1,4 @@
+import 'proposals.dart';
 import 'i18n.dart';
 import 'dart:io';
 import 'dart:math';
@@ -197,6 +198,7 @@ Future<String> installOmarchyTheme(Ctx ctx, OmarchyTheme theme) async {
     final (code, _) = await runBounded([check, theme.repo], timeout: const Duration(seconds: 10));
     if (code != 0) throw RouteError('bad_url', trf("Omarchy refuses this repository URL: {0}", [theme.repo]));
   }
+  checkAskAiBoundary();
   Directory(base).createSync(recursive: true);
   // Cloned beside the target first, then renamed into place, so a failed or
   // concurrent clone never leaves a half theme under the real name.
@@ -263,6 +265,7 @@ Future<String> installOmarchyTheme(Ctx ctx, OmarchyTheme theme) async {
     throw RouteError('exists', trf("a theme named “{0}” is already installed", [slug]));
   }
   try {
+    checkAskAiBoundary();
     Directory(tmp).renameSync(dest);
   } on FileSystemException {
     await cleanup();

@@ -1,4 +1,5 @@
 import '../i18n.dart';
+import '../ask_ai_gate.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -40,7 +41,11 @@ class EditorPage extends StatefulWidget {
     this.askWallpaper,
     this.initialBlur,
     this.fromAsk = false,
+    this.proposal,
+    this.withWallpaper = false,
   });
+  final String? proposal;
+  final bool withWallpaper;
   final String? base, edit, wallpaper, askWallpaper;
   final Map<String, String>? initial;
   final Map<String, dynamic>? initialBlur;
@@ -214,6 +219,8 @@ class _EditorPageState extends State<EditorPage> {
     Map<String, dynamic> r;
     try {
       r = await app.call('custom.save', {
+        'proposal': widget.proposal,
+        'with_wallpaper': widget.withWallpaper,
         'name': n,
         'colors': colors,
         'font': ?font,
@@ -347,14 +354,14 @@ class _EditorPageState extends State<EditorPage> {
           Row(
             children: [
               Expanded(
-                child: OutlinedButton(onPressed: saving ? null : () => save(false), child: Text(editing ? tr("Save") : tr("Create"))),
+                child: AskAiGate(proposal: widget.proposal, actions: ['theme.edit', if (data?['current'] == true || widget.withWallpaper) 'theme.apply', if (widget.withWallpaper) 'theme.wallpapers'], builder: (allowed) => OutlinedButton(onPressed: saving || !allowed ? null : () => save(false), child: Text(editing ? tr("Save") : tr("Create")))),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: FilledButton(
-                  onPressed: saving ? null : () => save(true),
+                child: AskAiGate(proposal: widget.proposal, actions: ['theme.edit', 'theme.apply', if (widget.withWallpaper) 'theme.wallpapers'], builder: (allowed) => FilledButton(
+                  onPressed: saving || !allowed ? null : () => save(true),
                   child: Text(editing ? tr("Save and apply") : tr("Create and apply")),
-                ),
+                )),
               ),
             ],
           ),

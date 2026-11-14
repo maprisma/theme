@@ -1,4 +1,5 @@
 import 'i18n.dart';
+import 'proposals.dart';
 import 'desktop.dart';
 import 'paths.dart';
 import 'settings.dart';
@@ -25,6 +26,8 @@ final class Ctx {
   final Desktop desktop;
   final Map<String, String> environment;
   final DateTime Function() clock;
+
+  final proposals = ProposalBook();
 
   late final settings = Settings(paths);
   late final lists = Lists(paths);

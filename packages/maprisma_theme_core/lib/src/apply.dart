@@ -1,3 +1,4 @@
+import 'proposals.dart';
 import 'i18n.dart';
 import 'dart:convert';
 import 'dart:io';
@@ -117,6 +118,7 @@ Future<Map<String, dynamic>> applyTheme(Ctx ctx, String slug, {String? wallpaper
   if (!isHex(resolved['background']) || !isHex(resolved['foreground'])) {
     throw RouteError('bad_theme', tr("the theme has no usable colors"));
   }
+  checkAskAiBoundary();
   final object = colorsObject(resolved);
   final desktop = ctx.desktop;
   final done = <String>[];
@@ -163,6 +165,7 @@ Future<Map<String, dynamic>> applyTheme(Ctx ctx, String slug, {String? wallpaper
 
 /// Sets the background of the theme in use (and remembers it for the theme).
 Future<bool> setBackground(Ctx ctx, String path, {bool remember = true}) async {
+  checkAskAiBoundary();
   if (!await ctx.desktop.setWallpaper(path)) return false;
   final slug = ctx.current.slug;
   ctx.current.save(wallpaper: path);

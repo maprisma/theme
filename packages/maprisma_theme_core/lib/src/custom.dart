@@ -1,3 +1,4 @@
+import 'proposals.dart';
 import 'i18n.dart';
 import 'dart:ffi';
 import 'dart:io';
@@ -569,6 +570,7 @@ Future<String> createThemeFolder(
   final palette = base != null ? (await loadPalette(ctx, base)).copy() : parsePalette('');
   palette.take(colors);
   if (_taken(ctx).contains(slug)) throw RouteError('exists', trf("a theme called {0} already exists", [displayName(slug)]));
+  checkAskAiBoundary();
   Directory(ctx.paths.userThemes).createSync(recursive: true);
   final dir = '${ctx.paths.userThemes}/$slug';
   if (!_mkdirNew(dir)) throw RouteError('exists', trf("a theme called {0} already exists", [displayName(slug)]));
@@ -814,6 +816,7 @@ Future<Map<String, dynamic>> saveCustom(Ctx ctx, Map<String, dynamic> p) async {
     final wasCurrent = ctx.current.slug == theme.slug;
     slugFor(name); // a bad name stops before anything moves
     final palette = (await loadPalette(ctx, theme)).copy()..take(colors);
+    checkAskAiBoundary();
     slug = renameTheme(ctx, theme, name);
     theme = ctx.theme(slug);
     await updateTheme(ctx, theme, palette, font, blur: blur);
@@ -838,6 +841,7 @@ Future<Map<String, dynamic>> saveCustom(Ctx ctx, Map<String, dynamic> p) async {
       await applyTheme(ctx, slug);
       out['applied'] = true;
     } on RouteError catch (e) {
+      if (e.code == 'ask_ai_blocked') rethrow;
       out['apply_error'] = e.message ?? e.code;
     }
   }

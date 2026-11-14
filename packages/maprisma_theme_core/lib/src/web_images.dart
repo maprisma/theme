@@ -1,3 +1,4 @@
+import 'proposals.dart';
 import 'i18n.dart';
 import 'dart:convert';
 import 'dart:io';
@@ -156,6 +157,7 @@ final class WebImages {
     final url = checkUrl(rawUrl);
     final bytes = readCachedBytes(path, maxBackgroundBytes) ??
         (throw RouteError('bad_image', tr("the link is not a JPEG, PNG or WebP picture")));
+    checkAskAiBoundary();
     return addBackgroundBytes(ctx, slug, bytes, fileNameOf(url, path));
   }
 
