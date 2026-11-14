@@ -84,6 +84,40 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('a font changed in Font & effects shows within a few seconds, the colours unchanged', (tester) async {
+    tester.view.physicalSize = const Size(1200, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    var look = <String, dynamic>{
+      'desktop': 'hyprland',
+      'colors': {'background': '#231a13', 'accent': '#e78a4e', 'foreground': '#e8d5b7'},
+      'is_dark': true,
+      'corner_radius': 15,
+      'fonts': {'ui': 'Noto Sans', 'mono': 'Hack'},
+    };
+    Future<Map<String, dynamic>> call(String method, [Map<String, dynamic> params = const {}]) async =>
+        method == 'desktop.look' ? look : core.call(method, params);
+    ThemeData theme() => tester.widget<MaterialApp>(find.byType(MaterialApp)).theme!;
+    Future<void> until(bool Function() done) async {
+      for (var i = 0; i < 50 && !done(); i++) {
+        await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+        await tester.pump();
+      }
+    }
+
+    await tester.pumpWidget(MaprismaThemeApp(call: call));
+    await until(() => find.byType(MaterialApp).evaluate().isNotEmpty && theme().extension<AppFonts>()?.mono == 'Hack');
+    expect(theme().textTheme.bodyMedium!.fontFamily, 'Noto Sans');
+    expect(theme().extension<AppFonts>()!.mono, 'Hack');
+
+    look = {...look, 'fonts': {'ui': 'Open Sans', 'mono': 'JetBrains Mono'}};
+    await tester.pump(const Duration(seconds: 5));
+    await until(() => theme().extension<AppFonts>()!.mono == 'JetBrains Mono');
+    expect(theme().textTheme.bodyMedium!.fontFamily, 'Open Sans');
+    expect(theme().extension<AppFonts>()!.mono, 'JetBrains Mono');
+    await tester.pumpWidget(const SizedBox());
+  });
+
   test('"Like windows" takes the desktop\'s rounding, the other settings their own', () {
     expect(cornerRadius('windows', 15), 15);
     expect(cornerRadius('windows', null), 12);

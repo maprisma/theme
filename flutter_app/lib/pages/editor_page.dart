@@ -605,7 +605,7 @@ class _EditorPageState extends State<EditorPage> {
                   return TextField(
                     controller: controller,
                     maxLength: 7,
-                    style: textRole(Theme.of(context).textTheme.bodyMedium).copyWith(fontFamily: 'monospace'),
+                    style: textRole(Theme.of(context).textTheme.bodyMedium).copyWith(fontFamily: monoFont(context)),
                     inputFormatters: [FilteringTextInputFormatter.allow(RegExp('[#0-9a-fA-F]'))],
                     decoration: InputDecoration(isDense: true, counterText: '', errorText: _hexRe.hasMatch(t) ? null : '#rrggbb'),
                     onSubmitted: (v) => setColor(key, v),
@@ -629,7 +629,7 @@ class _EditorPageState extends State<EditorPage> {
     const size = 11.0;
     TextStyle s(String key, {double fontSize = size}) => TextStyle(
       color: k(key),
-      fontFamily: family ?? 'monospace',
+      fontFamily: family ?? monoFont(context),
       fontFamilyFallback: const ['monospace'],
       fontSize: fontSize,
       height: 1.3,
@@ -808,7 +808,7 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
                   child: TextField(
                     controller: field,
                     maxLength: 7,
-                    style: const TextStyle(fontFamily: 'monospace'),
+                    style: TextStyle(fontFamily: monoFont(context)),
                     inputFormatters: [FilteringTextInputFormatter.allow(RegExp('[#0-9a-fA-F]'))],
                     decoration: const InputDecoration(isDense: true, counterText: ''),
                     onChanged: (v) {

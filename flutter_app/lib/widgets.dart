@@ -356,7 +356,7 @@ class ColorPreview extends StatelessWidget {
           Row(children: [
             Container(width: 10, height: 10, decoration: BoxDecoration(color: accent, shape: BoxShape.circle)),
             const SizedBox(width: 8),
-            Expanded(child: Text(title ?? '~ \$ ls', style: TextStyle(color: fg, fontFamily: 'monospace', fontSize: 12), maxLines: 1)),
+            Expanded(child: Text(title ?? '~ \$ ls', style: TextStyle(color: fg, fontFamily: monoFont(context), fontSize: 12), maxLines: 1)),
           ]),
           const SizedBox(height: 6),
           Container(height: 3, width: 60, color: accent),

@@ -1015,7 +1015,7 @@ class _ThemeTileState extends State<ThemeTile> {
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
               style: TextStyle(
-                  fontFamily: 'monospace', color: widget.selected ? look.selectionFg : look.muted)),
+                  fontFamily: monoFont(context), color: widget.selected ? look.selectionFg : look.muted)),
         const SizedBox(height: 4),
       ]),
     );

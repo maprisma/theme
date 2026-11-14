@@ -420,6 +420,25 @@ esac
       expect(File('${gs.path}/monospace-font-name').readAsStringSync(), 'Hack 10');
     });
 
+    test('desktop.look\'s fonts: gsettings without the size, asked at most every 30 s, a change here at once', () async {
+      var now = DateTime(2026, 1, 1);
+      final d = HyprlandDesktop(paths, env, ptsDir: pts.path, clock: () => now);
+      final core = CoreService(environment: env, paths: paths, desktop: d);
+      int asked() => log.existsSync() ? log.readAsLinesSync().where((l) => l.startsWith('gsettings get')).length : 0;
+      expect((await core.call('desktop.look'))['fonts'], {'ui': 'Noto Sans', 'mono': 'Hack'});
+      final first = asked();
+      File('${gs.path}/monospace-font-name').writeAsStringSync('Other Mono 10'); // changed elsewhere
+      now = now.add(const Duration(seconds: 10));
+      expect((await core.call('desktop.look'))['fonts'], {'ui': 'Noto Sans', 'mono': 'Hack'});
+      expect(asked(), first);
+      now = now.add(const Duration(seconds: 25));
+      expect((await core.call('desktop.look'))['fonts'], {'ui': 'Noto Sans', 'mono': 'Other Mono'});
+      final fonts = await two(d.monospaceFonts());
+      if (fonts.isEmpty) return;
+      expect(await d.setMonospaceFont(fonts[0]), isTrue); // Font & effects: shown with the next look
+      expect((await core.call('desktop.look'))['fonts']['mono'], fonts[0]);
+    });
+
     test('foot.ini without a font line gets one at the end of its main section', () {
       expect(HyprlandDesktop.footWithFamily(null, 'Hack'), 'Hack:size=11');
       expect(HyprlandDesktop.footWithFamily('A B', 'Hack'), 'Hack');

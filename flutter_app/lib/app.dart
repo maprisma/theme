@@ -94,6 +94,9 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
   }
 
   Map colors = const {};
+
+  /// The desktop's fonts (desktop.look `fonts`: ui, mono); Font & effects changes them.
+  Map fonts = const {};
   int? windowRadius;
   Map<String, dynamic> settings = const {};
 
@@ -193,6 +196,7 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
       if (!mounted) return;
       setState(() {
         colors = (look['colors'] as Map?) ?? const {};
+        fonts = (look['fonts'] as Map?) ?? const {};
         windowRadius = (look['corner_radius'] as num?)?.round();
         settings = Map<String, dynamic>.from(s['settings'] as Map);
         languageSetting = settings['language'] as String? ?? 'auto';
@@ -215,7 +219,7 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
     if (state == AppLifecycleState.resumed) pollLook();
   }
 
-  /// Re-reads only the desktop's look (colours, window corners) and rebuilds only when it changed.
+  /// Re-reads only the desktop's look (colours, window corners, fonts) and rebuilds only when it changed.
   Future<void> pollLook() async {
     if (_polling) return;
     _polling = true;
@@ -224,9 +228,11 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
       if (!mounted) return;
       final fresh = (look['colors'] as Map?) ?? const {};
       final radius = (look['corner_radius'] as num?)?.round();
-      if (mapEquals(fresh, colors) && radius == windowRadius) return;
+      final freshFonts = (look['fonts'] as Map?) ?? const {};
+      if (mapEquals(fresh, colors) && radius == windowRadius && mapEquals(freshFonts, fonts)) return;
       setState(() {
         colors = fresh;
+        fonts = freshFonts;
         windowRadius = radius;
       });
       AppWindow.instance.titlebar(look['is_dark'] != false);
@@ -376,7 +382,7 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
         navigatorKey: navigator,
         navigatorObservers: [_observer, _esc],
         scaffoldMessengerKey: messenger,
-        theme: withWindowAlpha(appTheme(platform, colors, radius), alpha),
+        theme: withWindowAlpha(appTheme(platform, colors, radius, fonts: fonts), alpha),
         // Esc's last word sits outside the header too (its buttons can have the keyboard).
         builder: (context, child) => _esc.wrap(CallbackShortcuts(
           bindings: {

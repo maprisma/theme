@@ -346,6 +346,7 @@ final class HyprlandDesktop extends DesktopBase {
   }
 
   Future<bool> _gsettingsSet(String key, String? value) async {
+    _familyCache.clear();
     final g = findProgram(paths, environment, 'gsettings');
     if (g == null) return false;
     final (code, _) = await runBounded(
@@ -505,10 +506,19 @@ final class HyprlandDesktop extends DesktopBase {
     return _gsettingsSet(role.gsettingsKey, null);
   }
 
+  /// The family gsettings has for [role], asked at most every 30 s (the window re-reads its look,
+  /// fonts included, every few seconds); a change through [_gsettingsSet] is read at once.
   String? _family(FontRoleKey role) {
+    final now = _clock();
+    final cached = _familyCache[role];
+    if (cached != null && now.difference(cached.at).abs() < const Duration(seconds: 30)) return cached.value;
     final v = _gsettings(role.gsettingsKey);
-    return v == null ? null : pangoSplit(v).$1;
+    final family = v == null ? null : pangoSplit(v).$1;
+    _familyCache[role] = (at: now, value: family);
+    return family;
   }
+
+  final _familyCache = <FontRoleKey, ({DateTime at, String? value})>{};
 
   @override
   String? monospaceFont() => caps.contains(Cap.fonts) ? _family(FontRoleKey.mono) : null;
