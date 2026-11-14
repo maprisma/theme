@@ -1,4 +1,5 @@
 use maprisma_theme_helper::i18n::{current_language, tr, trf};
+mod fonts;
 mod process;
 use cosmic::iced::platform_specific::shell::wayland::commands::popup::destroy_popup;
 use cosmic::iced::{
@@ -44,6 +45,7 @@ fn on_svg() -> theme::Svg {
 }
 static AUTO: LazyLock<Id> = LazyLock::new(|| Id::new("maprisma-theme-autosize"));
 fn main() -> iced::Result {
+    fonts::keep_fonts();
     cosmic::applet::run::<Applet>(())
 }
 #[derive(Debug, Clone)]
@@ -266,6 +268,8 @@ impl cosmic::Application for Applet {
             }
             Message::Pulse => {
                 self.reload();
+                // The desktop's fonts, read again when 30 s old (the redraw after this puts them in).
+                fonts::refresh();
                 self.shown = window_shown(
                     std::env::var_os("XDG_RUNTIME_DIR").map(PathBuf::from).as_deref(),
                     std::path::Path::new("/proc"),
@@ -321,6 +325,7 @@ impl cosmic::Application for Applet {
         self.next()
     }
     fn view(&self) -> Element<'_, Message> {
+        fonts::keep_fonts();
         let size = self.core.applet.suggested_size(true).0;
         let padding = self.core.applet.suggested_padding(true).0;
         let mut glyph = icon::from_name(ICON).symbolic(true).size(size).icon();
@@ -346,6 +351,7 @@ impl cosmic::Application for Applet {
         autosize::autosize(tooltip, AUTO.clone()).into()
     }
     fn view_window(&self, _: window::Id) -> Element<'_, Message> {
+        fonts::keep_fonts();
         let mut rows = column::with_children(vec![])
             .spacing(6)
             .padding(12)
