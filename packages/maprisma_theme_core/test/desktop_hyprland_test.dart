@@ -70,10 +70,12 @@ void main() {
   String scheme() => '$home/.local/state/maprisma-shell/scheme.json';
   String shellJson() => '$home/.config/maprisma-shell/shell.json';
 
-  test('caps: appearance and wallpaper with Maprisma Shell installed', () {
+  test('caps: appearance and wallpaper with Maprisma Shell installed; blur with Hyprland\'s config and hyprctl', () {
     final d = desktop();
     expect(d.id, 'hyprland');
-    expect(d.caps, {Cap.appearance, Cap.wallpaper});
+    expect(d.caps, containsAll({Cap.appearance, Cap.wallpaper, Cap.blur}));
+    // without gsettings (a PATH of only the fake hyprctl): no fonts
+    expect(desktop({...env, 'PATH': '${root.path}/bin'}).caps, {Cap.appearance, Cap.wallpaper, Cap.blur});
   });
 
   test('caps: none without Maprisma Shell (plain Hyprland, Omarchy); nothing is written', () async {
@@ -353,4 +355,126 @@ void main() {
       expect(watch.elapsed, lessThan(const Duration(seconds: 10)));
     });
   });
+
+  group('fonts and blur (a fake gsettings and hyprctl, never the session\'s)', () {
+    late Directory gs;
+    setUp(() {
+      gs = Directory('${root.path}/gs')..createSync();
+      File('${gs.path}/font-name').writeAsStringSync('Noto Sans  10');
+      File('${gs.path}/monospace-font-name').writeAsStringSync('Hack 10');
+      // gsettings get/set/reset org.gnome.desktop.interface KEY [VALUE], kept in files
+      File('${root.path}/bin/gsettings').writeAsStringSync('''#!/bin/sh
+echo "gsettings \$@" >> "${log.path}"
+case "\$1" in
+  get) printf "'%s'\\n" "\$(cat "${gs.path}/\$3")";;
+  set) printf '%s' "\$4" > "${gs.path}/\$3";;
+  reset) printf 'Cantarell 11' > "${gs.path}/\$3";;
+esac
+''');
+      Process.runSync('chmod', ['+x', '${root.path}/bin/gsettings']);
+      // fc-list is the real one: pick fonts that exist here
+    });
+
+    Future<List<String>> two(Future<List<String>> list) async => (await list).take(2).toList();
+
+    test('caps: fonts and the interface font with gsettings; none of it without Maprisma Shell', () {
+      expect(desktop().caps, containsAll({Cap.fonts, Cap.uiFont, Cap.blur}));
+      File('$home/.config/quickshell/maprisma-shell/shell.qml').deleteSync();
+      expect(desktop().caps, isEmpty);
+    });
+
+    test('the interface font: gsettings and GTK\'s settings.ini keep their size; going back puts back exactly what was', () async {
+      final ini3 = File('$home/.config/gtk-3.0/settings.ini')..createSync(recursive: true);
+      ini3.writeAsStringSync('[Settings]\ngtk-theme-name=Breeze\ngtk-font-name=Bitstream Vera Sans,  10\n');
+      final d = desktop();
+      expect(d.interfaceFont(), 'Noto Sans');
+      final fonts = await two(d.interfaceFonts());
+      if (fonts.length < 2) return; // no fonts on this machine
+      expect(await d.setInterfaceFont(fonts[0]), isTrue);
+      expect(File('${gs.path}/font-name').readAsStringSync(), '${fonts[0]}  10');
+      expect(ini3.readAsStringSync(), '[Settings]\ngtk-theme-name=Breeze\ngtk-font-name=${fonts[0]},  10\n');
+      expect(d.interfaceFont(), fonts[0]);
+      expect(await d.setInterfaceFont(fonts[1]), isTrue);
+      expect(await d.resetInterfaceFont(), isTrue);
+      expect(File('${gs.path}/font-name').readAsStringSync(), 'Noto Sans  10');
+      expect(ini3.readAsStringSync(), '[Settings]\ngtk-theme-name=Breeze\ngtk-font-name=Bitstream Vera Sans,  10\n');
+      // without a theme's change: GTK's default
+      expect(await d.resetInterfaceFont(), isTrue);
+      expect(File('${gs.path}/font-name').readAsStringSync(), 'Cantarell 11');
+      expect(await d.setInterfaceFont('No Such Font 123'), isFalse);
+    });
+
+    test('the monospace font: gsettings and foot.ini\'s main font line (size and fallbacks stay, other sections too)', () async {
+      final foot = File('$home/.config/foot/foot.ini')..createSync(recursive: true);
+      const before = '# colours\ninclude=/x/foot.ini\n\nshell=fish\nfont=JetBrains Mono:size=12,Noto Color Emoji\npad=25x25\n\n[colors-dark]\nalpha=0.78\nfont=no\n';
+      foot.writeAsStringSync(before);
+      final d = desktop();
+      expect(d.monospaceFont(), 'Hack');
+      final fonts = await two(d.monospaceFonts());
+      if (fonts.isEmpty) return;
+      expect(await d.setMonospaceFont(fonts[0]), isTrue);
+      expect(File('${gs.path}/monospace-font-name').readAsStringSync(), '${fonts[0]} 10');
+      expect(foot.readAsStringSync(), before.replaceFirst('font=JetBrains Mono:size=12', 'font=${fonts[0]}:size=12'));
+      expect(await d.resetMonospaceFont(), isTrue);
+      expect(foot.readAsStringSync(), before);
+      expect(File('${gs.path}/monospace-font-name').readAsStringSync(), 'Hack 10');
+    });
+
+    test('foot.ini without a font line gets one at the end of its main section', () {
+      expect(HyprlandDesktop.footWithFamily(null, 'Hack'), 'Hack:size=11');
+      expect(HyprlandDesktop.footWithFamily('A B', 'Hack'), 'Hack');
+      expect(HyprlandDesktop.pangoSplit('Noto Sans Bold 10.5'), ('Noto Sans Bold', ' 10.5'));
+      expect(HyprlandDesktop.pangoSplit('Hack'), ('Hack', ' 11'));
+    });
+
+    group('blur', () {
+      void options({required bool on, required int size}) {
+        File('${root.path}/bin/hyprctl').writeAsStringSync('''#!/bin/sh
+echo "\$@" >> "${log.path}"
+case "\$3" in
+  decoration:blur:enabled) echo '{"option": "decoration:blur:enabled", "bool": $on, "set": true}';;
+  decoration:blur:size) echo '{"option": "decoration:blur:size", "int": $size, "set": true}';;
+esac
+''');
+      }
+
+      test('state from hyprctl; a target writes hypr-theme.lua, hooks it last into hypr-user.lua once, reloads', () async {
+        options(on: true, size: 8);
+        File('$home/.config/hypr/hypr-user.lua').writeAsStringSync('-- mine\n');
+        final d = desktop();
+        final now = (await d.blurState())!;
+        expect(now, {'enabled': true, 'size': 8, 'file': null});
+        expect(d.blurAsLook(now), {'on': true, 'strength': 8});
+        final target = d.blurTarget(now, on: false, strength: 20);
+        expect(target, {'enabled': false, 'size': 15, 'file': {'enabled': false, 'size': 15}});
+        options(on: false, size: 15); // Hyprland after the reload
+        expect(await d.restoreBlur(target), isTrue);
+        expect(File('$home/.config/hypr/hypr-theme.lua').readAsStringSync(), contains('blur = { enabled = false, size = 15 }'));
+        expect(log.readAsStringSync(), contains('reload'));
+        expect(await d.restoreBlur(target), isTrue);
+        final user = File('$home/.config/hypr/hypr-user.lua').readAsStringSync();
+        expect(user, '-- mine\n\n${HyprlandDesktop.requireLine}\n');
+        expect((await d.blurState())!['file'], {'enabled': false, 'size': 15});
+        // the user's own blur back: the file goes, the hook stays (harmless without it)
+        options(on: true, size: 8);
+        expect(await d.restoreBlur(now), isTrue);
+        expect(File('$home/.config/hypr/hypr-theme.lua').existsSync(), isFalse);
+      });
+
+      test('Hyprland not following: the file goes back, false', () async {
+        options(on: true, size: 8);
+        final d = desktop();
+        final now = (await d.blurState())!;
+        expect(await d.restoreBlur(d.blurTarget(now, on: true, strength: 3)), isFalse);
+        expect(File('$home/.config/hypr/hypr-theme.lua').existsSync(), isFalse);
+      });
+
+      test('null outside a Hyprland session; a broken state is refused', () async {
+        options(on: true, size: 8);
+        expect(await desktop({...env}..remove('HYPRLAND_INSTANCE_SIGNATURE')).blurState(), isNull);
+        expect(await desktop().restoreBlur({'file': {'enabled': 'yes'}}), isFalse);
+      });
+    });
+  });
+
 }

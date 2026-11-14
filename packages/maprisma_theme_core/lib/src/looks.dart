@@ -40,7 +40,7 @@ enum FontRole {
 
   /// The setting that keeps the user's own font: one per desktop, as each has
   /// its own fonts (COSMIC keeps the unsuffixed names).
-  String ownKey(Desktop d) => '${this == mono ? 'own_font' : 'own_ui_font'}${d.id == 'kde' ? '_kde' : ''}';
+  String ownKey(Desktop d) => '${this == mono ? 'own_font' : 'own_ui_font'}${_suffix(d)}';
 }
 
 /// The setting key that keeps the user's own monospace font.
@@ -201,7 +201,15 @@ Map<String, dynamic>? ronBlur(String text) {
   return {'on': flags.contains(true), 'strength': ((step < 0 ? 6 : step) * 14 / 13).round() + 1};
 }
 
-String ownBlurKey(Desktop d) => d.id == 'kde' ? 'own_blur_kde' : 'own_blur';
+String ownBlurKey(Desktop d) => 'own_blur${_suffix(d)}';
+
+/// The own-value keys' suffix: one set per desktop, as each keeps its own fonts and blur
+/// (COSMIC's are the unsuffixed names).
+String _suffix(Desktop d) => switch (d.id) {
+  'kde' => '_kde',
+  'hyprland' => '_hyprland',
+  _ => '',
+};
 
 /// A theme's blur, and the user's own blur back (the desktop's whole state
 /// as it was) for a theme without one.

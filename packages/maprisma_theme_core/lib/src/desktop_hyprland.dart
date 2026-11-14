@@ -12,6 +12,7 @@ import 'posix.dart';
 import 'shell_scheme.dart';
 import 'shortcuts.dart';
 import 'store.dart';
+import 'window_style_flag.dart';
 
 /// Hyprland with Maprisma Shell (a Quickshell config): the colours go to the
 /// shell's scheme.json (which the other Maprisma apps read too), to
@@ -19,8 +20,10 @@ import 'store.dart';
 /// to GTK's colors.css (Breeze's colours for title bars and dialogs, which Plasma
 /// writes on KDE and nothing on Hyprland),
 /// the terminals open now get the colours as escape sequences, and the
-/// wallpaper is the `wallpaper` key of the shell's shell.json. The rest (fonts,
-/// icons, windows, shortcuts) is not done here yet: those caps are missing.
+/// wallpaper is the `wallpaper` key of the shell's shell.json. Fonts go to GTK's settings
+/// (gsettings, which the Maprisma apps read too, and GTK's settings.ini) and foot's foot.ini,
+/// blur to hypr-theme.lua (loaded last from hypr-user.lua). The rest (icons, windows,
+/// shortcuts) is not done here yet: those caps are missing.
 final class HyprlandDesktop extends DesktopBase {
   HyprlandDesktop(super.paths, super.environment, {this.ptsDir = '/dev/pts', DateTime Function()? clock})
     : _clock = clock ?? DateTime.now;
@@ -103,7 +106,14 @@ final class HyprlandDesktop extends DesktopBase {
   /// nothing to apply to, so there it is as [GenericDesktop] (themes,
   /// wallpaper files and app templates still work).
   @override
-  late final Set<Cap> caps = File(shellQml).existsSync() ? const {Cap.appearance, Cap.wallpaper} : const {};
+  late final Set<Cap> caps = !File(shellQml).existsSync()
+      ? const {}
+      : {
+          Cap.appearance,
+          Cap.wallpaper,
+          if (findProgram(paths, environment, 'gsettings') != null) ...{Cap.fonts, Cap.uiFont},
+          if (Directory('$_configHome/hypr').existsSync() && findProgram(paths, environment, 'hyprctl') != null) Cap.blur,
+        };
 
   /// The mode bits of an existing file, else [fallback] (0644).
   static int _modeOf(String path, {int fallback = 420}) {
@@ -310,18 +320,6 @@ final class HyprlandDesktop extends DesktopBase {
   @override
   Future<bool> setTerminal(Map<String, String> colors, String name) async => false;
   @override
-  String? monospaceFont() => null;
-  @override
-  Future<bool> setMonospaceFont(String family) async => false;
-  @override
-  Future<bool> resetMonospaceFont() async => false;
-  @override
-  String? interfaceFont() => null;
-  @override
-  Future<bool> setInterfaceFont(String family) async => false;
-  @override
-  Future<bool> resetInterfaceFont() async => false;
-  @override
   String? iconTheme() => null;
   @override
   Future<bool> setIconTheme(String name) async => false;
@@ -332,10 +330,316 @@ final class HyprlandDesktop extends DesktopBase {
   @override
   Stream<Map<String, dynamic>>? watch() => null;
 
+  // --- fonts: GTK's gsettings and settings.ini, foot's foot.ini -------------------------------
+
+  String? _gsettings(String key) {
+    final g = findProgram(paths, environment, 'gsettings');
+    if (g == null) return null;
+    try {
+      final r = Process.runSync(g, ['get', 'org.gnome.desktop.interface', key], environment: environment);
+      if (r.exitCode != 0) return null;
+      final out = '${r.stdout}'.trim();
+      return out.length >= 2 && out.startsWith("'") && out.endsWith("'") ? out.substring(1, out.length - 1) : null;
+    } on ProcessException {
+      return null;
+    }
+  }
+
+  Future<bool> _gsettingsSet(String key, String? value) async {
+    final g = findProgram(paths, environment, 'gsettings');
+    if (g == null) return false;
+    final (code, _) = await runBounded(
+        [g, if (value == null) ...['reset', 'org.gnome.desktop.interface', key] else ...['set', 'org.gnome.desktop.interface', key, value]],
+        timeout: const Duration(seconds: 5), environment: environment);
+    return code == 0;
+  }
+
+  List<String> get _gtkSettings => ['$_configHome/gtk-3.0/settings.ini', '$_configHome/gtk-4.0/settings.ini'];
+  String get footIni => '$_configHome/foot/foot.ini';
+
+  /// The `gtk-font-name=` value of a GTK settings.ini, or null.
+  static String? _iniFont(String? text) =>
+      text == null ? null : RegExp(r'^\s*gtk-font-name\s*=\s*(.*?)\s*$', multiLine: true).firstMatch(text)?.group(1);
+
+  /// foot.ini's `font=` line of its main section (before the first [section]), or null.
+  static String? _footFont(String? text) {
+    if (text == null) return null;
+    for (final line in const LineSplitter().convert(text)) {
+      if (line.trimLeft().startsWith('[')) break;
+      final m = RegExp(r'^\s*font\s*=\s*(.*?)\s*$').firstMatch(line);
+      if (m != null) return m.group(1);
+    }
+    return null;
+  }
+
+  /// [text] with its `key=` line set to [value] ([main]-section only for foot: before the first
+  /// section, inserted there when missing); null [value] takes the line out.
+  static String _setIniLine(String text, String key, String? value, {bool mainOnly = false}) {
+    final lines = const LineSplitter().convert(text);
+    var at = -1, sectionAt = lines.length;
+    for (var i = 0; i < lines.length; i++) {
+      if (lines[i].trimLeft().startsWith('[')) {
+        if (mainOnly) {
+          sectionAt = i;
+          break;
+        }
+        continue;
+      }
+      if (RegExp('^\\s*${RegExp.escape(key)}\\s*=').hasMatch(lines[i])) {
+        at = i;
+        break;
+      }
+    }
+    if (value == null) {
+      if (at >= 0) lines.removeAt(at);
+    } else if (at >= 0) {
+      lines[at] = '$key=$value';
+    } else if (!mainOnly) {
+      final s = lines.indexWhere((l) => l.trim() == '[Settings]');
+      lines.insert(s < 0 ? lines.length : s + 1, '$key=$value');
+    } else {
+      lines.insert(sectionAt, '$key=$value');
+    }
+    return '${lines.join('\n')}\n';
+  }
+
+  /// A Pango font ("Noto Sans 10", "Hack, 10") split into its family and the rest.
+  static (String, String) pangoSplit(String font) {
+    final m = RegExp(r'^(.*?)(,?\s+\d+(?:\.\d+)?)$').firstMatch(font.trim());
+    return m == null ? (font.trim(), ' 11') : (m.group(1)!.trim(), m.group(2)!);
+  }
+
+  /// foot's `Family:size=12`, perhaps with fallbacks after a comma, with the first family replaced.
+  static String footWithFamily(String? value, String family) {
+    if (value == null || value.trim().isEmpty) return '$family:size=11';
+    final cut = value.indexOf(RegExp('[:,]'));
+    return cut < 0 ? family : '$family${value.substring(cut)}';
+  }
+
+  /// The values a theme's font changed, as they were before ({where: value or null}); written
+  /// before the first change, so going back touches exactly those and puts back what they were.
+  String _receipt(FontRoleKey role) => '${paths.state}/hyprland-${role.name}-font.json';
+
+  Map<String, String?>? _readReceipt(FontRoleKey role) {
+    final m = readJsonMap(_receipt(role));
+    if (m.isEmpty || m.values.any((v) => v != null && v is! String)) return null;
+    return {for (final e in m.entries) e.key: e.value as String?};
+  }
+
+  void _dropReceipt(FontRoleKey role) {
+    try {
+      File(_receipt(role)).deleteSync();
+    } on FileSystemException {
+      // already gone
+    }
+  }
+
+  String? _read(String path) => FileSystemEntity.isFileSync(path) ? readSmall(path) : null;
+
+  /// Everything one font role touches now: `{gsettings: value, file: its line value}`.
+  Map<String, String?> _fontValues(FontRoleKey role) {
+    final files = role == FontRoleKey.ui ? _gtkSettings : [footIni];
+    return {
+      'gsettings': _gsettings(role.gsettingsKey),
+      for (final f in files)
+        if (_read(f) case final String t) f: role == FontRoleKey.ui ? _iniFont(t) : _footFont(t),
+    };
+  }
+
+  /// Writes [values] (as from [_fontValues]); on a failure what was written goes back.
+  Future<bool> _writeFontValues(FontRoleKey role, Map<String, String?> values) async {
+    final before = _fontValues(role);
+    Future<bool> write(Map<String, String?> v) async {
+      if (v.containsKey('gsettings') && !await _gsettingsSet(role.gsettingsKey, v['gsettings'])) return false;
+      for (final e in v.entries) {
+        if (e.key == 'gsettings') continue;
+        final text = _read(e.key);
+        if (text == null) continue;
+        try {
+          writeText(e.key, role == FontRoleKey.ui ? _setIniLine(text, 'gtk-font-name', e.value) : _setIniLine(text, 'font', e.value, mainOnly: true),
+              mode: _modeOf(e.key));
+        } on FileSystemException {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    if (await write(values)) return true;
+    await write(before);
+    return false;
+  }
+
+  Future<bool> _setFont(FontRoleKey role, String family) async {
+    final choices = role == FontRoleKey.ui ? await interfaceFonts() : await monospaceFonts();
+    if (!choices.contains(family)) return false;
+    final receipt = _readReceipt(role);
+    if (receipt != null && receipt['gsettings'] != null && pangoSplit(receipt['gsettings']!).$1 == family) return _restoreFont(role, receipt);
+    final now = _fontValues(role);
+    final values = {
+      for (final e in now.entries)
+        e.key: e.key == 'gsettings' || role == FontRoleKey.ui
+            ? (e.value == null ? '$family 11' : '$family${pangoSplit(e.value!).$2}')
+            : footWithFamily(e.value, family),
+    };
+    final fresh = receipt == null;
+    if (fresh) writeJson(_receipt(role), now);
+    if (!await _writeFontValues(role, values)) {
+      if (fresh) _dropReceipt(role);
+      return false;
+    }
+    return true;
+  }
+
+  Future<bool> _restoreFont(FontRoleKey role, Map<String, String?> receipt) async {
+    if (!await _writeFontValues(role, receipt)) return false;
+    _dropReceipt(role);
+    return true;
+  }
+
+  /// Back to the default: what a theme changed goes back as it was; without a theme's change
+  /// only gsettings goes back to GTK's default.
+  Future<bool> _resetFont(FontRoleKey role) async {
+    final receipt = _readReceipt(role);
+    if (receipt != null) return _restoreFont(role, receipt);
+    return _gsettingsSet(role.gsettingsKey, null);
+  }
+
+  String? _family(FontRoleKey role) {
+    final v = _gsettings(role.gsettingsKey);
+    return v == null ? null : pangoSplit(v).$1;
+  }
+
+  @override
+  String? monospaceFont() => caps.contains(Cap.fonts) ? _family(FontRoleKey.mono) : null;
+  @override
+  Future<bool> setMonospaceFont(String family) async => caps.contains(Cap.fonts) && await _setFont(FontRoleKey.mono, family);
+  @override
+  Future<bool> resetMonospaceFont() async => caps.contains(Cap.fonts) && await _resetFont(FontRoleKey.mono);
+  @override
+  String? interfaceFont() => caps.contains(Cap.uiFont) ? _family(FontRoleKey.ui) : null;
+  @override
+  Future<bool> setInterfaceFont(String family) async => caps.contains(Cap.uiFont) && await _setFont(FontRoleKey.ui, family);
+  @override
+  Future<bool> resetInterfaceFont() async => caps.contains(Cap.uiFont) && await _resetFont(FontRoleKey.ui);
+
+  // --- blur: Hyprland's decoration:blur, set in hypr-theme.lua -----------------------------
+
+  String get hyprThemeLua => '$_configHome/hypr/hypr-theme.lua';
+  String get hyprUserLua => '$_configHome/hypr/hypr-user.lua';
+  static const requireLine = 'pcall(require, "hypr-theme") -- Maprisma Theme: blur (Font & effects; keep last)';
+
+  Future<Map<String, dynamic>?> _option(String name) async {
+    final hyprctl = findProgram(paths, environment, 'hyprctl');
+    if (hyprctl == null || (environment['HYPRLAND_INSTANCE_SIGNATURE'] ?? '').isEmpty) return null;
+    final out = await readBoundedText([hyprctl, '-j', 'getoption', name], timeout: const Duration(seconds: 2), environment: environment);
+    if (out == null) return null;
+    try {
+      final v = jsonDecode(out);
+      return v is Map<String, dynamic> ? v : null;
+    } on FormatException {
+      return null;
+    }
+  }
+
+  /// What hypr-theme.lua sets ({enabled, size}), or null when it sets nothing.
+  Map<String, dynamic>? _themeBlurFile() {
+    final text = _read(hyprThemeLua);
+    if (text == null) return null;
+    final m = RegExp(r'enabled = (true|false), size = (\d+)').firstMatch(text);
+    return m == null ? null : {'enabled': m.group(1) == 'true', 'size': int.parse(m.group(2)!)};
+  }
+
+  /// {enabled, size}: Hyprland's blur now; `file`: what hypr-theme.lua sets (null: nothing,
+  /// the user's own config decides). Null outside a Hyprland session.
+  @override
+  Future<Map<String, dynamic>?> blurState() async {
+    if (!caps.contains(Cap.blur)) return null;
+    final enabled = await _option('decoration:blur:enabled');
+    final size = await _option('decoration:blur:size');
+    final on = enabled?['bool'] ?? (enabled?['int'] is int ? enabled!['int'] != 0 : null);
+    if (on is! bool || size?['int'] is! int) return null;
+    return {'enabled': on, 'size': size!['int'], 'file': _themeBlurFile()};
+  }
+
+  @override
+  Map<String, dynamic> blurTarget(Map<String, dynamic> now, {required bool on, required int strength}) {
+    final size = strength.clamp(1, 15);
+    return {'enabled': on, 'size': size, 'file': {'enabled': on, 'size': size}};
+  }
+
+  @override
+  Map<String, dynamic> blurAsLook(Map<String, dynamic> state) => {
+    'on': state['enabled'] != false,
+    'strength': ((state['size'] is int ? state['size'] as int : 8)).clamp(1, 15),
+  };
+
+  bool _writeBlurFile(Map? file) {
+    try {
+      if (file == null) {
+        if (File(hyprThemeLua).existsSync()) File(hyprThemeLua).deleteSync();
+        return true;
+      }
+      writeText(
+        hyprThemeLua,
+        '-- Written by Maprisma Theme (Font & effects). Changes made here by hand are replaced on the\n'
+        '-- next change there; delete this file to give the blur back to your own config.\n'
+        'hl.config({ decoration = { blur = { enabled = ${file['enabled'] == true}, size = ${file['size']} } } })\n',
+        mode: _modeOf(hyprThemeLua),
+      );
+      final user = File(hyprUserLua);
+      final text = user.existsSync() ? user.readAsStringSync() : '-- Personal Hyprland settings, loaded last (from hyprland.lua)\n';
+      if (!text.contains('require, "hypr-theme")')) {
+        writeText(hyprUserLua, '${text.endsWith('\n') ? text : '$text\n'}\n$requireLine\n', mode: _modeOf(hyprUserLua));
+      }
+      return true;
+    } on FileSystemException {
+      return false;
+    }
+  }
+
+  /// hypr-theme.lua as [state] has it (its `file`), then Hyprland reloads; when Hyprland doesn't
+  /// show the values afterwards the file goes back as it was and the result is false.
+  @override
+  Future<bool> restoreBlur(Map<String, dynamic> state) async {
+    if (!caps.contains(Cap.blur)) return false;
+    final file = state['file'];
+    if (file != null && (file is! Map || file['enabled'] is! bool || file['size'] is! int)) return false;
+    final before = _themeBlurFile();
+    Future<bool> write(Map? f) async {
+      if (!_writeBlurFile(f)) return false;
+      final hyprctl = findProgram(paths, environment, 'hyprctl');
+      if (hyprctl != null && (environment['HYPRLAND_INSTANCE_SIGNATURE'] ?? '').isNotEmpty) {
+        await readBoundedText([hyprctl, 'reload'], timeout: const Duration(seconds: 5), okCodes: const {}, environment: environment);
+      }
+      if (f == null) return true;
+      final now = await blurState();
+      return now == null || (now['enabled'] == f['enabled'] && now['size'] == f['size']);
+    }
+
+    if (!await write(file as Map?)) {
+      await write(before);
+      return false;
+    }
+    // Settings › App windows › Follow the desktop: Glassy while the blur is on.
+    final after = await blurState();
+    writeThemeBlurFlag(blurAsLook(after ?? state)['on'] == true, environment);
+    return true;
+  }
+
   @override
   Future<Map<String, dynamic>> health(Paths paths, Map<String, String> environment) async => {
     'helper': {'ok': File(shellQml).existsSync(), 'path': shellQml, 'name': 'Maprisma Shell'},
   };
+}
+
+/// The two fonts and their GTK key.
+enum FontRoleKey {
+  mono('monospace-font-name'),
+  ui('font-name');
+
+  const FontRoleKey(this.gsettingsKey);
+  final String gsettingsKey;
 }
 
 /// `hyprctl -j getoption decoration:rounding`'s `int` (0–64), or null.
