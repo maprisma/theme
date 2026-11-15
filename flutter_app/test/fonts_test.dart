@@ -21,4 +21,17 @@ void main() {
     await tester.pumpWidget(MaterialApp(key: UniqueKey(), home: Builder(builder: (c) => Text(b = monoFont(c)))));
     expect((a, b), ('Hack', 'monospace'));
   });
+
+  testWidgets('tooltips look like Maprisma\'s: a dark card tone on dark, the dark inverted surface on light', (tester) async {
+    for (final b in Brightness.values) {
+      final t = appTheme(b, const {}, 12);
+      await tester.pumpWidget(MaterialApp(key: UniqueKey(), theme: t, home: const Scaffold(body: Tooltip(message: 'tip', child: Text('x')))));
+      tester.state<TooltipState>(find.byType(Tooltip)).ensureTooltipVisible();
+      await tester.pumpAndSettle();
+      final box = tester.widget<Container>(find.ancestor(of: find.text('tip'), matching: find.byType(Container)).first).decoration as BoxDecoration;
+      final s = t.colorScheme;
+      expect(box.color, b == Brightness.dark ? s.surfaceContainerHighest : s.inverseSurface.withValues(alpha: .92));
+      await tester.pumpWidget(const SizedBox());
+    }
+  });
 }

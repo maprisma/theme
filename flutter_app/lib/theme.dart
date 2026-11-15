@@ -198,12 +198,18 @@ ThemeData appTheme(Brightness platform, Map colors, double radius, {Map? fonts})
     visualDensity: VisualDensity.compact,
     hoverColor: fg.withValues(alpha: .06),
     focusColor: sel.withValues(alpha: .5),
+    // Like Maprisma (Uwe): dark with light text. On a dark theme the inverted surface is a light
+    // box that is hard to read, so it takes a dark card tone there.
     tooltipTheme: TooltipThemeData(
-      textStyle: TextStyle(color: fg, fontSize: type.bodySmall!.fontSize),
       decoration: BoxDecoration(
-        color: Color.lerp(bg, fg, .1),
-        border: Border.all(color: fg.withValues(alpha: .2)),
+        color: brightness == Brightness.dark ? scheme.surfaceContainerHighest : scheme.inverseSurface.withValues(alpha: .92),
         borderRadius: BorderRadius.circular(control),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      textStyle: TextStyle(
+        color: brightness == Brightness.dark ? scheme.onSurface : scheme.onInverseSurface,
+        fontSize: 13,
+        fontFamily: fontFamily(fonts, 'ui'),
       ),
       waitDuration: const Duration(milliseconds: 500),
     ),
