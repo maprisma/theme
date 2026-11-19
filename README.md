@@ -15,7 +15,9 @@ and uses the same theme format (Omarchy's `colors.toml`), so themes move freely 
 - **Font & effects per theme**: a monospace font, an interface font and blur for any theme, also the ones you
   did not make. Applying the theme uses them; a theme without them gives you your own back.
 - **Wallpapers**: per theme, added by drag and drop, paste or a Wallhaven search; one wallpaper per workspace,
-  a slideshow, day and night themes.
+  a slideshow, day and night themes. Large previews show navigation arrows immediately. Browsing to a different
+  wallpaper on the current theme enables **Apply**, which changes just the wallpaper. Other themes keep
+  **Apply theme**.
 - **Imports**: themes from [omarchy.org](https://omarchy.org/themes), cosmic-themes.org and the KDE Store.
 - **Presets**: workspace layouts and window limits, App Presets (apps that start on their workspace),
   and saved combinations of theme, wallpaper and workspaces.

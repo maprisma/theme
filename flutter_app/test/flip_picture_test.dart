@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:maprisma_theme/app.dart';
+import 'package:maprisma_theme/core_call.dart';
 import 'package:maprisma_theme/flip_picture.dart';
 import 'package:maprisma_theme/pages/settings_page.dart';
 import 'package:maprisma_theme/pages/themes_page.dart';
@@ -92,13 +93,13 @@ void main() {
 
   tearDown(() => root.deleteSync(recursive: true));
 
-  Future<GlobalKey> pumpInitial(WidgetTester tester) async {
+  Future<GlobalKey> pumpInitial(WidgetTester tester, {CoreCall? call}) async {
     tester.view.physicalSize = const Size(980, 700);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     final key = GlobalKey();
     await tester.runAsync(() async {
-      await tester.pumpWidget(RepaintBoundary(key: key, child: MaprismaThemeApp(call: core.call)));
+      await tester.pumpWidget(RepaintBoundary(key: key, child: MaprismaThemeApp(call: call ?? core.call)));
       await Future<void>.delayed(const Duration(milliseconds: 250));
     });
     await tester.pump();
@@ -330,11 +331,13 @@ void main() {
         tester.state<FlipPictureState>(find.byWidgetPredicate((w) => w is FlipPicture && w.key is GlobalKey));
     ButtonStyleButton apply() => tester.widget<ButtonStyleButton>(find.byKey(const ValueKey('big-apply')));
     expect(apply().onPressed, isNotNull); // another theme: always applicable
+    expect(find.descendant(of: find.byKey(const ValueKey('big-apply')), matching: find.text('Apply theme')), findsOneWidget);
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
     await tester.pumpAndSettle();
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
     await tester.pumpAndSettle();
     expect(big().visibleFace, 1);
+    expect(find.descendant(of: find.byKey(const ValueKey('big-apply')), matching: find.text('Apply theme')), findsOneWidget);
 
     await tester.runAsync(() async {
       await tester.tap(find.byKey(const ValueKey('big-apply')));
@@ -361,6 +364,77 @@ void main() {
     expect(core.ctx.current.wallpaper, isNot(endsWith('/2-fireside.png')));
     expect(big().isCurrentWallpaperPinned, isTrue);
     expect(apply().onPressed, isNull);
+  });
+
+  testWidgets('current theme big preview exposes arrows immediately and applies only a changed wallpaper', (tester) async {
+    final calls = <String>[];
+    final shotKey = await pumpInitial(tester, call: (method, [params = const {}]) async {
+      calls.add(method);
+      return core.call(method, params);
+    });
+    await tester.pumpAndSettle();
+    final page = tester.state(find.byType(ThemesPage)) as dynamic;
+    page.openBig('kanagawa');
+    await tester.pump();
+    await tester.pump();
+    final picture = find.byWidgetPredicate((widget) => widget is FlipPicture && widget.key is GlobalKey);
+    final big = tester.state<FlipPictureState>(picture);
+    final button = find.byKey(const ValueKey('big-apply'));
+    final next = find.descendant(of: picture, matching: find.byKey(const ValueKey('flip-next-kanagawa')));
+    final previous = find.descendant(of: picture, matching: find.byKey(const ValueKey('flip-prev-kanagawa')));
+    expect(big.visibleFace, -1); // Still the preview, before the default two-second delay.
+    expect(next, findsOneWidget);
+    expect(previous, findsOneWidget);
+    expect(tester.widget<TextButton>(button).onPressed, isNull);
+    await shoot(tester, shotKey, 'big-current-start');
+
+    // A visible arrow works immediately and takes over from the auto-flip timer.
+    await tester.tap(next);
+    await tester.pumpAndSettle();
+    expect(big.visibleFace, 0);
+    expect(big.isCurrentWallpaperPinned, isTrue);
+    expect(tester.widget<TextButton>(button).onPressed, isNull);
+    await tester.tap(next);
+    await tester.pumpAndSettle();
+    final selectedWallpaper = big.currentWallpaperPath;
+    expect(big.isCurrentWallpaperPinned, isFalse);
+    expect(tester.widget<TextButton>(button).onPressed, isNotNull);
+    expect(find.descendant(of: button, matching: find.text('Apply')), findsOneWidget);
+    await shoot(tester, shotKey, 'big-current-unapplied');
+
+    calls.clear();
+    await tester.runAsync(() async {
+      await tester.tap(button);
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+    });
+    await tester.pumpAndSettle();
+    expect(core.ctx.current.slug, 'kanagawa');
+    expect(core.ctx.current.wallpaper, selectedWallpaper);
+    expect(calls.where((method) => method == 'themes.apply' || method == 'wallpapers.set'), ['wallpapers.set']);
+    expect(big.isCurrentWallpaperPinned, isTrue);
+    expect(tester.widget<TextButton>(button).onPressed, isNull);
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
+    expect(big.currentWallpaperPath, selectedWallpaper); // No delayed automatic turn after the click.
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('large preview keeps its automatic turn when immediate navigation is unused', (tester) async {
+    await pumpInitial(tester);
+    await tester.pumpAndSettle();
+    final page = tester.state(find.byType(ThemesPage)) as dynamic;
+    page.openBig('fireside');
+    await tester.pump();
+    await tester.pump();
+    final picture = find.byWidgetPredicate((widget) => widget is FlipPicture && widget.key is GlobalKey);
+    final big = tester.state<FlipPictureState>(picture);
+    expect(big.visibleFace, -1);
+    expect(find.descendant(of: picture, matching: find.byKey(const ValueKey('flip-next-fireside'))), findsOneWidget);
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
+    expect(big.visibleFace, 0);
+    expect(find.descendant(of: find.byKey(const ValueKey('big-apply')), matching: find.text('Apply theme')), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
   });
 
   testWidgets('click opens the big preview: it has the keys, 0 s stays arrows only, Esc closes it first', (tester) async {

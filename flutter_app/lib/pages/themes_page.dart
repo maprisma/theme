@@ -751,6 +751,7 @@ class _BigPreview extends StatelessWidget {
             colors: colors,
             borderRadius: innerRadius,
             active: true,
+            alwaysShowNavigation: true,
             themeCurrent: isCurrent,
             pinApplyTheme: pinApplyTheme,
             delaySeconds: delaySeconds, // 0: arrows only, no turn by itself
@@ -809,13 +810,14 @@ class _BigPreview extends StatelessWidget {
                   valueListenable: shown,
                   builder: (context, _, _) {
                     final flip = flipKey.currentState;
-                    final enabled = !isCurrent ||
-                        (flip != null && flip.currentWallpaperPath != null && !flip.isCurrentWallpaperPinned);
+                    final wallpaperChange = isCurrent &&
+                        flip != null && flip.currentWallpaperPath != null && !flip.isCurrentWallpaperPinned;
+                    final enabled = !isCurrent || wallpaperChange;
                     final button = TextButton.icon(
                       key: const ValueKey('big-apply'),
                       onPressed: enabled ? onApply : null,
                       icon: const Icon(Icons.play_arrow, size: 16),
-                      label: Text(tr("Apply theme")),
+                      label: Text(tr(wallpaperChange ? "Apply" : "Apply theme")),
                     );
                     return isCurrent ? Tooltip(message: tr("Set the shown wallpaper as background"), child: button) : button;
                   },

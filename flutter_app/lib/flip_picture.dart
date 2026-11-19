@@ -38,6 +38,7 @@ class FlipPicture extends StatefulWidget {
     this.canPin = true,
     this.onPin,
     this.onShownChanged,
+    this.alwaysShowNavigation = false,
   });
 
   final String slug;
@@ -52,6 +53,8 @@ class FlipPicture extends StatefulWidget {
   final double delaySeconds;
   final String? activeWallpaper;
   final bool canPin;
+  /// Large previews expose navigation immediately, without waiting for a flip.
+  final bool alwaysShowNavigation;
   final Widget badges;
   final Widget menuButton;
   final Future<bool> Function(String path)? onPin;
@@ -414,7 +417,13 @@ class FlipPictureState extends State<FlipPicture> with SingleTickerProviderState
   }
 
   void rotateStep(int stepDir) {
-    if (_wallpapers.isEmpty || !_interactive) return;
+    if (_wallpapers.isEmpty) return;
+    if (widget.alwaysShowNavigation) {
+      _cancelTimers();
+      _interactive = true;
+      _navSteady = true;
+    }
+    if (!_interactive) return;
     if (!_navSteady && !isShowingWallpaper) return;
     _navSteady = true;
     final sign = stepDir >= 0 ? 1.0 : -1.0;
@@ -625,8 +634,9 @@ class FlipPictureState extends State<FlipPicture> with SingleTickerProviderState
       badgesOpacity = 0.0;
     }
     final faceOpacity = (1.0 - localDeg.abs() / 55.0).clamp(0.0, 1.0);
-    final showNav = _wallpapers.isNotEmpty && ((_interactive && _navSteady) || face >= 0);
-    final navOpacity = (_interactive && _navSteady) ? 1.0 : faceOpacity;
+    final steadyNav = widget.alwaysShowNavigation || (_interactive && _navSteady);
+    final showNav = _wallpapers.isNotEmpty && (steadyNav || face >= 0);
+    final navOpacity = steadyNav ? 1.0 : faceOpacity;
     final showPin = widget.canPin && face >= 0 && face < _wallpapers.length;
     final pinned = showPin && _activeName != null && _baseName(_wallpapers[face]) == _activeName;
 
