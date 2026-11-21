@@ -156,4 +156,23 @@ void main() {
     expect(() => call('shortcuts.set', {'target': 'open', 'mods': ['SUPER'], 'combo_key': 'K'}), throwsA(isA<RouteError>()));
     expect(File(custom).readAsStringSync(), 'not ron');
   });
+
+  test('in an AppImage without an installed copy, keys run the AppImage (never its mount)', () {
+    for (final name in ['maprisma-theme-core', 'maprisma-theme']) {
+      File('${env.paths.home}/.local/bin/$name').deleteSync();
+    }
+    final image = '${env.root.path}/Maprisma-Theme-x86_64.AppImage';
+    File(image).writeAsStringSync('');
+    final ctx = Ctx(paths: env.paths, desktop: env.desktop,
+        environment: {'HOME': env.paths.home, 'PATH': '/nonexistent', 'APPIMAGE': image});
+    final shortcuts = ThemeShortcuts(ctx);
+    expect(shortcuts.command('apply:nord'), '$image core apply nord');
+    expect(shortcuts.command('bg:next'), '$image core bg next');
+    expect(shortcuts.command('open'), '$image --toggle');
+    // a relative or missing APPIMAGE is not used
+    final relative = Ctx(paths: env.paths, desktop: env.desktop,
+        environment: {'HOME': env.paths.home, 'PATH': '/nonexistent', 'APPIMAGE': 'x.AppImage'});
+    expect(() => ThemeShortcuts(relative).command('open'),
+        throwsA(isA<RouteError>().having((e) => e.code, 'code', 'not_installed')));
+  });
 }

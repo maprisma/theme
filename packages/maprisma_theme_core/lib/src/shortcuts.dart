@@ -13,6 +13,7 @@ import 'i18n.dart';
 import 'dart:io';
 
 import 'context.dart';
+import 'desktop.dart' show appImageOf;
 import 'posix.dart';
 import 'store.dart';
 import 'themes.dart';
@@ -337,18 +338,21 @@ final class ThemeShortcuts {
   String command(String target) {
     final slug = themeOfTarget(target);
     final List<String> argv;
+    // Installed programs first; else the AppImage this runs from (never its temporary mount).
+    final appImage = appImageOf(ctx.environment);
     if (target == 'open') {
-      final gui = program('maprisma-theme');
+      final gui = program('maprisma-theme') ?? appImage;
       if (gui == null) throw RouteError('not_installed', tr("maprisma-theme was not found in ~/.local/bin or on PATH"));
       argv = [gui, '--toggle'];
     } else {
-      final core = program('maprisma-theme-core');
+      final installed = program('maprisma-theme-core');
+      final core = installed != null ? [installed] : appImage != null ? [appImage, 'core'] : null;
       if (core == null) throw RouteError('not_installed', tr("maprisma-theme-core was not found in ~/.local/bin or on PATH"));
       argv = switch (target) {
-        'bg:next' => [core, 'bg', 'next'],
-        'bg:prev' => [core, 'bg', 'prev'],
-        'theme:next' => [core, 'theme', 'next'],
-        _ => [core, 'apply', slug!],
+        'bg:next' => [...core, 'bg', 'next'],
+        'bg:prev' => [...core, 'bg', 'prev'],
+        'theme:next' => [...core, 'theme', 'next'],
+        _ => [...core, 'apply', slug!],
       };
     }
     for (final part in argv) {

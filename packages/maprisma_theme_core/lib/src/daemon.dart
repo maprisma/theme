@@ -486,7 +486,7 @@ final class Daemon {
   }
 
   void toggleWindow() {
-    final gui = findProgram(ctx.paths, ctx.environment, 'maprisma-theme');
+    final gui = findProgram(ctx.paths, ctx.environment, 'maprisma-theme') ?? appImageOf(ctx.environment);
     if (gui == null) return;
     Process.start(gui, ['--toggle'], mode: ProcessStartMode.detached, environment: ctx.environment).ignore();
   }

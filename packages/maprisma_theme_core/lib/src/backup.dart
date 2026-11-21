@@ -327,7 +327,7 @@ Future<Map<String, dynamic>> health(Ctx ctx) async {
   final installed = {for (final t in ctx.themes()) t.slug};
   final expected = state.keys.where((t) => themeOfTarget(t) == null || installed.contains(themeOfTarget(t))).length;
   final check = shortcuts.binder?.check(expected) ?? {'ok': true, 'written': 0, 'note': ''};
-  final core = findProgram(ctx.paths, ctx.environment, 'maprisma-theme-core');
+  final core = findProgram(ctx.paths, ctx.environment, 'maprisma-theme-core') ?? appImageOf(ctx.environment);
   return {
     'helper': desktop['helper'] ?? {'ok': false, 'path': null},
     'core': {'ok': core != null, 'path': core},

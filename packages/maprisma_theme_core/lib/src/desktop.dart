@@ -163,6 +163,13 @@ String? findProgram(Paths paths, Map<String, String> environment, String name) {
   return Posix.instance.executable(local) && FileSystemEntity.isFileSync(local) ? local : which(name, environment);
 }
 
+/// The AppImage this program runs from (`APPIMAGE`, an absolute file), or null.
+/// Its AppRun starts the app, and the core CLI with `core` as first argument.
+String? appImageOf(Map<String, String> environment) {
+  final path = environment['APPIMAGE'];
+  return path != null && path.startsWith('/') && FileSystemEntity.isFileSync(path) ? path : null;
+}
+
 /// What the UI needs to know about a backend.
 Map<String, dynamic> desktopInfo(Desktop d) => {
   'id': d.id,
