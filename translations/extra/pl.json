@@ -725,5 +725,13 @@
   "Glassy (blurred)": "Szkło (rozmyte)",
   "Follow the desktop": "Jak pulpit",
   "For all Maprisma apps: see-through windows, blurred behind where the desktop blurs (Glassy). Follow the desktop uses Omarchy's window style, elsewhere Glassy while Maprisma Theme has blur on.": "Dla wszystkich aplikacji Maprisma: przezroczyste okna, rozmyte z tyłu tam, gdzie pulpit rozmywa (Szkło). „Jak pulpit” korzysta ze stylu okien Omarchy, gdzie indziej Szkło, gdy Maprisma Theme ma włączone rozmycie.",
-  "Could not save the setting.": "Nie można zapisać ustawienia."
+  "Could not save the setting.": "Nie można zapisać ustawienia.",
+  "App skin": "Skórka aplikacji",
+  "Visual accent for cards and borders; Native keeps your desktop theme untouched.": "Wizualny akcent kart i obramowań; Natywny pozostawia motyw pulpitu bez zmian.",
+  "Native": "Natywny",
+  "Synthwave": "Synthwave",
+  "Cozy": "Przytulny",
+  "Terminal": "Terminal",
+  "Disco": "Disco",
+  "Zen": "Zen"
 }

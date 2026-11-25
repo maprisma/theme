@@ -2,6 +2,8 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import 'skin.dart';
+
 Color? hexColor(Map colors, String key) {
   final value = colors[key];
   if (value is! String || !RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(value)) {
@@ -136,50 +138,52 @@ double cornerRadius(String setting, int? windowRounding) => switch (setting) {
 /// The desktop's palette (desktop.look colors) as a Material theme; an
 /// empty palette (generic desktops) follows the platform's light or dark. [fonts] (desktop.look
 /// `fonts`): the desktop's interface font for all text, its monospace font for [monoFont].
-ThemeData appTheme(Brightness platform, Map colors, double radius, {Map? fonts}) {
-  final background = hexColor(colors, 'background');
+ThemeData appTheme(Brightness platform, Map colors, double radius, {Map? fonts, String? skin}) {
+  final activeSkin = skinStyle(skin);
+  final effectiveColors = activeSkin == null ? colors : {...colors, ...activeSkin.toDesktopColors()};
+  final background = hexColor(effectiveColors, 'background');
   final brightness = background == null
       ? platform
       : (background.computeLuminance() < .5 ? Brightness.dark : Brightness.light);
   var scheme = ColorScheme.fromSeed(
-    seedColor: hexColor(colors, 'accent') ?? const Color(0xff3584e4),
+    seedColor: hexColor(effectiveColors, 'accent') ?? const Color(0xff3584e4),
     brightness: brightness,
   );
   if (background != null) {
-    final foreground = hexColor(colors, 'foreground') ?? scheme.onSurface;
+    final foreground = hexColor(effectiveColors, 'foreground') ?? scheme.onSurface;
     Color step(double amount) => Color.lerp(background, foreground, amount)!;
-    final accent = hexColor(colors, 'accent');
+    final accent = hexColor(effectiveColors, 'accent');
     scheme = scheme.copyWith(
       primary: accent ?? scheme.primary,
       // Text on the accent: black on a light one, else white.
       onPrimary: accent == null ? null : (accent.computeLuminance() > .4 ? Colors.black : Colors.white),
       surface: background,
       onSurface: foreground,
-      onSurfaceVariant: hexColor(colors, 'muted') == null
+      onSurfaceVariant: hexColor(effectiveColors, 'muted') == null
           ? step(.6)
-          : Color.lerp(hexColor(colors, 'muted'), foreground, .35),
+          : Color.lerp(hexColor(effectiveColors, 'muted'), foreground, .35),
       surfaceContainerLowest: step(.02),
       surfaceContainerLow: step(.05),
       surfaceContainer: step(.08),
       surfaceContainerHigh: step(.11),
       surfaceContainerHighest: step(.14),
       outlineVariant: step(.18),
-      secondaryContainer: hexColor(colors, 'selection') ?? step(.2),
-      error: hexColor(colors, 'red') ?? scheme.error,
-      onError: hexColor(colors, 'red') == null ? null : (hexColor(colors, 'red')!.computeLuminance() > .4 ? Colors.black : Colors.white),
+      secondaryContainer: hexColor(effectiveColors, 'selection') ?? step(.2),
+      error: hexColor(effectiveColors, 'red') ?? scheme.error,
+      onError: hexColor(effectiveColors, 'red') == null ? null : (hexColor(effectiveColors, 'red')!.computeLuminance() > .4 ? Colors.black : Colors.white),
     );
   }
   final bg = scheme.surface, fg = scheme.onSurface, accent = scheme.primary;
-  final sel = hexColor(colors, 'selection') ?? Color.lerp(bg, fg, .2)!;
+  final sel = hexColor(effectiveColors, 'selection') ?? Color.lerp(bg, fg, .2)!;
   final look = Look(
     bg: bg,
     fg: fg,
     accent: accent,
-    muted: hexColor(colors, 'muted') ?? Color.lerp(bg, fg, .55)!,
+    muted: hexColor(effectiveColors, 'muted') ?? Color.lerp(bg, fg, .55)!,
     dim: _darker(fg),
     selection: sel,
     selectionFg: (_lum(sel) - _lum(fg)).abs() < .25 ? (_lum(sel) <= .45 ? Colors.white : bg) : fg,
-    red: hexColor(colors, 'red') ?? scheme.error,
+    red: hexColor(effectiveColors, 'red') ?? scheme.error,
   );
   final shape = RoundedRectangleBorder(
     borderRadius: BorderRadius.circular(radius),
@@ -190,7 +194,7 @@ ThemeData appTheme(Brightness platform, Map colors, double radius, {Map? fonts})
   final controlShape = RoundedRectangleBorder(borderRadius: BorderRadius.circular(control));
   // The text roles' sizes (Material 3), for the theme's own styles.
   final type = Typography.material2021().englishLike;
-  return ThemeData(
+  final theme = ThemeData(
     colorScheme: scheme,
     useMaterial3: true,
     fontFamily: fontFamily(fonts, 'ui'),
@@ -340,6 +344,7 @@ ThemeData appTheme(Brightness platform, Map colors, double radius, {Map? fonts})
     ),
     dividerTheme: DividerThemeData(color: fg.withValues(alpha: .12), space: 1, thickness: 1),
   );
+  return applySkinToTheme(theme, skin, radius: radius);
 }
 
 /// The slider's knob: 14 px, round, or square with Square corners (not a big block).

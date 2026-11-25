@@ -15,6 +15,7 @@ import 'pages/presets_page.dart';
 import 'pages/settings_page.dart';
 import 'pages/themes_page.dart';
 import 'screenshots.dart';
+import 'skin.dart';
 import 'theme.dart';
 import 'material_translations.dart';
 import 'window.dart';
@@ -228,9 +229,11 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
   /// The GTK title bar in the palette's colours (the window's own surface, text and border).
   void _titlebar(bool dark) {
     final platform = WidgetsBinding.instance.platformDispatcher.platformBrightness;
-    final s = appTheme(platform, colors, 12, fonts: fonts).colorScheme;
+    final skin = settings[skinKey] as String?;
+    final s = appTheme(platform, colors, 12, fonts: fonts, skin: skin).colorScheme;
+    final effectiveDark = skinStyle(skin) != null ? true : dark;
     String hex(Color c) => '#${(c.toARGB32() & 0xffffff).toRadixString(16).padLeft(6, '0')}';
-    AppWindow.instance.titlebar(dark, background: hex(s.surface), foreground: hex(s.onSurface), border: hex(s.outlineVariant));
+    AppWindow.instance.titlebar(effectiveDark, background: hex(s.surface), foreground: hex(s.onSurface), border: hex(s.outlineVariant));
   }
 
   /// Back in the window: the desktop's look may have changed meanwhile.
@@ -282,6 +285,19 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
       languageSetting = setting;
       settings = {...settings, 'language': setting};
     });
+  }
+
+  /// Apply the saved skin immediately before desktop refreshes can delay the UI.
+  void useSkin(String setting) {
+    final normalized = normalizeSkin(setting);
+    setState(() {
+      settings = {...settings, skinKey: normalized};
+    });
+    final bg = hexColor(colors, 'background');
+    final dark = bg == null
+        ? WidgetsBinding.instance.platformDispatcher.platformBrightness == Brightness.dark
+        : bg.computeLuminance() < .5;
+    _titlebar(dark);
   }
 
   void changed() {
@@ -403,7 +419,7 @@ class MaprismaThemeAppState extends State<MaprismaThemeApp> with WidgetsBindingO
         navigatorKey: navigator,
         navigatorObservers: [_observer, _esc],
         scaffoldMessengerKey: messenger,
-        theme: withWindowAlpha(appTheme(platform, colors, radius, fonts: fonts), alpha),
+        theme: withWindowAlpha(appTheme(platform, colors, radius, fonts: fonts, skin: settings[skinKey] as String?), alpha),
         // Esc's last word sits outside the header too (its buttons can have the keyboard).
         builder: (context, child) => _esc.wrap(CallbackShortcuts(
           bindings: {

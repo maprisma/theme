@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'skin.dart';
 import 'theme.dart';
 
 /// A menu row running [action], as the plugin's menu items: a 14 px icon,
@@ -197,16 +198,26 @@ class PluginTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final look = Look.of(context);
+    final skin = activeSkinStyle(context);
     final r = corners(context);
     final on = selected || lit;
-    final border = on ? look.accent : look.fg.withValues(alpha: .22);
-    final fill = on ? look.accent.withValues(alpha: .12) : look.fg.withValues(alpha: .08);
+    final border = on
+        ? look.accent
+        : skin == null
+        ? look.fg.withValues(alpha: .22)
+        : skin.borderTint.withValues(alpha: .48);
+    final fill = on
+        ? look.accent.withValues(alpha: skin == null ? .12 : .18)
+        : skin == null
+        ? look.fg.withValues(alpha: .08)
+        : Color.alphaBlend(skin.bgTint.withValues(alpha: .28), skin.windowBg);
+    final borderWidth = on ? math.max(1.5, skin?.borderWidth ?? 1.5) : (skin?.borderWidth ?? 1.0);
     Widget tile = Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: fill,
         borderRadius: BorderRadius.circular(r),
-        border: dashed ? null : Border.all(color: border, width: on ? 1.5 : 1),
+        border: dashed ? null : Border.all(color: border, width: borderWidth),
       ),
       child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         AspectRatio(

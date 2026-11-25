@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:maprisma_theme_core/maprisma_theme_core.dart' show flipDelayChoices, normalizeFlipDelay;
 
 import '../app.dart';
+import '../skin.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import '../window_style.dart';
@@ -161,6 +162,7 @@ class _SettingsPageState extends State<SettingsPage> {
     if (r == null || !mounted) return;
     setState(() => settings = Map<String, dynamic>.from(r['settings'] as Map));
     if (key == 'language') app.useLanguage(value as String);
+    if (key == skinKey) app.useSkin(value as String);
     app.changed();
   }
 
@@ -215,7 +217,7 @@ class _SettingsPageState extends State<SettingsPage> {
     ),
   );
 
-  Widget _dropdown<T>(T value, List<(T, String)> choices, ValueChanged<T> onChanged, {Key? key}) {
+  Widget _dropdown<T>(T value, List<(T, String)> choices, ValueChanged<T> onChanged, {Key? key, Color? Function(T value)? swatch}) {
     final look = Look.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -232,7 +234,23 @@ class _SettingsPageState extends State<SettingsPage> {
         borderRadius: BorderRadius.circular(corners(context)), // the open list: a pop-up
         style: Theme.of(context).textTheme.bodySmall!.copyWith(color: look.fg),
         icon: Icon(Icons.expand_more, size: 16, color: look.fg),
-        items: [for (final (v, label) in choices) DropdownMenuItem(value: v, child: Text(label))],
+        items: [
+          for (final (v, label) in choices)
+            DropdownMenuItem(
+              value: v,
+              child: switch (swatch?.call(v)) {
+                final color? => Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(width: 10, height: 10, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+                    const SizedBox(width: 8),
+                    Text(label),
+                  ],
+                ),
+                null => Text(label),
+              },
+            ),
+        ],
         onChanged: (v) => v == null ? null : onChanged(v),
       ),
     );
@@ -390,6 +408,18 @@ class _SettingsPageState extends State<SettingsPage> {
           ('rounded', trf("Rounded ({0} px)", [roundedRadius])),
           ('square', tr("Square")),
         ], (v) => set('corners', v)),
+      ),
+      _Row(
+        'general',
+        tr("App skin"),
+        tr("Visual accent for cards and borders; Native keeps your desktop theme untouched."),
+        _dropdown(
+          normalizeSkin(settings[skinKey] as String?),
+          [for (final s in appSkins) (s, skinLabel(s, tr))],
+          (v) => set(skinKey, v),
+          key: const ValueKey('settings-skin'),
+          swatch: (s) => skinStyle(s)?.accent,
+        ),
       ),
       if (app.can('animations')) ...[
         _Row(

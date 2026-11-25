@@ -725,5 +725,13 @@
   "Glassy (blurred)": "Glas (unscharf)",
   "Follow the desktop": "Wie der Desktop",
   "For all Maprisma apps: see-through windows, blurred behind where the desktop blurs (Glassy). Follow the desktop uses Omarchy's window style, elsewhere Glassy while Maprisma Theme has blur on.": "Für alle Maprisma-Apps: durchsichtige Fenster, dahinter unscharf, wo der Desktop das kann (Glas). „Wie der Desktop“ nimmt Omarchys Fensterart, sonst Glas, solange Maprisma Theme die Unschärfe an hat.",
-  "Could not save the setting.": "Einstellung konnte nicht gespeichert werden."
+  "Could not save the setting.": "Einstellung konnte nicht gespeichert werden.",
+  "App skin": "App-Design",
+  "Visual accent for cards and borders; Native keeps your desktop theme untouched.": "Visueller Akzent für Karten und Rahmen; Nativ lässt dein Desktop-Design unverändert.",
+  "Native": "Nativ",
+  "Synthwave": "Synthwave",
+  "Cozy": "Gemütlich",
+  "Terminal": "Terminal",
+  "Disco": "Disco",
+  "Zen": "Zen"
 }

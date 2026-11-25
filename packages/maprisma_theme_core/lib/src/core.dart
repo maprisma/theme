@@ -9,7 +9,7 @@ import 'protocol.dart';
 import 'routes.dart';
 import 'trash.dart';
 
-const coreVersion = '0.6.2';
+const coreVersion = '0.7.0';
 
 /// The core behind the protocol (docs/protocol.md): one JSON frame in, one out.
 final class CoreService {

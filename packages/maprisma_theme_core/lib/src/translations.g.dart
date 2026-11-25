@@ -1421,7 +1421,14 @@ const translationCatalogs = <String, Map<String, String>>{
     "Glassy (blurred)": "Glassy (blurred)",
     "Follow the desktop": "Follow the desktop",
     "For all Maprisma apps: see-through windows, blurred behind where the desktop blurs (Glassy). Follow the desktop uses Omarchy's window style, elsewhere Glassy while Maprisma Theme has blur on.": "For all Maprisma apps: see-through windows, blurred behind where the desktop blurs (Glassy). Follow the desktop uses Omarchy's window style, elsewhere Glassy while Maprisma Theme has blur on.",
-    "Could not save the setting.": "Could not save the setting."
+    "Could not save the setting.": "Could not save the setting.",
+    "App skin": "App skin",
+    "Visual accent for cards and borders; Native keeps your desktop theme untouched.": "Visual accent for cards and borders; Native keeps your desktop theme untouched.",
+    "Synthwave": "Synthwave",
+    "Cozy": "Cozy",
+    "Terminal": "Terminal",
+    "Disco": "Disco",
+    "Zen": "Zen"
   },
   "de": {
     "A key that applies this theme from anywhere": "Eine Taste, die dieses Theme von überall anwendet",
@@ -2844,7 +2851,14 @@ const translationCatalogs = <String, Map<String, String>>{
     "Glassy (blurred)": "Glas (unscharf)",
     "Follow the desktop": "Wie der Desktop",
     "For all Maprisma apps: see-through windows, blurred behind where the desktop blurs (Glassy). Follow the desktop uses Omarchy's window style, elsewhere Glassy while Maprisma Theme has blur on.": "Für alle Maprisma-Apps: durchsichtige Fenster, dahinter unscharf, wo der Desktop das kann (Glas). „Wie der Desktop“ nimmt Omarchys Fensterart, sonst Glas, solange Maprisma Theme die Unschärfe an hat.",
-    "Could not save the setting.": "Einstellung konnte nicht gespeichert werden."
+    "Could not save the setting.": "Einstellung konnte nicht gespeichert werden.",
+    "App skin": "App-Design",
+    "Visual accent for cards and borders; Native keeps your desktop theme untouched.": "Visueller Akzent für Karten und Rahmen; Nativ lässt dein Desktop-Design unverändert.",
+    "Synthwave": "Synthwave",
+    "Cozy": "Gemütlich",
+    "Terminal": "Terminal",
+    "Disco": "Disco",
+    "Zen": "Zen"
   },
   "fr": {
     "A key that applies this theme from anywhere": "Une touche qui applique ce thème de partout",
@@ -4267,7 +4281,14 @@ const translationCatalogs = <String, Map<String, String>>{
     "Glassy (blurred)": "Verre (flouté)",
     "Follow the desktop": "Comme le bureau",
     "For all Maprisma apps: see-through windows, blurred behind where the desktop blurs (Glassy). Follow the desktop uses Omarchy's window style, elsewhere Glassy while Maprisma Theme has blur on.": "Pour toutes les apps Maprisma : fenêtres transparentes, floutées derrière là où le bureau sait flouter (Verre). « Comme le bureau » suit le style de fenêtres d’Omarchy, ailleurs Verre tant que Maprisma Theme a le flou activé.",
-    "Could not save the setting.": "Impossible d'enregistrer le réglage."
+    "Could not save the setting.": "Impossible d'enregistrer le réglage.",
+    "App skin": "Apparence",
+    "Visual accent for cards and borders; Native keeps your desktop theme untouched.": "Accent visuel pour les cartes et bordures ; Natif conserve exactement le thème du bureau.",
+    "Synthwave": "Synthwave",
+    "Cozy": "Cosy",
+    "Terminal": "Terminal",
+    "Disco": "Disco",
+    "Zen": "Zen"
   },
   "es": {
     "A key that applies this theme from anywhere": "Una tecla que aplica este tema desde cualquier lugar",
@@ -5690,7 +5711,14 @@ const translationCatalogs = <String, Map<String, String>>{
     "Glassy (blurred)": "Cristal (desenfocado)",
     "Follow the desktop": "Como el escritorio",
     "For all Maprisma apps: see-through windows, blurred behind where the desktop blurs (Glassy). Follow the desktop uses Omarchy's window style, elsewhere Glassy while Maprisma Theme has blur on.": "Para todas las apps de Maprisma: ventanas transparentes, desenfocadas detrás donde el escritorio desenfoca (Cristal). «Como el escritorio» sigue el estilo de ventanas de Omarchy; en otros, Cristal mientras Maprisma Theme tenga el desenfoque activado.",
-    "Could not save the setting.": "No se pudo guardar el ajuste."
+    "Could not save the setting.": "No se pudo guardar el ajuste.",
+    "App skin": "Estilo visual",
+    "Visual accent for cards and borders; Native keeps your desktop theme untouched.": "Acento visual para tarjetas y bordes; Nativo mantiene intacto el tema del escritorio.",
+    "Synthwave": "Synthwave",
+    "Cozy": "Acogedor",
+    "Terminal": "Terminal",
+    "Disco": "Disco",
+    "Zen": "Zen"
   },
   "it": {
     "A key that applies this theme from anywhere": "Un tasto che applica questo tema ovunque",
@@ -7113,7 +7141,14 @@ const translationCatalogs = <String, Map<String, String>>{
     "Glassy (blurred)": "Vetro (sfocato)",
     "Follow the desktop": "Come il desktop",
     "For all Maprisma apps: see-through windows, blurred behind where the desktop blurs (Glassy). Follow the desktop uses Omarchy's window style, elsewhere Glassy while Maprisma Theme has blur on.": "Per tutte le app Maprisma: finestre trasparenti, sfocate dietro dove il desktop sfoca (Vetro). «Come il desktop» segue lo stile delle finestre di Omarchy, altrove Vetro finché Maprisma Theme ha la sfocatura attiva.",
-    "Could not save the setting.": "Impossibile salvare l'impostazione."
+    "Could not save the setting.": "Impossibile salvare l'impostazione.",
+    "App skin": "Stile app",
+    "Visual accent for cards and borders; Native keeps your desktop theme untouched.": "Accento visivo per schede e bordi; Nativo mantiene intatto il tema del desktop.",
+    "Synthwave": "Synthwave",
+    "Cozy": "Accogliente",
+    "Terminal": "Terminale",
+    "Disco": "Disco",
+    "Zen": "Zen"
   },
   "pt": {
     "A key that applies this theme from anywhere": "Uma tecla que aplica este tema de qualquer lugar",
@@ -8536,7 +8571,14 @@ const translationCatalogs = <String, Map<String, String>>{
     "Glassy (blurred)": "Vidro (desfocado)",
     "Follow the desktop": "Como o ambiente de trabalho",
     "For all Maprisma apps: see-through windows, blurred behind where the desktop blurs (Glassy). Follow the desktop uses Omarchy's window style, elsewhere Glassy while Maprisma Theme has blur on.": "Para todas as apps Maprisma: janelas transparentes, desfocadas atrás onde o ambiente de trabalho desfoca (Vidro). «Como o ambiente de trabalho» segue o estilo de janelas do Omarchy; noutros, Vidro enquanto o Maprisma Theme tiver o desfoque ligado.",
-    "Could not save the setting.": "Não foi possível guardar a definição."
+    "Could not save the setting.": "Não foi possível guardar a definição.",
+    "App skin": "Estilo da app",
+    "Visual accent for cards and borders; Native keeps your desktop theme untouched.": "Destaque visual para cartões e contornos; Nativo mantém intacto o tema do ambiente de trabalho.",
+    "Synthwave": "Synthwave",
+    "Cozy": "Acolhedor",
+    "Terminal": "Terminal",
+    "Disco": "Disco",
+    "Zen": "Zen"
   },
   "nl": {
     "A key that applies this theme from anywhere": "Een toets die dit thema overal toepast",
@@ -9174,7 +9216,7 @@ const translationCatalogs = <String, Map<String, String>>{
     "Move conflicting windows to the next empty workspace (with desktop notification)": "Conflicterende vensters naar de volgende lege werkruimte verplaatsen (met melding)",
     "Move existing windows to next free workspace without asking": "Bestaande vensters zonder vragen naar de volgende vrije werkruimte verplaatsen",
     "Move new windows when full · Manual moves override": "Nieuwe vensters verplaatsen als het vol is · Handmatig verplaatsen gaat voor",
-    "Native": "Native",
+    "Native": "Natief",
     "No App Preset": "Geen App Preset",
     "No App Preset saved yet": "Nog geen App Preset opgeslagen",
     "No installed app launcher matches this window, so it is not started. Open the app and save the preset again.": "Geen geïnstalleerde app-starter past bij dit venster, dus het wordt niet gestart. Open de app en sla de preset opnieuw op.",
@@ -9959,7 +10001,14 @@ const translationCatalogs = <String, Map<String, String>>{
     "Glassy (blurred)": "Glas (vervaagd)",
     "Follow the desktop": "Zoals het bureaublad",
     "For all Maprisma apps: see-through windows, blurred behind where the desktop blurs (Glassy). Follow the desktop uses Omarchy's window style, elsewhere Glassy while Maprisma Theme has blur on.": "Voor alle Maprisma-apps: doorzichtige vensters, erachter vervaagd waar het bureaublad dat doet (Glas). „Zoals het bureaublad” volgt de vensterstijl van Omarchy, elders Glas zolang Maprisma Theme vervaging aan heeft.",
-    "Could not save the setting.": "De instelling kon niet worden opgeslagen."
+    "Could not save the setting.": "De instelling kon niet worden opgeslagen.",
+    "App skin": "App-stijl",
+    "Visual accent for cards and borders; Native keeps your desktop theme untouched.": "Visueel accent voor kaarten en randen; Natief laat je bureaubladthema ongemoeid.",
+    "Synthwave": "Synthwave",
+    "Cozy": "Gezellig",
+    "Terminal": "Terminal",
+    "Disco": "Disco",
+    "Zen": "Zen"
   },
   "pl": {
     "A key that applies this theme from anywhere": "Klawisz, który stosuje ten motyw z dowolnego miejsca",
@@ -11382,6 +11431,13 @@ const translationCatalogs = <String, Map<String, String>>{
     "Glassy (blurred)": "Szkło (rozmyte)",
     "Follow the desktop": "Jak pulpit",
     "For all Maprisma apps: see-through windows, blurred behind where the desktop blurs (Glassy). Follow the desktop uses Omarchy's window style, elsewhere Glassy while Maprisma Theme has blur on.": "Dla wszystkich aplikacji Maprisma: przezroczyste okna, rozmyte z tyłu tam, gdzie pulpit rozmywa (Szkło). „Jak pulpit” korzysta ze stylu okien Omarchy, gdzie indziej Szkło, gdy Maprisma Theme ma włączone rozmycie.",
-    "Could not save the setting.": "Nie można zapisać ustawienia."
+    "Could not save the setting.": "Nie można zapisać ustawienia.",
+    "App skin": "Skórka aplikacji",
+    "Visual accent for cards and borders; Native keeps your desktop theme untouched.": "Wizualny akcent kart i obramowań; Natywny pozostawia motyw pulpitu bez zmian.",
+    "Synthwave": "Synthwave",
+    "Cozy": "Przytulny",
+    "Terminal": "Terminal",
+    "Disco": "Disco",
+    "Zen": "Zen"
   }
 };

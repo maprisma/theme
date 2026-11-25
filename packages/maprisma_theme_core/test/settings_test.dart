@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:test/test.dart';
 
 import 'support.dart';
@@ -28,5 +31,33 @@ void main() {
     }
     final reset = await env.core.call('settings.reset', {});
     expect(reset['settings']['window_position'], [-20, 42]);
+  });
+
+  test('skin defaults to native, persists non-native values, omits native on save, rejects invalid, and resets to native', () async {
+    final env = TestEnv.create();
+    addTearDown(env.dispose);
+
+    expect((await env.core.call('settings.get', {}))['settings']['skin'], 'native');
+
+    for (final skin in ['synthwave', 'cozy', 'terminal', 'disco', 'zen']) {
+      final res = await env.core.call('settings.set', {'key': 'skin', 'value': skin});
+      expect(res['settings']['skin'], skin);
+      final raw = jsonDecode(File(env.paths.settingsFile).readAsStringSync()) as Map;
+      expect(raw['skin'], skin);
+    }
+
+    final nativeRes = await env.core.call('settings.set', {'key': 'skin', 'value': 'native'});
+    expect(nativeRes['settings']['skin'], 'native');
+    final rawNative = jsonDecode(File(env.paths.settingsFile).readAsStringSync()) as Map;
+    expect(rawNative.containsKey('skin'), isFalse);
+
+    await expectLater(
+      env.core.call('settings.set', {'key': 'skin', 'value': 'neon'}),
+      throwsA(anything),
+    );
+
+    await env.core.call('settings.set', {'key': 'skin', 'value': 'disco'});
+    final reset = await env.core.call('settings.reset', {});
+    expect(reset['settings']['skin'], 'native');
   });
 }

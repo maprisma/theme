@@ -12,6 +12,7 @@ const defaultSettings = <String, dynamic>{
   'workspace_wallpapers': true,
   'workspace_themes': false,
   'corners': 'windows', // windows, slight (6 px), rounded (12 px), square
+  'skin': 'native', // native, synthwave, cozy, terminal, disco, zen
   'sort': 'name', // name, recent
   'preview_flip_3d': true,
   'preview_flip_delay': 2,
@@ -41,6 +42,7 @@ const defaultSettings = <String, dynamic>{
 
 const slideshowChoices = [0, 5, 10, 15, 30, 60, 120];
 const flipDelayChoices = <num>[0, 0.5, 1, 1.5, 2, 3, 5, 10];
+const skinChoices = ['native', 'synthwave', 'cozy', 'terminal', 'disco', 'zen'];
 final _time = RegExp(r'^([01]\d|2[0-3]):[0-5]\d$');
 
 num normalizeFlipDelay(num v) => v == v.roundToDouble() ? v.round() : v.toDouble();
@@ -73,7 +75,11 @@ final class Settings {
       throw ArgumentError.value(value, key);
     }
     final raw = readJsonMap(paths.settingsFile);
-    raw[key] = key == 'preview_flip_delay' && value is num ? normalizeFlipDelay(value) : value;
+    if (key == 'skin' && value == 'native') {
+      raw.remove(key);
+    } else {
+      raw[key] = key == 'preview_flip_delay' && value is num ? normalizeFlipDelay(value) : value;
+    }
     writeJson(paths.settingsFile, raw);
     return load();
   }
@@ -117,6 +123,7 @@ final class Settings {
     'preview_flip_delay' => v is num && !v.isNaN && flipDelayChoices.any((c) => c.toDouble() == v.toDouble()),
     'wallpaper_count' => v is int && const {5, 10, 20}.contains(v),
     'corners' => v is String && const {'windows', 'slight', 'rounded', 'square'}.contains(v),
+    'skin' => v is String && skinChoices.contains(v),
     'sort' => v is String && const {'name', 'recent'}.contains(v),
     'slideshow_minutes' => v is int && slideshowChoices.contains(v),
     'schedule' => v is Map &&
