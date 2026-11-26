@@ -12,6 +12,18 @@
 # stopped (by their real program path), a fresh folder is swapped in, and the app is not restarted.
 # The panel applet is restarted by COSMIC's panel when its binary changed (kill it; the panel respawns it).
 set -euo pipefail
+
+# Starts a long-running bar program for this desktop session: in a systemd user scope that is part
+# of graphical-session.target, so it ends at logout (else it outlives the session and serves the
+# bar in the next desktop with this desktop's environment). Plain setsid without one.
+start_in_session() {
+  if command -v systemd-run >/dev/null && systemctl --user is-active --quiet graphical-session.target 2>/dev/null; then
+    setsid -f systemd-run --user --scope --collect --quiet --description="$(basename "$1")" \
+      -p PartOf=graphical-session.target -p After=graphical-session.target "$@"
+  else
+    setsid -f "$@"
+  fi
+}
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 lib="$HOME/.local/lib/maprisma-theme"
 bin="$HOME/.local/bin"
@@ -95,6 +107,6 @@ exe=${exe//\\/\\\\}; exe=${exe//\%/%%}
 { grep -v '^Exec=' "$root/packaging/com.maprisma.Theme.Daemon.desktop"; printf 'Exec="%s" daemon\n' "$exe"; } > "$autostart/com.maprisma.Theme.Daemon.desktop"
 # The daemon was stopped with the other running copies: start it again in a Plasma or Hyprland session.
 if [[ ":${XDG_CURRENT_DESKTOP:-}:" == *:KDE:* || ":${XDG_CURRENT_DESKTOP:-}:" == *:Hyprland:* ]]; then
-  setsid -f "$bin/maprisma-theme-core" daemon >/dev/null 2>&1 < /dev/null || true
+  start_in_session "$bin/maprisma-theme-core" daemon >/dev/null 2>&1 < /dev/null || true
 fi
 echo "Installed Maprisma Theme into $lib"

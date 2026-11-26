@@ -549,6 +549,9 @@ final class Daemon {
         unawaited(_syncShortcuts().catchError((_) {}));
       }
     }));
+    // First: the theme applied on another desktop since this one had it (its colour scheme,
+    // wallpaper, icons); the autostart preset after it may pick another theme anyway.
+    unawaited(run(CoreJob('themes.catch_up')));
     if (claimAutostart(ctx.environment) && automation['autostart'] == true) unawaited(run(CoreJob('presets.autostart')));
     unawaited(_syncShortcuts().catchError((_) {}));
     if (events != null) {

@@ -155,6 +155,8 @@ Map<String, Handler> themeRoutes(Ctx ctx) => {
       'dir': t.dir,
     };
   },
+  // The daemon at session start: this desktop gets the theme applied on another one meanwhile.
+  'themes.catch_up': (p) async => autoLocked(ctx, () => catchUpDesktop(ctx)),
   'themes.apply': (p) async {
     // One apply at a time, also against the applet's automation (CLI) runs.
     return autoLocked(ctx, () async {

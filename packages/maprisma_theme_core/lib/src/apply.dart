@@ -138,6 +138,7 @@ Future<Map<String, dynamic>> applyTheme(Ctx ctx, String slug, {String? wallpaper
       );
     }
     done.add(desktop.id);
+    markDesktopApplied(ctx, desktop.id, slug);
   }
   final wp = wallpaper ?? startWallpaper(ctx, theme)?.path;
   if (wp != null && File(wp).existsSync() && await ctx.desktop.setWallpaper(wp)) {
@@ -161,6 +162,40 @@ Future<Map<String, dynamic>> applyTheme(Ctx ctx, String slug, {String? wallpaper
     if (hidden.remove(slug)) ctx.lists.hidden = hidden; // applying unhides
   }
   return {'applied': slug, 'done': done};
+}
+
+// --- each desktop keeps up with the theme ---------------------------------------------------
+
+String _desktopAppliedFile(Ctx ctx) => '${ctx.paths.state}/desktop-applied.json';
+
+/// The theme [desktopId]'s own colours last got ({desktop id: slug}). A theme applied on Hyprland
+/// leaves KDE's colour scheme (and COSMIC's theme) as they were: the Rust Maprisma apps there read
+/// it, so they would show the theme before.
+void markDesktopApplied(Ctx ctx, String desktopId, String slug) {
+  final m = readJsonMap(_desktopAppliedFile(ctx));
+  if (m[desktopId] == slug) return;
+  m[desktopId] = slug;
+  writeJson(_desktopAppliedFile(ctx), m);
+}
+
+/// The current theme when this desktop's own colours don't have it yet (it was applied on another
+/// desktop, or before this desktop was recorded); null when they do or nothing can be applied.
+String? desktopBehind(Ctx ctx) {
+  final desktop = ctx.desktop;
+  if (!desktop.caps.contains(Cap.appearance)) return null;
+  final slug = ctx.current.slug;
+  if (slug.isEmpty || findTheme(ctx.paths, slug) == null) return null;
+  return readJsonMap(_desktopAppliedFile(ctx))[desktop.id] == slug ? null : slug;
+}
+
+/// Brings this desktop up to the current theme ([desktopBehind]), with the wallpaper in use;
+/// nothing else changes (no recent-list entry). {'caught_up': slug or null}.
+Future<Map<String, dynamic>> catchUpDesktop(Ctx ctx) async {
+  final slug = desktopBehind(ctx);
+  if (slug == null) return {'caught_up': null};
+  final wp = ctx.current.wallpaper;
+  final r = await applyTheme(ctx, slug, wallpaper: wp != null && File(wp).existsSync() ? wp : null, remember: false);
+  return {'caught_up': slug, 'done': r['done']};
 }
 
 /// Sets the background of the theme in use (and remembers it for the theme).
