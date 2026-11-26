@@ -1,5 +1,5 @@
 import 'apply.dart';
-import 'bounded.dart';
+import 'package:maprisma_core_kit/process.dart';
 import 'colors.dart';
 import 'context.dart';
 import 'desktop.dart';
@@ -81,7 +81,7 @@ Future<(String?, String?)> _gtkFonts(Ctx ctx) async {
   Future<String?> get(String key) async {
     if (g == null) return null;
     final (code, out) = await runBounded([g, 'get', 'org.gnome.desktop.interface', key],
-        timeout: const Duration(seconds: 3), environment: ctx.environment);
+        timeout: const Duration(seconds: 3), environment: ctx.environment, includeParentEnvironment: false);
     final t = code == 0 ? out.trim() : '';
     return t.length > 2 && t.startsWith("'") && t.endsWith("'") ? pangoFamily(t.substring(1, t.length - 1)) : null;
   }

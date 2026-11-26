@@ -1,36 +1,24 @@
 /// The AI helper chosen for every Maprisma app (Maprisma Settings → AI):
-/// `${XDG_CONFIG_HOME:-$HOME/.config}/maprisma-ai/settings.json`, a JSON object whose `helper` is
-/// `"auto"` or a helper id. A missing or broken file or value is "auto"; unknown keys are kept
-/// when it is written (atomically, folder 0700, file 0600).
-///
-/// "auto" is the first ready helper in the catalog's order; a chosen helper that is not
-/// installed or not ready falls back to it. While the shared file does not exist yet, Maprisma
-/// Theme's own old choice (`ask_ai_helper`) counts (the file is not written for that: Maprisma
-/// Manager seeds it).
+/// `${XDG_CONFIG_HOME:-$HOME/.config}/maprisma-ai/settings.json`.
 library;
 
 import 'dart:io';
-import 'dart:convert';
+
+import 'package:maprisma_core_kit/ai.dart' as kit;
+import 'package:maprisma_core_kit/ai.dart' show sharedHelperAuto, validSharedHelperId;
+
 import 'paths.dart';
-import 'posix.dart';
 
-import 'store.dart';
+export 'package:maprisma_core_kit/ai.dart'
+    show resolveSharedHelper, sharedAiSettingsFile, sharedHelperAuto, validSharedHelperId, writeSharedHelper;
 
-const sharedHelperAuto = 'auto';
-final _helperId = RegExp(r'^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,160}$');
-
-/// A helper id the shared file may hold (not "auto").
-bool validSharedHelperId(Object? v) => v is String && v != sharedHelperAuto && _helperId.hasMatch(v);
-
-/// The shared settings file below [configHome] (XDG_CONFIG_HOME or ~/.config).
-String sharedAiSettingsFile(String configHome) => '$configHome/maprisma-ai/settings.json';
+const sharedAiDir = 'maprisma-ai';
 
 /// The shared choice: "auto" or a helper id; null when the file does not exist (or is no
 /// regular file) — then the app's own old choice may count.
 String? readSharedHelper(String path) {
   if (FileSystemEntity.typeSync(path) != FileSystemEntityType.file) return null;
-  final v = readJsonMap(path)['helper'];
-  return validSharedHelperId(v) ? v as String : sharedHelperAuto;
+  return kit.readSharedHelper(path);
 }
 
 /// The shared choice, else [legacy] (the app's old own one) when the file is absent and it is
@@ -38,40 +26,13 @@ String? readSharedHelper(String path) {
 String effectiveSharedHelper(String path, Object? legacy) =>
     readSharedHelper(path) ?? (validSharedHelperId(legacy) ? legacy as String : sharedHelperAuto);
 
-/// Writes [helper] ("auto" or a valid id; else ArgumentError) and keeps the file's other keys.
-void writeSharedHelper(String path, String helper) {
-  if (helper != sharedHelperAuto && !validSharedHelperId(helper)) {
-    throw ArgumentError.value(helper, 'helper');
-  }
-  final dir = File(path).parent;
-  dir.createSync(recursive: true);
-  chmodPath(dir.path, 448);
-  Posix.instance.withFlock('${dir.path}/settings.lock', () {
-    final data = readSharedObjectPath(path);
-    if (FileSystemEntity.typeSync(path, followLinks: false) != FileSystemEntityType.notFound && data == null) {
-      throw FileSystemException('Shared AI settings cannot be read', path);
-    }
-    final tmp = '${dir.path}/.settings.$pid.${DateTime.now().microsecondsSinceEpoch}.tmp';
-    if (!Posix.instance.writeNewPrivate(tmp, utf8.encode('${jsonEncode({...?data, 'helper': helper})}\n'))) {
-      throw FileSystemException('Could not write shared AI settings', path);
-    }
-    File(tmp).renameSync(path);
-  });
-}
-
-/// The helper to use: [choice] when it is among [ready] (ids in the catalog's order), else the
-/// first ready one (auto); null when none is ready.
-String? resolveSharedHelper(String choice, List<String> ready) =>
-    choice != sharedHelperAuto && ready.contains(choice) ? choice : ready.firstOrNull;
-
-const sharedAiDir = 'maprisma-ai';
 Map<String, dynamic>? readSharedObjectPath(String path) {
-  final bytes = Posix.instance.readRegular(path, 65536, follow: false);
-  if (bytes == null) return null;
-  try {
-    final value = jsonDecode(utf8.decode(bytes));
-    return value is Map<String, dynamic> ? value : null;
-  } on FormatException { return null; }
+  if (FileSystemEntity.typeSync(path, followLinks: false) == FileSystemEntityType.notFound) return null;
+  return kit.readSharedObject(path);
 }
+
 Map<String, dynamic>? readSharedObject(Paths paths) => readSharedObjectPath(paths.sharedAiSettings);
-bool sharedFileBroken(Paths paths) => FileSystemEntity.typeSync(paths.sharedAiSettings, followLinks: false) != FileSystemEntityType.notFound && readSharedObject(paths) == null;
+
+bool sharedFileBroken(Paths paths) =>
+    FileSystemEntity.typeSync(paths.sharedAiSettings, followLinks: false) != FileSystemEntityType.notFound &&
+    readSharedObject(paths) == null;

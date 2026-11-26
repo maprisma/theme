@@ -18,7 +18,7 @@ import 'package:dbus/dbus.dart';
 
 import 'paths.dart';
 import 'posix.dart';
-import 'bounded.dart';
+import 'package:maprisma_core_kit/process.dart';
 import 'shortcuts.dart';
 import 'store.dart';
 
@@ -415,7 +415,7 @@ Future<bool> _sync(Paths paths, Map<String, String> environment, DBusClient? cli
     for (final e in wanted.entries) {
       final aid = id(e.key, '_launch', 'Maprisma Theme', e.value.$3);
       for (var attempt = 0; ; attempt++) {
-        if (sycoca != null) await runBounded([sycoca], timeout: const Duration(seconds: 30), environment: environment);
+        if (sycoca != null) await runBounded([sycoca], timeout: const Duration(seconds: 30), environment: environment, includeParentEnvironment: false);
         await c('doRegister', [aid]);
         await c('setForeignShortcutKeys', [
           aid,

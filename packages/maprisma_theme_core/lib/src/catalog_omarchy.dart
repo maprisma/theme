@@ -3,7 +3,7 @@ import 'i18n.dart';
 import 'dart:io';
 import 'dart:math';
 
-import 'bounded.dart';
+import 'package:maprisma_core_kit/process.dart';
 import 'context.dart';
 import 'images.dart';
 import 'import_net.dart';
@@ -241,6 +241,7 @@ Future<String> installOmarchyTheme(Ctx ctx, OmarchyTheme theme) async {
     ],
     timeout: cloneTimeout,
     environment: env,
+    includeParentEnvironment: false,
     stopWhen: () => treeTooLarge(tmp),
     group: true,
   );

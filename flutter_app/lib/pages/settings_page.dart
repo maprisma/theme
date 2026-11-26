@@ -10,7 +10,7 @@ import '../app.dart';
 import '../skin.dart';
 import '../theme.dart';
 import '../widgets.dart';
-import '../window_style.dart';
+import 'package:maprisma_ui/window_style.dart';
 import 'shortcut_page.dart';
 
 /// One row of the settings: its section, its words (for the search) and its control.

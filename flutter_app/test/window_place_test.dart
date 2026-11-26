@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:maprisma_theme/window_size.dart';
+import 'package:maprisma_ui/window.dart';
 
 void main() {
   const clients = '[{"pid": 7, "floating": true, "fullscreen": 0, "at": [2860, 42], "size": [560, 700]},'

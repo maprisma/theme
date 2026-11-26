@@ -3,7 +3,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'bounded.dart';
+import 'package:maprisma_core_kit/process.dart';
 import 'desktop_cosmic.dart';
 import 'shortcuts_cosmic.dart';
 import 'paths.dart';
@@ -223,7 +223,7 @@ abstract base class DesktopBase implements Desktop {
   Future<Map<String, dynamic>?> helperJson(List<String> args, {Duration timeout = const Duration(seconds: 20)}) async {
     final h = helper;
     if (h == null) return null;
-    final out = await readBoundedText([h, ...args], maxBytes: 4 * 1024 * 1024, timeout: timeout, okCodes: const {}, environment: environment);
+    final out = await readBoundedText([h, ...args], maxBytes: 4 * 1024 * 1024, timeout: timeout, okCodes: const {}, environment: environment, includeParentEnvironment: false);
     if (out == null) return null;
     try {
       final v = jsonDecode(out.trim());

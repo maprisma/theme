@@ -13,6 +13,11 @@ dependencies:
   path: ^1.9.1
   image: ^4.5.4
   dbus: ^0.8.0
+  maprisma_core_kit:
+    git:
+      url: https://github.com/maprisma/maprisma-kit.git
+      ref: 39c68c8b9dba8d0cc1aa7b3703832ce8f67dc85e # v0.1.0
+      path: packages/maprisma_core_kit
 dev_dependencies:
   test: ^1.29.0
   lints: ^6.0.0

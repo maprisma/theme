@@ -1,6 +1,6 @@
 import '../i18n.dart';
 import '../ask_ai_gate.dart';
-import '../mic_button.dart';
+import 'package:maprisma_ui/voice.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;

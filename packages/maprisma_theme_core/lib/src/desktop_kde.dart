@@ -11,7 +11,7 @@ import 'dart:convert';
 import 'dart:io';
 
 
-import 'bounded.dart';
+import 'package:maprisma_core_kit/process.dart';
 import 'colors.dart';
 import 'desktop.dart';
 import 'images.dart';
@@ -232,6 +232,7 @@ final class KdeDesktop extends DesktopBase {
       [qdbus, 'org.kde.KWin', '/Effects', 'org.kde.kwin.Effects.isEffectLoaded', effect],
       timeout: const Duration(seconds: 5),
       environment: environment,
+      includeParentEnvironment: false,
     );
     if (code != 0) return null;
     return switch (out.trim()) { 'true' => true, 'false' => false, _ => null };
@@ -252,7 +253,7 @@ final class KdeDesktop extends DesktopBase {
       if (now == null) return false;
       if (now == want) continue;
       await runBounded([qdbus, 'org.kde.KWin', '/Effects', 'org.kde.kwin.Effects.${want ? 'loadEffect' : 'unloadEffect'}', e.key],
-          timeout: const Duration(seconds: 5), environment: environment);
+          timeout: const Duration(seconds: 5), environment: environment, includeParentEnvironment: false);
       if (await _effectLoaded(qdbus, e.key) != want) return false;
     }
     return true;
@@ -324,6 +325,7 @@ final class KdeDesktop extends DesktopBase {
       [qdbus, 'org.kde.KWin', '/Effects', 'org.kde.kwin.Effects.isEffectSupported', 'blur'],
       timeout: const Duration(seconds: 5),
       environment: environment,
+      includeParentEnvironment: false,
     );
     if (code != 0 || out.trim() != 'true') return null;
     final loaded = await _effectLoaded(qdbus, 'blur');
@@ -361,12 +363,12 @@ final class KdeDesktop extends DesktopBase {
       if (!await _run(['kwriteconfig6', '--file', 'kwinrc', '--group', 'Plugins', '--key', 'blurEnabled', enabled ?? '--delete'])) return false;
       if (await _effectLoaded(qdbus, 'blur') != loaded) {
         await runBounded([qdbus, 'org.kde.KWin', '/Effects', 'org.kde.kwin.Effects.${loaded ? 'loadEffect' : 'unloadEffect'}', 'blur'],
-            timeout: const Duration(seconds: 5), environment: environment);
+            timeout: const Duration(seconds: 5), environment: environment, includeParentEnvironment: false);
         if (await _effectLoaded(qdbus, 'blur') != loaded) return false;
       }
       if (!loaded) return true;
       final (code, _) = await runBounded([qdbus, 'org.kde.KWin', '/Effects', 'org.kde.kwin.Effects.reconfigureEffect', 'blur'],
-          timeout: const Duration(seconds: 5), environment: environment);
+          timeout: const Duration(seconds: 5), environment: environment, includeParentEnvironment: false);
       return code == 0;
     }
     if (!await write(enabled as String?, strength as String?, loaded)) {
@@ -444,7 +446,7 @@ final class KdeDesktop extends DesktopBase {
   Future<bool> _run(List<String> argv, {Duration timeout = const Duration(seconds: 20)}) async {
     final program = _program(argv.first);
     if (program == null) return false;
-    final (code, _) = await runBounded([program, ...argv.skip(1)], timeout: timeout, environment: environment);
+    final (code, _) = await runBounded([program, ...argv.skip(1)], timeout: timeout, environment: environment, includeParentEnvironment: false);
     return code == 0;
   }
 
@@ -457,6 +459,7 @@ final class KdeDesktop extends DesktopBase {
       maxBytes: 256 * 1024,
       timeout: const Duration(seconds: 15),
       environment: environment,
+      includeParentEnvironment: false,
     );
     return code == 0 ? out : null;
   }

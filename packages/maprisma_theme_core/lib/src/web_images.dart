@@ -6,7 +6,7 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 
-import 'bounded.dart';
+import 'package:maprisma_core_kit/process.dart';
 import 'context.dart';
 import 'images.dart';
 import 'posix.dart';

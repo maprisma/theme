@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'bounded.dart';
+import 'package:maprisma_core_kit/process.dart';
 import 'posix.dart';
 import 'context.dart';
 import 'images.dart';

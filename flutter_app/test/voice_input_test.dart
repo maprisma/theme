@@ -6,7 +6,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:maprisma_theme/voice_input.dart';
+import 'package:maprisma_ui/voice.dart';
 
 import 'voice_fake.dart';
 

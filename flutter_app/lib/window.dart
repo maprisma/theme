@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/services.dart';
+import 'package:maprisma_ui/window.dart';
 
 /// Something dropped onto the window: image bytes (a picture from a browser)
 /// or a text/uri-list (files from the file manager).
@@ -14,10 +15,10 @@ final class Drop {
 /// The native window (linux/runner/my_application.cc, "maprisma-theme/window").
 final class AppWindow {
   AppWindow._() {
-    _channel.setMethodCallHandler(_handle);
+    _channel.setHandler(_handle);
   }
   static final instance = AppWindow._();
-  static const _channel = MethodChannel('maprisma-theme/window');
+  final _channel = WindowChannel('maprisma-theme/window');
 
   final shown = StreamController<void>.broadcast();
   final hidden = StreamController<void>.broadcast();
@@ -49,39 +50,18 @@ final class AppWindow {
     return null;
   }
 
-  Future<void> _call(String method, [Object? args]) async {
-    try {
-      await _channel.invokeMethod(method, args);
-    } on MissingPluginException {
-      // tests
-    } on PlatformException {
-      // ignore
-    }
-  }
+  Future<void> hide() => _channel.hide();
+  Future<void> present() => _channel.present();
 
-  Future<void> hide() => _call('hide');
-  Future<void> present() => _call('present');
   /// Light or dark, and the header bar in the palette's [background], [foreground] and [border]
   /// (`#rrggbb`), also when the theme changes while the window is open.
   Future<void> titlebar(bool dark, {String? background, String? foreground, String? border}) =>
-      _call('titlebar', {'dark': dark, 'background': ?background, 'foreground': ?foreground, 'border': ?border});
-  Future<void> resize(int width, int height) => _call('size', [width, height]);
-  Future<void> maximize(bool on) => _call('maximize', on);
+      _channel.titlebar(dark, background: background, foreground: foreground, border: border);
+  Future<void> resize(int width, int height) => _channel.resize(width, height);
+  Future<void> maximize(bool on) => _channel.maximize(on);
 
   /// {width, height, free}: GTK's size (title bar included) and whether it is the user's
   /// (shown, not maximized, fullscreen or tiled); null without the runner (tests).
-  Future<Object?> geometry() async {
-    try {
-      return await _channel.invokeMethod<Object?>('geometry');
-    } on MissingPluginException {
-      return null;
-    }
-  }
-  Future<bool> maximized() async {
-    try {
-      return await _channel.invokeMethod<bool>('maximized') ?? false;
-    } on MissingPluginException {
-      return false;
-    }
-  }
+  Future<Object?> geometry() => _channel.geometry();
+  Future<bool> maximized() => _channel.maximized();
 }

@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:maprisma_theme/window_size.dart';
+import 'package:maprisma_ui/window.dart';
 
 /// Rule 5a: the window opens at the size the user left it.
 void main() {
@@ -34,6 +34,7 @@ void main() {
     final keeper = WindowSizeKeeper(
       geometry: () async => {'width': width, 'height': 700, 'free': true},
       save: (w, h) async => saves.add((w, h)),
+      notUsers: () async => false,
     );
     addTearDown(keeper.dispose);
     keeper.resized();
@@ -52,7 +53,12 @@ void main() {
   testWidgets('closed or hidden within half a second: the size it had while shown is kept', (tester) async {
     final saves = <(int, int)>[];
     var geo = <String, Object>{'width': 1000, 'height': 760, 'free': true};
-    final keeper = WindowSizeKeeper(geometry: () async => geo, save: (w, h) async => saves.add((w, h)), saved: (900, 700));
+    final keeper = WindowSizeKeeper(
+      geometry: () async => geo,
+      save: (w, h) async => saves.add((w, h)),
+      saved: (900, 700),
+      notUsers: () async => false,
+    );
     addTearDown(keeper.dispose);
     keeper.resized();
     await tester.pump(const Duration(milliseconds: 100));
@@ -113,6 +119,7 @@ void main() {
         geometry: () async => {'width': 960, 'height': 1040, 'free': true}, // GTK sees no tiled state
         save: (w, h) async => saves.add((w, h)),
         tiled: () => tiledNow,
+        notUsers: () async => false,
       );
       addTearDown(keeper.dispose);
       keeper.resized();

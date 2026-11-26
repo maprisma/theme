@@ -1,8 +1,9 @@
 /// Maprisma Theme's core.
 library;
 
+export 'package:maprisma_core_kit/process.dart';
+
 export 'src/apply.dart';
-export 'src/bounded.dart';
 export 'src/colors.dart';
 export 'src/context.dart';
 export 'src/core.dart';

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:maprisma_theme/esc_close.dart';
+import 'package:maprisma_ui/window.dart';
 
 /// Rule 5a: Esc closes the innermost thing first, the window last.
 void main() {

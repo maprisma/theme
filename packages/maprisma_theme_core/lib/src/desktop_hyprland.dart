@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:collection/collection.dart';
 
-import 'bounded.dart';
+import 'package:maprisma_core_kit/process.dart';
 import 'colors.dart';
 import 'desktop.dart';
 import 'gtk_colors.dart';
@@ -46,7 +46,7 @@ final class HyprlandDesktop extends DesktopBase {
     final out = hyprctl == null
         ? null
         : await readBoundedText([hyprctl, '-j', 'getoption', 'decoration:rounding'],
-            timeout: const Duration(seconds: 2), environment: environment);
+            timeout: const Duration(seconds: 2), environment: environment, includeParentEnvironment: false);
     return _rounding = hyprRounding(out);
   }
 
@@ -148,7 +148,7 @@ final class HyprlandDesktop extends DesktopBase {
       }
       final hyprctl = findProgram(paths, environment, 'hyprctl');
       if (hyprctl != null && (environment['HYPRLAND_INSTANCE_SIGNATURE'] ?? '').isNotEmpty) {
-        await readBoundedText([hyprctl, 'reload'], timeout: const Duration(seconds: 5), okCodes: const {}, environment: environment);
+        await readBoundedText([hyprctl, 'reload'], timeout: const Duration(seconds: 5), okCodes: const {}, environment: environment, includeParentEnvironment: false);
       }
     }
     sendTerminalColours(colors, colours);
@@ -351,7 +351,7 @@ final class HyprlandDesktop extends DesktopBase {
     if (g == null) return false;
     final (code, _) = await runBounded(
         [g, if (value == null) ...['reset', 'org.gnome.desktop.interface', key] else ...['set', 'org.gnome.desktop.interface', key, value]],
-        timeout: const Duration(seconds: 5), environment: environment);
+        timeout: const Duration(seconds: 5), environment: environment, includeParentEnvironment: false);
     return code == 0;
   }
 
@@ -542,7 +542,7 @@ final class HyprlandDesktop extends DesktopBase {
   Future<Map<String, dynamic>?> _option(String name) async {
     final hyprctl = findProgram(paths, environment, 'hyprctl');
     if (hyprctl == null || (environment['HYPRLAND_INSTANCE_SIGNATURE'] ?? '').isEmpty) return null;
-    final out = await readBoundedText([hyprctl, '-j', 'getoption', name], timeout: const Duration(seconds: 2), environment: environment);
+    final out = await readBoundedText([hyprctl, '-j', 'getoption', name], timeout: const Duration(seconds: 2), environment: environment, includeParentEnvironment: false);
     if (out == null) return null;
     try {
       final v = jsonDecode(out);
@@ -620,7 +620,7 @@ final class HyprlandDesktop extends DesktopBase {
       if (!_writeBlurFile(f)) return false;
       final hyprctl = findProgram(paths, environment, 'hyprctl');
       if (hyprctl != null && (environment['HYPRLAND_INSTANCE_SIGNATURE'] ?? '').isNotEmpty) {
-        await readBoundedText([hyprctl, 'reload'], timeout: const Duration(seconds: 5), okCodes: const {}, environment: environment);
+        await readBoundedText([hyprctl, 'reload'], timeout: const Duration(seconds: 5), okCodes: const {}, environment: environment, includeParentEnvironment: false);
       }
       if (f == null) return true;
       final now = await blurState();

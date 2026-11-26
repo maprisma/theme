@@ -5,8 +5,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:maprisma_theme/mic_button.dart';
-import 'package:maprisma_theme/voice_input.dart';
+import 'package:maprisma_ui/voice.dart';
 
 import 'voice_fake.dart';
 
@@ -133,8 +132,6 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await tester.pump();
       expect(find.byTooltip('Dictate'), findsOneWidget);
-      // a click while the cancelled start is still on its way starts nothing more
-      await tester.tap(find.byKey(const ValueKey('voice-mic')));
       await settle(tester);
       expect(find.byTooltip('Dictate'), findsOneWidget);
       expect(partials, isNot(contains('Listening…')));

@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:maprisma_theme/app.dart';
 import 'package:maprisma_theme/skin.dart';
 import 'package:maprisma_theme/theme.dart';
-import 'package:maprisma_theme/window_style.dart';
+import 'package:maprisma_ui/window_style.dart';
 import 'package:maprisma_theme_core/maprisma_theme_core.dart';
 
 void main() {

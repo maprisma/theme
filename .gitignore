@@ -2,6 +2,7 @@ build/
 target/
 dist/
 .dart_tool/
+pubspec_overrides.yaml
 *.pyc
 target/
 

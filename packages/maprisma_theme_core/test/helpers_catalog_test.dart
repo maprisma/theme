@@ -1,9 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:maprisma_core_kit/ai.dart';
 import 'package:maprisma_theme_core/src/ask_ai.dart';
-import 'package:maprisma_theme_core/src/helpers_catalog.dart';
-import 'package:maprisma_theme_core/src/helpers_shipped.g.dart';
 import 'package:maprisma_theme_core/src/posix.dart' show which;
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';

@@ -35,8 +35,8 @@ import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
 import 'package:path/path.dart' as p;
 
-import 'bounded.dart';
-import 'helpers_catalog.dart';
+import 'package:maprisma_core_kit/ai.dart';
+import 'package:maprisma_core_kit/process.dart';
 import 'posix.dart';
 import 'store.dart' show chmodPath;
 
@@ -680,6 +680,7 @@ Future<String?> realBinary(String command, Map<String, String> environment) asyn
       maxBytes: 4096,
       timeout: const Duration(seconds: 10),
       environment: environment,
+      includeParentEnvironment: false,
     ))?.trim();
     if (out == null || out.isEmpty || !FileSystemEntity.isFileSync(out)) return null;
     return File(out).resolveSymbolicLinksSync();
@@ -922,6 +923,7 @@ final class AskRunner {
       [systemctl, '--user', 'start', '--no-block', unit],
       timeout: const Duration(seconds: 10),
       environment: environment,
+      includeParentEnvironment: false,
     );
     if (code == null) throw AskError(trf("could not start {0}", [unit]));
     final end = DateTime.now().add(wait);

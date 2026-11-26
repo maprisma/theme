@@ -4,10 +4,11 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' show mapEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:maprisma_ui/window.dart';
+import 'package:maprisma_ui/window_style.dart';
 
 import 'backend.dart' show ServiceError;
 import 'core_call.dart';
-import 'esc_close.dart';
 import 'pages/ask_page.dart';
 import 'pages/import_page.dart';
 import 'pages/info_page.dart';
@@ -19,8 +20,6 @@ import 'skin.dart';
 import 'theme.dart';
 import 'material_translations.dart';
 import 'window.dart';
-import 'window_style.dart';
-import 'window_size.dart';
 
 /// What every page reaches through `AppScope.of(context)`.
 final class AppScope extends InheritedWidget {

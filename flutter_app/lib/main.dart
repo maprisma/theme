@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:maprisma_core_kit/files.dart' show privateFilesMessageFormatter;
+import 'package:maprisma_ui/voice.dart' show VoiceInput;
+import 'package:maprisma_ui/window.dart';
 
 import 'app.dart';
 import 'backend.dart';
+import 'i18n.dart';
 import 'window.dart';
-import 'window_size.dart';
 
 Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
+  privateFilesMessageFormatter = trf;
+  VoiceInput.formatMessage = trf;
   final backend = await Backend.start();
   // Rule 5a: the window opens at the size the user left it (the runner keeps it on the screen).
   try {
