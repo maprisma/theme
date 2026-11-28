@@ -684,6 +684,11 @@ void writeAutomation(Ctx ctx) {
       'limits': t['limits'] is Map ? t['limits'] : const {},
       'floating': t['floating'] is List ? t['floating'] : const [],
       'tiled': t['tiled'] is List ? t['tiled'] : const [],
+      // Hyprland's presets (Cap.presetLayouts); the applet and KWin ignore them.
+      if (t['presets'] is Map) 'presets': t['presets'],
+      if (t['splits'] is Map) 'splits': t['splits'],
+      if (t['default_split'] is num) 'default_split': t['default_split'],
+      if (t['unlimited'] is List) 'unlimited': t['unlimited'],
     };
     autostart = fromPresets['autostart'] == true || t['autostart'] == true;
   }

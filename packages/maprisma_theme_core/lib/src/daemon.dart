@@ -21,39 +21,77 @@ import 'desktop.dart';
 import 'desktop_kde.dart';
 import 'shortcuts_kde.dart';
 import 'store.dart';
+import 'workspace_state.dart';
 
 // --- automation (pure; tests drive it) ----------------------------------------------------
 
 /// automation.json's tiling part.
 final class TilingRules {
-  TilingRules({this.active = false, this.defaultLimit = 2, this.limits = const {}});
+  TilingRules({
+    this.active = false,
+    this.defaultLimit = 2,
+    this.limits = const {},
+    this.unlimited = const {},
+    this.presets = const {},
+    this.splits = const {},
+    this.defaultSplit,
+  });
   factory TilingRules.fromJson(Object? v) {
     if (v is! Map) return TilingRules();
-    final limits = <int, int>{};
-    if (v['limits'] is Map) {
-      for (final e in (v['limits'] as Map).entries) {
-        final k = int.tryParse('${e.key}'), n = e.value;
-        if (k != null && n is int) limits[k] = n;
+    Map<int, T> byWorkspace<T>(Object? m, T? Function(Object?) value) {
+      final out = <int, T>{};
+      if (m is Map) {
+        for (final e in m.entries) {
+          final k = int.tryParse('${e.key}'), x = value(e.value);
+          if (k != null && x != null) out[k] = x;
+        }
       }
+      return out;
     }
-    return TilingRules(active: v['active'] == true, defaultLimit: v['default_limit'] is int ? v['default_limit'] as int : 2, limits: limits);
+
+    return TilingRules(
+      active: v['active'] == true,
+      defaultLimit: v['default_limit'] is int ? v['default_limit'] as int : 2,
+      limits: byWorkspace(v['limits'], (n) => n is int ? n : null),
+      unlimited: {
+        for (final n in v['unlimited'] is List ? v['unlimited'] as List : const [])
+          if (n is int) n,
+      },
+      presets: byWorkspace(v['presets'], (p) => p is String && presetNames.contains(p) ? p : null),
+      splits: byWorkspace(v['splits'], cleanSplit),
+      defaultSplit: cleanSplit(v['default_split']),
+    );
   }
   final bool active;
   final int defaultLimit;
   final Map<int, int> limits;
 
+  /// Workspaces without a window limit (Floating, Scrolling and Native
+  /// presets): nothing overflows from them, overflow may go to them.
+  final Set<int> unlimited;
+
+  /// The preset of each workspace that has one chosen (Hyprland).
+  final Map<int, String> presets;
+  final Map<int, double> splits;
+  final double? defaultSplit;
+
   /// Windows a workspace takes (1–4, as the applet).
   int limit(int ws) => (limits[ws] ?? defaultLimit).clamp(1, 4);
+
+  /// The same limits without the presets' unlimited workspaces (desktops without presets).
+  TilingRules get withoutPresets => TilingRules(active: active, defaultLimit: defaultLimit, limits: limits);
 }
 
 /// Where a new window on [source] goes when that workspace is over its limit
 /// (counts include the new window): the next workspace with room after it,
 /// wrapping once; null = it stays. The applet's rule
-/// (cosmic/helper/src/automation.rs); no workspace is ever created.
+/// (cosmic/helper/src/automation.rs); no workspace is ever created. As in
+/// Workspace Presets (simple_tile.py) an unlimited workspace never sends a
+/// window on, and always has room for one.
 int? overflowTarget(int source, SplayTreeMap<int, int> counts, TilingRules t) {
-  if (!t.active || (counts[source] ?? 0) <= t.limit(source)) return null;
+  if (!t.active || t.unlimited.contains(source) || (counts[source] ?? 0) <= t.limit(source)) return null;
   for (final e in [...counts.entries.where((e) => e.key > source), ...counts.entries.where((e) => e.key < source)]) {
-    if (e.value < t.limit(e.key)) return e.key;
+    if (t.unlimited.contains(e.key) || e.value < t.limit(e.key)) return e.key;
   }
   return null;
 }
@@ -73,6 +111,12 @@ final class OverflowJob extends Job {
   final int workspace;
 }
 
+/// A workspace's layout preset again (its windows changed; Hyprland).
+final class PresetJob extends Job {
+  PresetJob(this.workspace);
+  final int workspace;
+}
+
 /// The applet's queue: one job at a time, at most 64 waiting; a newer
 /// workspace switch or tick replaces a waiting one of its kind; a window
 /// that moved or closed drops its waiting overflow job.
@@ -81,9 +125,11 @@ final class JobQueue {
   Queue<Job> get jobs => _q;
 
   void add(Job j) {
-    if (j is CoreJob && (j.method == 'auto.workspace' || j.method == 'auto.tick')) {
+    if (j is CoreJob && (j.method == 'auto.workspace' || j.method == 'auto.tick' || j.method == 'workspaces.apply')) {
       _q.removeWhere((o) => o is CoreJob && o.method == j.method);
     }
+    // One waiting preset job per workspace.
+    if (j is PresetJob && _q.any((o) => o is PresetJob && o.workspace == j.workspace)) return;
     if (_q.length < 64) _q.add(j);
   }
 
@@ -96,9 +142,22 @@ final class JobQueue {
 final class EventRouter {
   final _pending = <String>{};
 
-  List<Job> route(Map<String, dynamic> e, {required bool workspaceEvents, required bool tilingActive, JobQueue? queue}) {
+  /// The workspace each window was last seen on (its preset runs again when it closes or leaves).
+  final _where = <String, int>{};
+
+  void _seen(String id, int ws) {
+    _where.remove(id);
+    if (_where.length >= 1024) _where.remove(_where.keys.first);
+    _where[id] = ws;
+  }
+
+  /// [presets]: the desktop arranges workspaces by preset ([Cap.presetLayouts]):
+  /// a workspace whose windows changed gets a [PresetJob], a reloaded config
+  /// every workspace's preset again (`workspaces.apply`).
+  List<Job> route(Map<String, dynamic> e, {required bool workspaceEvents, required bool tilingActive, JobQueue? queue, bool presets = false}) {
     final out = <Job>[];
     final id = e['id'] is String ? e['id'] as String : null;
+    final ws = e['workspace'] is int ? e['workspace'] as int : null;
     switch (e['event']) {
       case 'workspace':
         if (workspaceEvents && e['index'] is int) out.add(CoreJob('auto.workspace', {'workspace': e['index']}));
@@ -106,20 +165,37 @@ final class EventRouter {
         if (id != null) {
           _pending.remove(id);
           queue?.dropOverflow(id);
+          final was = _where.remove(id);
+          if (presets && was != null) out.add(PresetJob(was));
         }
       case 'window_new':
+        if (id != null && ws != null) _seen(id, ws);
         if (id != null && tilingActive) {
-          if (e['workspace'] is int) {
-            out.add(OverflowJob(id, e['workspace'] as int));
+          if (ws != null) {
+            out.add(OverflowJob(id, ws));
           } else {
             _pending.add(id);
           }
         }
+        if (presets && ws != null) out.add(PresetJob(ws));
       case 'window_moved':
         if (id != null) {
           queue?.dropOverflow(id); // moved by hand: it stays
-          if (_pending.remove(id) && tilingActive && e['workspace'] is int) out.add(OverflowJob(id, e['workspace'] as int));
+          final was = _where[id];
+          // Off to a special workspace (no index): no longer on one of ours.
+          if (ws != null) {
+            _seen(id, ws);
+          } else {
+            _where.remove(id);
+          }
+          if (_pending.remove(id) && tilingActive && ws != null) out.add(OverflowJob(id, ws));
+          if (presets) {
+            if (was != null && was != ws) out.add(PresetJob(was));
+            if (ws != null) out.add(PresetJob(ws));
+          }
         }
+      case 'config_reloaded':
+        if (presets) out.add(CoreJob('workspaces.apply'));
     }
     return out;
   }
@@ -451,6 +527,8 @@ final class Daemon {
               await core.call(method, params).timeout(const Duration(seconds: 60));
             case OverflowJob(:final id, :final workspace):
               await _overflow(id, workspace).timeout(const Duration(seconds: 60));
+            case PresetJob(:final workspace):
+              await _preset(workspace).timeout(const Duration(seconds: 60));
           }
         } on Object catch (e) {
           stderr.writeln('maprisma-theme daemon: $e');
@@ -461,28 +539,75 @@ final class Daemon {
     }
   }
 
+  bool get _presets => ctx.desktop.caps.contains(Cap.presetLayouts);
+
+  /// How long a workspace's windows settle before its preset runs again.
+  static const presetDelay = Duration(milliseconds: 150);
+  final _presetTimers = <int, Timer>{};
+
+  /// [ws]'s preset again after [presetDelay] (a later call starts the wait anew).
+  void schedulePreset(int ws) {
+    if (!_presets || ws < 1 || ws > 10) return;
+    _presetTimers.remove(ws)?.cancel();
+    _presetTimers[ws] = Timer(presetDelay, () {
+      _presetTimers.remove(ws);
+      unawaited(run(PresetJob(ws)));
+    });
+  }
+
+  /// A routed job: presets wait for the windows to settle, the rest runs.
+  void dispatch(Job j) {
+    if (j is PresetJob) {
+      schedulePreset(j.workspace);
+    } else {
+      unawaited(run(j));
+    }
+  }
+
+  Future<void> _preset(int ws) async {
+    if (!_presets) return;
+    final s = loadWorkspaces(ctx);
+    if (!presetConfigured(s, ws)) return;
+    final split = effectiveSplit(s, ws);
+    await ctx.desktop.wm(['set-preset', '$ws', effectivePreset(s, ws), if (split != null) split.toStringAsFixed(2)]);
+  }
+
   Future<void> _overflow(String id, int source) async {
     if (ctx.desktop.enforcesWindowLimits) return;
     _readAutomation();
-    final t = tiling;
+    final t = _presets ? tiling : tiling.withoutPresets;
     if (!t.active) return;
     final ws = await ctx.desktop.wm(['workspaces']);
     final wins = await ctx.desktop.wm(['windows']);
     if (ws?['workspaces'] is! List || wins?['windows'] is! List) return;
     final counts = SplayTreeMap<int, int>();
+    // Hyprland makes workspaces as they are used and lists no empty one: 1–10 are all there.
+    if (_presets) {
+      for (var i = 1; i <= 10; i++) {
+        counts[i] = 0;
+      }
+    }
     for (final w in ws!['workspaces'] as List) {
       if (w is Map && w['index'] is int) counts[w['index'] as int] = 0;
     }
     final list = (wins!['windows'] as List).whereType<Map>().toList();
-    if (!list.any((w) => w['id'] == id && w['workspace'] == source)) return; // moved meanwhile
+    final win = list.where((w) => w['id'] == id && w['workspace'] == source).firstOrNull;
+    // Moved meanwhile; with presets a floating window takes no room, so it is not moved either.
+    if (win == null || (_presets && win['floating'] == true)) return;
     for (final w in list) {
+      // With presets only tiled windows count (as Workspace Presets): floating ones take no room.
+      if (_presets && w['floating'] == true) continue;
       if (w['workspace'] is int && counts.containsKey(w['workspace'])) counts[w['workspace'] as int] = counts[w['workspace']]! + 1;
     }
     final dest = overflowTarget(source, counts, t);
     if (dest == null) return;
     final moved = await ctx.desktop.wm(['move', id, '$dest']);
     // The new window is what the user just opened: follow it to its workspace.
-    if (moved?['done'] == true) await ctx.desktop.wm(['activate', id]);
+    if (moved?['done'] == true) {
+      await ctx.desktop.wm(['activate', id]);
+      schedulePreset(source);
+      schedulePreset(dest);
+    }
   }
 
   void toggleWindow() {
@@ -552,14 +677,19 @@ final class Daemon {
     // First: the theme applied on another desktop since this one had it (its colour scheme,
     // wallpaper, icons); the autostart preset after it may pick another theme anyway.
     unawaited(run(CoreJob('themes.catch_up')));
+    // Hyprland: every workspace's preset as workspaces.json has it.
+    if (_presets) unawaited(run(CoreJob('workspaces.apply')));
     if (claimAutostart(ctx.environment) && automation['autostart'] == true) unawaited(run(CoreJob('presets.autostart')));
     unawaited(_syncShortcuts().catchError((_) {}));
     if (events != null) {
       _subs.add(events.listen((e) {
         _readAutomation();
         for (final j in router.route(e,
-            workspaceEvents: automation['workspace_events'] == true, tilingActive: tiling.active && !ctx.desktop.enforcesWindowLimits, queue: queue)) {
-          unawaited(run(j));
+            workspaceEvents: automation['workspace_events'] == true,
+            tilingActive: tiling.active && !ctx.desktop.enforcesWindowLimits,
+            queue: queue,
+            presets: _presets)) {
+          dispatch(j);
         }
       }));
     }
@@ -595,9 +725,10 @@ final class Daemon {
   }
 
   Future<void> stop() async {
-    for (final t in _timers) {
+    for (final t in [..._timers, ..._presetTimers.values]) {
       t.cancel();
     }
+    _presetTimers.clear();
     for (final s in _subs) {
       await s.cancel();
     }

@@ -7,12 +7,14 @@ import 'package:maprisma_core_kit/process.dart';
 import 'colors.dart';
 import 'desktop.dart';
 import 'gtk_colors.dart';
+import 'hyprland_wm.dart';
 import 'paths.dart';
 import 'posix.dart';
 import 'shell_scheme.dart';
 import 'shortcuts.dart';
 import 'store.dart';
 import 'window_style_flag.dart';
+import 'workspace_state.dart';
 
 /// Hyprland with Maprisma Shell (a Quickshell config): the colours go to the
 /// shell's scheme.json (which the other Maprisma apps read too), to
@@ -22,11 +24,34 @@ import 'window_style_flag.dart';
 /// the terminals open now get the colours as escape sequences, and the
 /// wallpaper is the `wallpaper` key of the shell's shell.json. Fonts go to GTK's settings
 /// (gsettings, which the Maprisma apps read too, and GTK's settings.ini) and foot's foot.ini,
-/// blur to hypr-theme.lua (loaded last from hypr-user.lua). The rest (icons, windows,
-/// shortcuts) is not done here yet: those caps are missing.
+/// blur to hypr-theme.lua (loaded last from hypr-user.lua). Workspaces, windows and layout
+/// presets go through [HyprWm] (hyprctl, socket2; rules in maprisma-workspaces.lua). Icons and
+/// shortcuts are not done here yet: those caps are missing.
 final class HyprlandDesktop extends DesktopBase {
-  HyprlandDesktop(super.paths, super.environment, {this.ptsDir = '/dev/pts', DateTime Function()? clock})
-    : _clock = clock ?? DateTime.now;
+  HyprlandDesktop(super.paths, super.environment, {this.ptsDir = '/dev/pts', DateTime Function()? clock, HyprCommand? hyprCommand, HyprConnector? connect})
+    : _clock = clock ?? DateTime.now,
+      _hyprCommand = hyprCommand,
+      _connect = connect;
+
+  final HyprCommand? _hyprCommand;
+  final HyprConnector? _connect;
+
+  /// Workspaces, windows and layout presets through hyprctl and socket2.
+  late final hyprWm = HyprWm(
+    environment: environment,
+    configHome: _configHome,
+    hyprctl: findProgram(paths, environment, 'hyprctl'),
+    command: _hyprCommand,
+    connect: _connect,
+    state: () => cleanWorkspaceState(readJson(paths.file('workspaces.json'))),
+  );
+
+  /// The window caps: Maprisma Shell, hyprctl and a Hyprland session, and no
+  /// Workspace Presets (Simple Tile) plugin arranging the windows already.
+  bool get _wmReady =>
+      (environment['HYPRLAND_INSTANCE_SIGNATURE'] ?? '').isNotEmpty &&
+      findProgram(paths, environment, 'hyprctl') != null &&
+      !simpleTileConflict(environment);
 
   final DateTime Function() _clock;
   int? _rounding;
@@ -113,7 +138,26 @@ final class HyprlandDesktop extends DesktopBase {
           Cap.wallpaper,
           if (findProgram(paths, environment, 'gsettings') != null) ...{Cap.fonts, Cap.uiFont},
           if (Directory('$_configHome/hypr').existsSync() && findProgram(paths, environment, 'hyprctl') != null) Cap.blur,
+          if (_wmReady) ...{Cap.workspaces, Cap.tiling, Cap.windows, Cap.presetLayouts, Cap.splits},
         };
+
+  @override
+  bool get enforcesWindowLimits => false;
+
+  /// The presets' workspace rules in maprisma-workspaces.lua (they hold after a restart).
+  @override
+  Future<void> publishTilingAutomation(Map<String, dynamic> tiling) async {
+    if (!caps.contains(Cap.presetLayouts)) return;
+    final presets = tiling['presets'] is Map ? tiling['presets'] as Map : const {};
+    final limits = tiling['limits'] is Map ? tiling['limits'] as Map : const {};
+    final fallback = tiling['default_limit'] is int ? tiling['default_limit'] as int : 2;
+    hyprWm.writeRules({
+      for (final e in presets.entries)
+        if (int.tryParse('${e.key}') case final ws? when e.value is String) ws: e.value as String,
+    }, caps: {
+      for (var ws = 1; ws <= 10; ws++) ws: limits['$ws'] is int ? limits['$ws'] as int : fallback,
+    });
+  }
 
   /// The mode bits of an existing file, else [fallback] (0644).
   static int _modeOf(String path, {int fallback = 420}) {
@@ -324,11 +368,12 @@ final class HyprlandDesktop extends DesktopBase {
   @override
   Future<bool> setIconTheme(String name) async => false;
   @override
-  Future<Map<String, dynamic>?> wm(List<String> args, {Duration timeout = const Duration(seconds: 20)}) async => wmNotAvailable(name);
+  Future<Map<String, dynamic>?> wm(List<String> args, {Duration timeout = const Duration(seconds: 20)}) async =>
+      caps.contains(Cap.workspaces) ? hyprWm.wm(args).timeout(timeout, onTimeout: () => null) : wmNotAvailable(name);
   @override
   ShortcutBinder? shortcutBinder(Paths paths) => null;
   @override
-  Stream<Map<String, dynamic>>? watch() => null;
+  Stream<Map<String, dynamic>>? watch() => caps.contains(Cap.workspaces) ? hyprWm.watch() : null;
 
   // --- fonts: GTK's gsettings and settings.ini, foot's foot.ini -------------------------------
 

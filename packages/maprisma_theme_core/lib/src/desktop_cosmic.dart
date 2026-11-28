@@ -24,7 +24,7 @@ final class CosmicDesktop extends DesktopBase {
   @override
   String get terminalName => 'COSMIC Terminal';
   @override
-  Set<Cap> get caps => Cap.values.toSet().difference({Cap.kdeScheme, Cap.animations});
+  Set<Cap> get caps => Cap.values.toSet().difference({Cap.kdeScheme, Cap.animations, Cap.presetLayouts, Cap.splits});
 
   @override
   Future<bool> applyKdeScheme(String path, {String? foreground}) async => false;

@@ -276,6 +276,10 @@ void main() {
       'limits': {'2': 1},
       'floating': [2],
       'tiled': [],
+      // Hyprland's presets beside (the applet and KWin ignore them)
+      'presets': {for (var ws = 1; ws <= 10; ws++) '$ws': ws == 2 ? 'floating' : 'master-left'},
+      'splits': {},
+      'unlimited': [2],
     });
     await call('presets.undo', {'receipt': r['receipt']});
     expect(loadWorkspaces(e.core.ctx)['maxWindows'], 2);

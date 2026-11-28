@@ -19,6 +19,13 @@ export 'src/store.dart';
 export 'src/themes.dart';
 export 'src/cli.dart';
 export 'src/daemon.dart' show runDaemon;
+export 'src/workspace_state.dart'
+    show workspaceSchema, presetNames, splitMin, splitMax, columnsSplitMax, cleanSplit, modeForPreset, presetForMode,
+        builtinDefaultPreset, validPresetsForCap, isUnlimitedPreset, effectivePreset, effectiveSplit, presetConfigured,
+        effectiveLimit, effectiveMode, workspaceModeNames;
+export 'src/hyprland_wm.dart'
+    show HyprWm, HyprCommand, HyprConnector, planPreset, parseHyprEvent, simpleTileConflict, workspaceRulesLua,
+        hyprAddress, hyprAddressPattern, hyprFloatTag, BoundedLineSplitter, hyprEventLineMax;
 export 'src/custom.dart'
     show derivedColors, mainKeys, paletteKeys, terminalKeys, moreKeys, baseColorKeys, colorLabel, isDarkBackground, createThemeFolder, maxNameLength;
 

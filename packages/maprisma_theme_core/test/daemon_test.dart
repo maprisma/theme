@@ -5,7 +5,7 @@ import 'package:dbus/dbus.dart';
 import 'support.dart';
 
 import 'package:maprisma_theme_core/src/daemon.dart';
-import 'package:maprisma_theme_core/src/desktop.dart' show FakeDesktop;
+import 'package:maprisma_theme_core/src/desktop.dart' show Cap, FakeDesktop;
 import 'package:maprisma_theme_core/src/shortcuts_kde.dart';
 import 'package:test/test.dart';
 
@@ -69,6 +69,191 @@ void main() {
       expect(overflowTarget(2, c({1: 0, 2: 3, 3: 1}), t), 1); // 3 is full (limit 1): wraps to 1
       expect(overflowTarget(1, c({1: 3, 2: 2, 3: 1}), t), isNull); // no room anywhere
       expect(overflowTarget(1, c({1: 5}), TilingRules()), isNull); // not active
+    });
+  });
+
+  group('presets (Hyprland: Cap.presetLayouts)', () {
+    SplayTreeMap<int, int> c(Map<int, int> m) => SplayTreeMap.of(m);
+
+    test('automation.json\'s presets part', () {
+      final t = TilingRules.fromJson({
+        'active': true,
+        'unlimited': [1, 3, 'x'],
+        'presets': {'1': 'floating', '2': 'grid', '4': 'tabs'},
+        'splits': {'2': 0.3, '3': 'half'},
+        'default_split': 0.45,
+      });
+      expect(t.unlimited, {1, 3});
+      expect(t.presets, {1: 'floating', 2: 'grid'});
+      expect(t.splits, {2: 0.3});
+      expect(t.defaultSplit, 0.45);
+      expect(t.withoutPresets.unlimited, isEmpty);
+      expect(t.withoutPresets.active, isTrue);
+    });
+
+    test('an unlimited workspace never overflows, and always has room (as simple_tile.py)', () {
+      final t = TilingRules(active: true, defaultLimit: 2, unlimited: {1, 3});
+      expect(overflowTarget(1, c({1: 9, 2: 0}), t), isNull);
+      expect(overflowTarget(2, c({2: 3, 3: 7, 4: 0}), t), 3);
+      expect(overflowTarget(4, c({1: 9, 2: 2, 4: 3}), t), 1); // wraps to an unlimited one
+      expect(overflowTarget(4, c({2: 2, 4: 3}), TilingRules(active: true, defaultLimit: 2)), isNull);
+    });
+
+    test('one waiting preset job per workspace', () {
+      final q = JobQueue()
+        ..add(PresetJob(2))
+        ..add(PresetJob(3))
+        ..add(PresetJob(2))
+        ..add(CoreJob('workspaces.apply'))
+        ..add(CoreJob('workspaces.apply'));
+      expect([for (final j in q.jobs) j is PresetJob ? j.workspace : (j as CoreJob).method], [2, 3, 'workspaces.apply']);
+    });
+
+    test('windows that open, close or move rearrange their workspaces; a reloaded config all of them', () {
+      final r = EventRouter();
+      List<Object> route(Map<String, dynamic> e, {bool tiling = false, bool presets = true}) => [
+            for (final j in r.route(e, workspaceEvents: false, tilingActive: tiling, presets: presets))
+              switch (j) {
+                PresetJob(:final workspace) => 'preset $workspace',
+                OverflowJob(:final workspace) => 'overflow $workspace',
+                CoreJob(:final method) => method,
+              },
+          ];
+      expect(route({'event': 'window_new', 'id': '0xa', 'workspace': 2}, tiling: true), ['overflow 2', 'preset 2']);
+      expect(route({'event': 'window_new', 'id': '0xb', 'workspace': 2}), ['preset 2']);
+      expect(route({'event': 'window_moved', 'id': '0xa', 'workspace': 4}), ['preset 2', 'preset 4']);
+      expect(route({'event': 'window_closed', 'id': '0xa'}), ['preset 4']);
+      expect(route({'event': 'window_closed', 'id': '0xunknown'}), isEmpty);
+      expect(route({'event': 'config_reloaded'}), ['workspaces.apply']);
+      // COSMIC/KDE: none of it
+      expect(route({'event': 'window_new', 'id': '0xc', 'workspace': 1}, presets: false), isEmpty);
+      expect(route({'event': 'window_closed', 'id': '0xc'}, presets: false), isEmpty);
+      expect(route({'event': 'config_reloaded'}, presets: false), isEmpty);
+    });
+
+    TestEnv hyprEnv() {
+      final env = TestEnv.create(desktop: FakeDesktop(id: 'hyprland', name: 'Hyprland', caps: Cap.values.toSet()));
+      addTearDown(env.dispose);
+      return env;
+    }
+
+    test('preset jobs wait 150 ms for the windows to settle, coalesced', () async {
+      final env = hyprEnv();
+      final bus = DBusClient(DBusAddress('unix:path=${env.root.path}/unused-bus'));
+      addTearDown(bus.close);
+      await env.core.call('workspaces.set', {'workspace': 2, 'preset': 'master-left', 'split': 0.35});
+      env.desktop.calls.clear();
+      final daemon = Daemon(env.core, bus);
+      addTearDown(daemon.stop);
+      for (var i = 0; i < 3; i++) {
+        daemon.dispatch(PresetJob(2));
+      }
+      daemon.dispatch(PresetJob(5)); // nothing chosen there, limits off: left alone
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+      expect(env.desktop.calls, isEmpty);
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      expect(env.desktop.calls, ['helper set-preset 2 master-left 0.35']);
+    });
+
+    test('overflow: none from an unlimited workspace, floating windows take no room, moved ones rearrange both', () async {
+      final env = hyprEnv();
+      final bus = DBusClient(DBusAddress('unix:path=${env.root.path}/unused-bus'));
+      addTearDown(bus.close);
+      final daemon = Daemon(env.core, bus);
+      addTearDown(daemon.stop);
+      env.desktop.workspaces = {
+        'workspaces': [
+          {'index': 1},
+          {'index': 2},
+        ],
+      };
+      env.desktop.windows = {
+        'windows': [
+          {'id': '0xa', 'workspace': 1},
+          {'id': '0xb', 'workspace': 1},
+          {'id': '0xnew', 'workspace': 1},
+        ],
+      };
+      await env.core.call('workspaces.set', {'active': true, 'workspace': 1, 'preset': 'floating'});
+      env.desktop.calls.clear();
+      await daemon.run(OverflowJob('0xnew', 1));
+      expect(env.desktop.calls.where((c) => c.startsWith('helper move')), isEmpty);
+      await env.core.call('workspaces.set', {'workspace': 1, 'preset': 'side-by-side'});
+      (env.desktop.windows['windows'] as List)[0] = {'id': '0xa', 'workspace': 1, 'floating': true};
+      env.desktop.calls.clear();
+      await daemon.run(OverflowJob('0xnew', 1));
+      expect(env.desktop.calls.where((c) => c.startsWith('helper move')), isEmpty); // 2 tiled: at the limit
+      (env.desktop.windows['windows'] as List)[0] = {'id': '0xa', 'workspace': 1};
+      env.desktop.calls.clear();
+      await daemon.run(OverflowJob('0xnew', 1));
+      expect(env.desktop.calls, containsAllInOrder(['helper move 0xnew 2', 'helper activate 0xnew']));
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      expect(env.desktop.calls, containsAll(['helper set-preset 1 side-by-side', 'helper set-preset 2 side-by-side']));
+    });
+
+    test('overflow (Hyprland): to an empty workspace Hyprland does not list yet', () async {
+      final env = hyprEnv();
+      final bus = DBusClient(DBusAddress('unix:path=${env.root.path}/unused-bus'));
+      addTearDown(bus.close);
+      final daemon = Daemon(env.core, bus);
+      addTearDown(daemon.stop);
+      // Only workspace 1 exists: Hyprland omits empty workspaces from `workspaces`.
+      env.desktop.workspaces = {
+        'workspaces': [
+          {'index': 1},
+        ],
+      };
+      env.desktop.windows = {
+        'windows': [
+          {'id': '0xa', 'workspace': 1},
+          {'id': '0xb', 'workspace': 1},
+          {'id': '0xnew', 'workspace': 1},
+        ],
+      };
+      await env.core.call('workspaces.set', {'active': true, 'workspace': 1, 'preset': 'side-by-side'});
+      env.desktop.calls.clear();
+      await daemon.run(OverflowJob('0xnew', 1));
+      expect(env.desktop.calls, containsAllInOrder(['helper move 0xnew 2', 'helper activate 0xnew']));
+    });
+
+    test('overflow (Hyprland): a floating new window is never moved', () async {
+      final env = hyprEnv();
+      final bus = DBusClient(DBusAddress('unix:path=${env.root.path}/unused-bus'));
+      addTearDown(bus.close);
+      final daemon = Daemon(env.core, bus);
+      addTearDown(daemon.stop);
+      env.desktop.workspaces = {
+        'workspaces': [
+          {'index': 1},
+          {'index': 2},
+        ],
+      };
+      env.desktop.windows = {
+        'windows': [
+          {'id': '0xa', 'workspace': 1},
+          {'id': '0xb', 'workspace': 1},
+          {'id': '0xc', 'workspace': 1},
+          {'id': '0xnew', 'workspace': 1, 'floating': true}, // a dialog: takes no room
+        ],
+      };
+      await env.core.call('workspaces.set', {'active': true, 'workspace': 1, 'preset': 'side-by-side'});
+      env.desktop.calls.clear();
+      await daemon.run(OverflowJob('0xnew', 1));
+      expect(env.desktop.calls.where((c) => c.startsWith('helper move')), isEmpty);
+    });
+
+    test('a window moved to a special workspace is forgotten: closing it rearranges nothing', () {
+      final r = EventRouter();
+      List<Object> route(Map<String, dynamic> e) => [
+            for (final j in r.route(e, workspaceEvents: false, tilingActive: false, presets: true))
+              if (j is PresetJob) 'preset ${j.workspace}',
+          ];
+      expect(route({'event': 'window_new', 'id': '0xa', 'workspace': 2}), ['preset 2']);
+      expect(route({'event': 'window_moved', 'id': '0xa', 'workspace': null}), ['preset 2']); // to special:magic
+      expect(route({'event': 'window_closed', 'id': '0xa'}), isEmpty); // not on workspace 2 any more
+      // back from the special workspace: known again
+      expect(route({'event': 'window_moved', 'id': '0xa', 'workspace': 3}), ['preset 3']);
+      expect(route({'event': 'window_closed', 'id': '0xa'}), ['preset 3']);
     });
   });
 

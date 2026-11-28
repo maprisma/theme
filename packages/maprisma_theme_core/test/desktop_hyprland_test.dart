@@ -70,12 +70,64 @@ void main() {
   String scheme() => '$home/.local/state/maprisma-shell/scheme.json';
   String shellJson() => '$home/.config/maprisma-shell/shell.json';
 
-  test('caps: appearance and wallpaper with Maprisma Shell installed; blur with Hyprland\'s config and hyprctl', () {
+  test('caps: appearance and wallpaper with Maprisma Shell installed; blur with Hyprland\'s config and hyprctl', () async {
     final d = desktop();
     expect(d.id, 'hyprland');
     expect(d.caps, containsAll({Cap.appearance, Cap.wallpaper, Cap.blur}));
     // without gsettings (a PATH of only the fake hyprctl): no fonts
-    expect(desktop({...env, 'PATH': '${root.path}/bin'}).caps, {Cap.appearance, Cap.wallpaper, Cap.blur});
+    const wmCaps = {Cap.workspaces, Cap.tiling, Cap.windows, Cap.presetLayouts, Cap.splits};
+    expect(desktop({...env, 'PATH': '${root.path}/bin'}).caps, {Cap.appearance, Cap.wallpaper, Cap.blur, ...wmCaps});
+    // the window caps need a Hyprland session …
+    expect(desktop({...env, 'PATH': '${root.path}/bin', 'HYPRLAND_INSTANCE_SIGNATURE': ''}).caps.intersection(wmCaps), isEmpty);
+    // … and leave the windows to Workspace Presets (Simple Tile) when that plugin is on
+    File('$home/.config/omarchy/shell.json')
+      ..createSync(recursive: true)
+      ..writeAsStringSync(jsonEncode({
+        'bar': {
+          'layout': {
+            'right': [
+              {'id': 'ubruckhaus.simple-tile'},
+            ],
+          },
+        },
+      }));
+    expect(desktop({...env, 'PATH': '${root.path}/bin'}).caps.intersection(wmCaps), isEmpty);
+    expect((await desktop({...env, 'PATH': '${root.path}/bin'}).wm(['workspaces']))?['error'], 'not_available');
+  });
+
+  test('workspaces, windows and presets through hyprctl; the rules file follows the automation', () async {
+    final asked = <List<String>>[];
+    final d = HyprlandDesktop(paths, env, ptsDir: pts.path, hyprCommand: (a) async {
+      asked.add(a);
+      return switch (a) {
+        ['-j', 'workspaces'] => jsonEncode([
+            {'id': 1, 'name': '1', 'monitor': 'DP-1', 'windows': 0},
+            {'id': -98, 'name': 'special:magic', 'monitor': 'DP-1', 'windows': 0},
+          ]),
+        ['-j', 'monitors'] => jsonEncode([
+            {'id': 0, 'activeWorkspace': {'id': 1}},
+          ]),
+        ['-j', _] => '[]',
+        _ => 'ok',
+      };
+    });
+    expect(d.enforcesWindowLimits, isFalse);
+    final ws = (await d.wm(['workspaces']))!['workspaces'] as List;
+    expect(ws.single['index'], 1);
+    expect(ws.single['active'], isTrue);
+    expect((await d.wm(['set-preset', '1', 'grid']))?['done'], isTrue);
+    expect(asked.last, ['eval', 'hl.workspace_rule({ workspace = "1", layout = "dwindle" })']);
+    await d.publishTilingAutomation({
+      'presets': {'2': 'master-left', '3': 'none', '4': 'columns'},
+      'limits': {'4': 4},
+      'default_limit': 2,
+    });
+    final rules = File('$home/.config/hypr/maprisma-workspaces.lua').readAsStringSync();
+    expect(rules, contains('hl.workspace_rule({ workspace = "2", layout = "master", layout_opts = { orientation = "left" } })'));
+    expect(rules, contains('hl.workspace_rule({ workspace = "4", layout = "dwindle" })'));
+    expect(rules, isNot(contains('workspace = "3"')));
+    expect(File('$home/.config/hypr/hypr-user.lua').readAsStringSync(), contains(HyprWm.requireLine));
+    expect(d.watch(), isNotNull);
   });
 
   test('caps: none without Maprisma Shell (plain Hyprland, Omarchy); nothing is written', () async {

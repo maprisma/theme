@@ -53,6 +53,13 @@ enum Cap {
   /// wm `animations` / `set-animations`: workspace switch and window open
   /// animations can be turned off (KDE: KWin effects).
   animations,
+
+  /// wm `set-preset`: layout presets per workspace (Hyprland: side by side,
+  /// stacked, master, columns, grid, floating, scrolling, none).
+  presetLayouts,
+
+  /// wm `set-split`: the first (master) window's share per workspace.
+  splits,
 }
 
 /// What Maprisma Theme asks of the desktop: one backend per desktop
@@ -339,11 +346,12 @@ String? ronField(String text, String key) {
 }
 
 /// A desktop that only records what it was asked (tests, --dry runs). It
-/// stands for COSMIC unless told otherwise (its shortcuts and applet checks
+/// stands for COSMIC unless told otherwise (every cap but Hyprland's presets
+/// and splits) (its shortcuts and applet checks
 /// are COSMIC's, on the test's config folder).
 final class FakeDesktop implements Desktop {
   FakeDesktop({this.id = 'cosmic', this.name = 'COSMIC', this.terminalName = 'COSMIC Terminal', Set<Cap>? caps, this.hasLook = true})
-    : caps = caps ?? Cap.values.toSet();
+    : caps = caps ?? Cap.values.toSet().difference({Cap.presetLayouts, Cap.splits});
 
   /// False: current() is null, as on a desktop without a backend.
   final bool hasLook;

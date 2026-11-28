@@ -321,6 +321,8 @@ Future<Map<String, dynamic>> applySavedPreset(
           old['autostart'] == true &&
           jsonEncode(old['apps']) == jsonEncode(entry.value['apps']);
     }
+    // One step back for workspaces.undo, as any other workspaces change.
+    snapshotWorkspaces(ctx);
     saveWorkspaces(ctx, clean);
     await applyTiling(ctx);
     final deadline = DateTime.now().add(const Duration(seconds: 35));
@@ -380,6 +382,7 @@ class PresetUndo {
   Future<void> restore(Ctx ctx, String id, {bool appearance = false}) async {
     final s = _receipts.remove(id);
     if (s == null) throw RouteError('not_found', tr("Undo expired"));
+    final before = loadWorkspaces(ctx);
     saveWorkspaces(
       ctx,
       Map<String, dynamic>.from(s['workspaces'] as Map),
@@ -403,7 +406,10 @@ class PresetUndo {
       }
       ctx.automationChanged();
     }
-    for (final w in ctx.desktop.caps.contains(Cap.tiling) ? s['tiling'] as List? ?? [] : const []) {
+    // Presets (Hyprland) follow the restored state, only when this change touched
+    // the desktop's tiling (captureDesktop); elsewhere each workspace's tiling as it was.
+    if (ctx.desktop.caps.contains(Cap.presetLayouts) && s['tiling'] != null) await applyTilingAfterUndo(ctx, before);
+    for (final w in ctx.desktop.caps.contains(Cap.tiling) && !ctx.desktop.caps.contains(Cap.presetLayouts) ? s['tiling'] as List? ?? [] : const []) {
       await helper(ctx, [
         'set-tiling',
         '${w['workspace']}',

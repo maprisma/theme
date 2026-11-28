@@ -21,12 +21,20 @@ Map<String, Handler> presetRoutes(Ctx ctx) {
     return mode;
   }
 
+  String presetParam(Map<String, dynamic> p, String key) {
+    final preset = p[key];
+    if (preset is! String || !presetNames.contains(preset)) throw RouteError('bad_params', key);
+    return preset;
+  }
+
   Future<Map<String, dynamic>> change(
     void Function(Map<String, dynamic>) edit,
   ) async {
     final receipt = await undo.capture(ctx);
     final s = loadWorkspaces(ctx);
     edit(s);
+    // One step back for workspaces.undo, also from another process (the CLI).
+    snapshotWorkspaces(ctx);
     saveWorkspaces(ctx, s);
     return {'receipt': receipt};
   }
@@ -52,20 +60,72 @@ Map<String, Handler> presetRoutes(Ctx ctx) {
             s['workspaceCaps'][ws] = intParam(p, 'limit', min: 1, max: 4);
           }
         }
+        final presets = s['workspacePresets'] as Map, modes = s['workspaceModes'] as Map;
         if (p.containsKey('mode')) {
+          // COSMIC/KDE: a preset that no longer matches the layout goes.
           if (p['mode'] == null) {
-            (s['workspaceModes'] as Map).remove(ws);
+            modes.remove(ws);
+            presets.remove(ws);
           } else {
-            s['workspaceModes'][ws] = modeParam(p, 'mode');
+            final mode = modeParam(p, 'mode');
+            modes[ws] = mode;
+            if (presets[ws] is String && modeForPreset(presets[ws] as String) != mode) presets.remove(ws);
           }
         }
-      } else if (p.containsKey('defaultMode')) {
-        // All Workspaces: the layout for workspaces of this limit.
-        final limit = '${intParam(p, 'defaultLimit', min: 1, max: 4)}';
-        if (p['defaultMode'] == null) {
-          (s['defaultModes'] as Map).remove(limit);
-        } else {
-          s['defaultModes'][limit] = modeParam(p, 'defaultMode');
+        if (p.containsKey('preset')) {
+          // Hyprland: the preset, and the layout it stands for (COSMIC/KDE stay in step).
+          if (p['preset'] == null) {
+            final old = presets.remove(ws);
+            // Without a mode of its own in the call, a v1 layout (mode only) goes too,
+            // else it would keep standing in for the preset just cleared.
+            if (!p.containsKey('mode') || (old is String && modes[ws] == modeForPreset(old))) modes.remove(ws);
+          } else {
+            final preset = presetParam(p, 'preset');
+            presets[ws] = preset;
+            modes[ws] = modeForPreset(preset);
+          }
+        }
+        if (p.containsKey('split')) {
+          final splits = s['workspaceSplits'] as Map;
+          if (p['split'] == null) {
+            splits.remove(ws);
+          } else {
+            splits[ws] = splitParam(p['split'], effectivePreset(s, int.parse(ws)));
+          }
+        }
+      } else {
+        if (p.containsKey('defaultMode') || p.containsKey('defaultPreset')) {
+          // All Workspaces: the layout (and preset) for workspaces of this limit.
+          final limit = '${intParam(p, 'defaultLimit', min: 1, max: 4)}';
+          final presets = s['defaultPresets'] as Map, modes = s['defaultModes'] as Map;
+          if (p.containsKey('defaultMode')) {
+            if (p['defaultMode'] == null) {
+              modes.remove(limit);
+              presets.remove(limit);
+            } else {
+              final mode = modeParam(p, 'defaultMode');
+              modes[limit] = mode;
+              if (presets[limit] is String && modeForPreset(presets[limit] as String) != mode) presets.remove(limit);
+            }
+          }
+          if (p.containsKey('defaultPreset')) {
+            if (p['defaultPreset'] == null) {
+              final old = presets.remove(limit);
+              if (!p.containsKey('defaultMode') || (old is String && modes[limit] == modeForPreset(old))) modes.remove(limit);
+            } else {
+              final preset = presetParam(p, 'defaultPreset');
+              presets[limit] = preset;
+              modes[limit] = modeForPreset(preset);
+            }
+          }
+        }
+        if (p.containsKey('split')) {
+          // No workspace: the default split.
+          if (p['split'] == null) {
+            s.remove('defaultSplit');
+          } else {
+            s['defaultSplit'] = splitParam(p['split'], effectivePreset(s, 0));
+          }
         }
       }
     }),
@@ -79,11 +139,13 @@ Map<String, Handler> presetRoutes(Ctx ctx) {
         throw RouteError('bad_params', 'action');
       }
       return change((s) {
-        (s['workspaceCaps'] as Map).clear();
-        (s['workspaceModes'] as Map).clear();
+        for (final key in ['workspaceCaps', 'workspaceModes', 'workspacePresets', 'workspaceSplits']) {
+          (s[key] as Map).clear();
+        }
         if (action == 'remove_all') {
           for (var ws = 1; ws <= 10; ws++) {
             s['workspaceModes']['$ws'] = 'default';
+            s['workspacePresets']['$ws'] = 'none';
           }
         }
       });
@@ -141,6 +203,10 @@ Map<String, Handler> presetRoutes(Ctx ctx) {
           'mode': effectiveMode(s, ws),
           'own_limit': ws > 0 && (s['workspaceCaps'] as Map).containsKey('$ws'),
           'own_mode': ws > 0 && (s['workspaceModes'] as Map).containsKey('$ws'),
+          'preset': effectivePreset(s, ws),
+          'own_preset': ws > 0 && (s['workspacePresets'] as Map).containsKey('$ws'),
+          'split': effectiveSplit(s, ws),
+          'own_split': ws > 0 && (s['workspaceSplits'] as Map).containsKey('$ws'),
         };
       }
       int? active;
@@ -202,6 +268,14 @@ Map<String, Handler> presetRoutes(Ctx ctx) {
     'workspaces.reset': (_) => change((s) {
       s.clear();
     }),
+    /// workspaces.json back as it was before the last workspaces/App Presets
+    /// change (kept on disk: works across `maprisma-theme-core call`s too).
+    'workspaces.undo': (_) async {
+      final before = loadWorkspaces(ctx);
+      if (!undoWorkspaces(ctx)) throw RouteError('not_found', tr("Undo expired"));
+      await applyTilingAfterUndo(ctx, before);
+      return {'undone': true, 'state': loadWorkspaces(ctx)};
+    },
     /// Gaps of tiled windows and the active window's frame width (KDE:
     /// Maprisma Tiling script; wm `tile-style`).
     'tiling.style': (_) async => _wmOrThrow(await ctx.desktop.wm(['tile-style'])),
@@ -377,6 +451,14 @@ Map<String, Handler> presetRoutes(Ctx ctx) {
     }),
     'presets.autostart': (_) => autostartPresets(ctx),
   };
+}
+
+/// A split share from a request: a finite number, clamped to 0.20–0.80
+/// (Columns: 0.20–0.60).
+double splitParam(Object? value, String preset) {
+  final split = value is num && value.isFinite ? cleanSplit(value, max: preset == 'columns' ? columnsSplitMax : splitMax) : null;
+  if (split == null) throw RouteError('bad_params', 'split');
+  return split;
 }
 
 Map<String, dynamic> _wmOrThrow(Map<String, dynamic>? r) {

@@ -100,14 +100,15 @@ void main() {
   });
 
   test('COSMIC has every cap; desktop.info and core.hello name the backend', () async {
-    expect(CosmicDesktop(paths, const {}).caps, Cap.values.toSet().difference({Cap.kdeScheme, Cap.animations}));
+    expect(CosmicDesktop(paths, const {}).caps, Cap.values.toSet().difference({Cap.kdeScheme, Cap.animations, Cap.presetLayouts, Cap.splits}));
     final env = TestEnv.create();
     addTearDown(env.dispose);
     final info = await env.core.call('desktop.info');
     expect(info['id'], 'cosmic');
     expect(info['name'], 'COSMIC');
     expect(info['terminal'], 'COSMIC Terminal');
-    expect(info['caps'], [for (final c in Cap.values) c.name]); // the fake has every cap
+    // the fake has every cap but Hyprland's presets and splits
+    expect(info['caps'], [for (final c in Cap.values) if (c != Cap.presetLayouts && c != Cap.splits) c.name]);
     expect((await env.core.call('core.hello'))['desktop'], 'cosmic');
   });
 

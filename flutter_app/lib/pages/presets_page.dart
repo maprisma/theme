@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../app.dart';
+import '../preview_geometry.dart';
 import '../theme.dart';
 import '../widgets.dart';
 
@@ -42,6 +43,69 @@ String modeHint(String mode, [String desktop = 'COSMIC']) => switch (mode) {
   'floating' => tr("Tiling off: windows float where they open"),
   _ => trf("Leaves {0}'s own tiling setting of the workspace as it is", [tilerOf(desktop)]),
 };
+
+/// Whether [preset] lets windows move without a tiling window limit.
+bool _isUnlimitedPreset(String preset) =>
+    preset == 'floating' || preset == 'scrolling' || preset == 'none';
+
+/// Localized display label for all 9 Workspace Presets on Hyprland.
+String presetLabel(String preset, {int? cap}) => switch (preset) {
+  'side-by-side' => cap == 1 ? tr("One window") : tr("Side by side"),
+  'stacked' => tr("Stacked"),
+  'master-left' => tr("Master left"),
+  'master-right' => tr("Master right"),
+  'columns' => tr("Columns"),
+  'grid' => tr("Grid"),
+  'floating' => tr("Floating"),
+  'scrolling' => tr("Scrolling"),
+  _ => tr("Native"),
+};
+
+/// Localized tooltip hint for all 9 Workspace Presets on Hyprland.
+String presetHint(String preset) => switch (preset) {
+  'side-by-side' => tr("Two windows side by side"),
+  'stacked' => tr("Two windows stacked vertically"),
+  'master-left' => tr("Main window on the left, other windows stacked on the right"),
+  'master-right' => tr("Main window on the right, other windows stacked on the left"),
+  'columns' => tr("Equal vertical columns"),
+  'grid' => tr("Four windows in a 2×2 grid"),
+  'floating' => tr("Windows float freely without a window limit"),
+  'scrolling' => tr("Horizontally scrolling windows without a window limit"),
+  _ => tr("Native Hyprland tiling without a layout preset or window limit"),
+};
+
+/// Explanation shown on dimmed preset tiles incompatible with the current cap.
+String presetCapRequirement(String preset) => switch (preset) {
+  'side-by-side' => tr("Requires window limit 1 or 2"),
+  'stacked' => tr("Requires window limit 2"),
+  'master-left' || 'master-right' || 'columns' => tr("Requires window limit 3 or 4"),
+  'grid' => tr("Requires window limit 4"),
+  _ => presetHint(preset),
+};
+
+int _presetPreviewCount(String preset, int cap) {
+  if (isPresetCompatibleWithCap(preset, cap)) return cap;
+  return switch (preset) {
+    'side-by-side' || 'stacked' => 2,
+    'master-left' || 'master-right' || 'columns' => 3,
+    'grid' => 4,
+    _ => math.max(cap, 3),
+  };
+}
+
+/// Human-readable split percentage label (e.g. `50% / 50%` or `33% / 33% / 34%`).
+String splitLabel(String preset, double? split) {
+  if (preset == 'columns') {
+    if (split == null) return '33% / 33% / 33%';
+    final mid = (split * 100).round();
+    final s1 = (100 - mid) ~/ 2;
+    final s2 = 100 - mid - s1;
+    return '$s1% / $mid% / $s2%';
+  }
+  final first = ((split ?? 0.5) * 100).round();
+  final second = 100 - first;
+  return '$first% / $second%';
+}
 
 /// The windows of a layout as rectangles in 0…1 of the area below the bar.
 /// Tiled: COSMIC's autotile, every new window splits the newest one along
@@ -95,6 +159,11 @@ class _PresetsPageState extends State<PresetsPage> {
   int selected = 1; // 0 = All Workspaces (Workspaces tab only)
   int? zoomed; // the large preview over a narrow window
   int? highlight; // the window chosen by keyboard (←/→) in the preview
+  double? _dragSplit; // live split ratio while dragging divider or slider
+  int? _dragWs; // workspace that _dragSplit belongs to
+  bool _dividerHot = false;
+  bool _draggingDivider = false;
+  bool _dragCancelled = false;
   Map? conflict; // a restore waiting for the user's choice
   String message = '';
   bool include = true;
@@ -171,17 +240,74 @@ class _PresetsPageState extends State<PresetsPage> {
 
   // --- state helpers -------------------------------------------------------------------
 
+  bool get hasPresetLayouts => app!.can('presetLayouts');
+  bool get hasSplits => app!.can('splits');
   Map look(int ws) => looks['$ws'] as Map? ?? const {};
   int groupOf(int ws) => ws <= _groups[0].$2 ? 0 : 1;
   Map get caps => state['workspaceCaps'] as Map? ?? const {};
   Map get modes => state['workspaceModes'] as Map? ?? const {};
   Map get defaults => state['defaultModes'] as Map? ?? const {};
   Map get layouts => state['workspaceLayouts'] as Map? ?? const {};
+  Map get workspacePresets => state['workspacePresets'] as Map? ?? const {};
+  Map get defaultPresets => state['defaultPresets'] as Map? ?? const {};
+  Map get workspaceSplits => state['workspaceSplits'] as Map? ?? const {};
+  double? get defaultSplit => (state['defaultSplit'] as num?)?.toDouble();
   int get globalCap => state['maxWindows'] as int? ?? 2;
   int limitOf(int ws) => ws == 0 ? globalCap : (caps['$ws'] as int? ?? globalCap);
   String modeOf(int ws) {
     if (ws > 0 && modes['$ws'] is String) return modes['$ws'] as String;
     return defaults['${limitOf(ws)}'] as String? ?? 'default';
+  }
+
+  String? ownPresetOf(int ws) =>
+      ws == 0 ? defaultPresets['${limitOf(0)}'] as String? : workspacePresets['$ws'] as String?;
+
+  String presetOf(int ws) {
+    final l = look(ws)['preset'];
+    if (l is String && presetNames.contains(l)) return l;
+    final cap = limitOf(ws);
+    if (ws > 0) {
+      final own = workspacePresets['$ws'];
+      if (own is String && presetNames.contains(own)) return own;
+      final m = modes['$ws'];
+      if (m is String) {
+        return switch (m) {
+          'floating' => 'floating',
+          'default' => 'none',
+          _ => builtinDefaultPreset(cap),
+        };
+      }
+    }
+    final def = defaultPresets['$cap'];
+    if (def is String && presetNames.contains(def)) return def;
+    final dm = defaults['$cap'];
+    if (dm is String) {
+      return switch (dm) {
+        'floating' => 'floating',
+        'default' => 'none',
+        _ => builtinDefaultPreset(cap),
+      };
+    }
+    return builtinDefaultPreset(cap);
+  }
+
+  double? ownSplitOf(int ws) =>
+      ws == 0 ? defaultSplit : (workspaceSplits['$ws'] as num?)?.toDouble();
+
+  double? splitOf(int ws) {
+    final fromLook = look(ws)['split'];
+    if (fromLook is num) return fromLook.toDouble();
+    return ownSplitOf(ws) ?? defaultSplit;
+  }
+
+  double? activeSplitOf(int ws) =>
+      _dragWs == ws && _dragSplit != null ? _dragSplit : splitOf(ws);
+
+  void _clearDrag() {
+    _dragSplit = null;
+    _dragWs = null;
+    _draggingDivider = false;
+    _dividerHot = false;
   }
 
   List<String> appsOf(int ws) => ((layouts['$ws'] as Map?)?['apps'] as List? ?? const []).cast<String>();
@@ -205,10 +331,35 @@ class _PresetsPageState extends State<PresetsPage> {
       return text;
     }
     if (ws == 0) return trf("Default: {0}", [windows(limitOf(0))]);
+    if (hasPresetLayouts) {
+      final preset = presetOf(ws);
+      final cap = limitOf(ws);
+      if (_isUnlimitedPreset(preset)) return presetLabel(preset, cap: cap);
+      return trf("Max {0} · {1}", [cap, presetLabel(preset, cap: cap)]);
+    }
     return trf("Max {0} · {1}", [limitOf(ws), modeLabel(modeOf(ws))]);
   }
 
   ({List<Rect> rects, bool dashed}) pictureOf(int ws) {
+    if (hasPresetLayouts) {
+      final preset = presetOf(ws);
+      final split = activeSplitOf(ws);
+      if (tab == 1) {
+        final apps = appsOf(ws);
+        if (preset == 'floating') {
+          return (rects: layoutRects('floating', apps.length), dashed: false);
+        }
+        final usePreset = !_isUnlimitedPreset(preset) && isPresetCompatibleWithCap(preset, apps.length);
+        return (
+          rects: presetRects(usePreset ? preset : 'tiled', apps.length, split: split),
+          dashed: false,
+        );
+      }
+      return (
+        rects: presetRects(preset, limitOf(ws), split: split),
+        dashed: preset == 'none',
+      );
+    }
     final mode = modeOf(ws);
     if (tab == 1) {
       final apps = appsOf(ws);
@@ -342,6 +493,28 @@ class _PresetsPageState extends State<PresetsPage> {
     n = n.clamp(1, 4);
     if (ws == 0) {
       await setWs(0, {'maxWindows': n}, trf("Default: {0}", [windows(n)]), tiling: true);
+    } else if (hasPresetLayouts) {
+      final own = ownPresetOf(ws);
+      final cur = presetOf(ws);
+      final params = <String, dynamic>{'limit': n};
+      var nextPreset = own;
+      if (own != null && (_isUnlimitedPreset(own) || !isPresetCompatibleWithCap(own, n))) {
+        nextPreset = builtinDefaultPreset(n);
+        params['preset'] = nextPreset;
+      } else if (own == null && _isUnlimitedPreset(cur)) {
+        if (modes['$ws'] != null) params['mode'] = null;
+        final fallback = defaultPresets['$n'] as String?;
+        if (fallback == null || _isUnlimitedPreset(fallback)) {
+          nextPreset = builtinDefaultPreset(n);
+          params['preset'] = nextPreset;
+        } else {
+          nextPreset = fallback;
+        }
+      } else {
+        nextPreset = own ?? (defaultPresets['$n'] as String?) ?? builtinDefaultPreset(n);
+      }
+      await setWs(ws, params, trf("Workspace {0}: Max {1} · {2}", [ws, n, presetLabel(nextPreset, cap: n)]),
+          tiling: true);
     } else {
       await setWs(ws, {'limit': n}, trf("Workspace {0}: Max {1} · {2}", [ws, n, modeLabel(modeOf(ws))]), tiling: true);
     }
@@ -358,6 +531,67 @@ class _PresetsPageState extends State<PresetsPage> {
     final same = modes['$ws'] == mode; // click again: the preset goes
     await setWs(ws, {'mode': same ? null : mode},
         same ? trf("Workspace {0}: layout preset removed", [ws]) : trf("Workspace {0}: {1}", [ws, modeLabel(mode)]), tiling: true);
+  }
+
+  Future<void> pickPreset(int ws, String preset) async {
+    if (ws == 0) {
+      final cap = globalCap;
+      final same = defaultPresets['$cap'] == preset;
+      await setWs(
+        0,
+        {'defaultLimit': cap, 'defaultPreset': same ? null : preset},
+        same
+            ? tr("Default layout removed")
+            : trf("Default for {0}: {1}", [windows(cap), presetLabel(preset, cap: cap)]),
+        tiling: true,
+      );
+      return;
+    }
+    final same = workspacePresets['$ws'] == preset;
+    await setWs(
+      ws,
+      {'preset': same ? null : preset},
+      same
+          ? trf("Workspace {0}: layout preset removed", [ws])
+          : trf("Workspace {0}: {1}", [ws, presetLabel(preset, cap: limitOf(ws))]),
+      tiling: true,
+    );
+  }
+
+  Future<void> setSplit(int ws, double? value) async {
+    final preset = presetOf(ws);
+    final cleaned = value == null ? null : clampSplit(preset, value);
+    try {
+      if (ws == 0) {
+        await setWs(
+          0,
+          {'split': cleaned},
+          cleaned == null ? tr("Even split") : trf("Default split: {0}", [splitLabel(preset, cleaned)]),
+          tiling: true,
+        );
+      } else {
+        await setWs(
+          ws,
+          {'split': cleaned},
+          cleaned == null
+              ? trf("Workspace {0}: even split", [ws])
+              : trf("Workspace {0}: split {1}", [ws, splitLabel(preset, cleaned)]),
+          tiling: true,
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(_clearDrag);
+      }
+    }
+  }
+
+  Future<void> resetSplit(int ws) async {
+    if (ws > 0 && defaultSplit != null) {
+      await setSplit(ws, presetOf(ws) == 'columns' ? 0.33 : 0.5);
+    } else {
+      await setSplit(ws, null);
+    }
   }
 
   Future<void> addWindow(int ws, int by) async {
@@ -384,6 +618,7 @@ class _PresetsPageState extends State<PresetsPage> {
           zoomed = null;
           conflict = null;
           message = '';
+          _clearDrag();
           if (tab == 1 && selected == 0) selected = _groups[group].$1;
         }),
         icon: Icon(icon, size: 16),
@@ -403,6 +638,16 @@ class _PresetsPageState extends State<PresetsPage> {
   /// The note above the tabs (the plugin's hand-over note): who moves the windows.
   Widget note() {
     final scheme = Theme.of(context).colorScheme;
+    final String text;
+    if (hasPresetLayouts) {
+      text = state['active'] == true
+          ? tr("Maprisma Theme daemon arranges windows on Hyprland: window limits, layout presets, split ratios, and overflow apply at once. Native leaves Hyprland's own tiling as it is.")
+          : tr("Tiling is off (All Workspaces): layout presets and split ratios still apply to Hyprland workspaces; window limits and overflow wait until Tiling active is on.");
+    } else {
+      text = state['active'] == true
+          ? trf("Maprisma Theme {0} arranges the windows: window limits and overflow take effect there at once. Tiled and Floating switch {1}'s tiling; Native leaves it as it is.", [app!.can('panel') ? tr("applet in the panel") : tr("tray service"), tilerOf(app!.desktopName)])
+          : trf("Tiling is off (All Workspaces): layouts switch {0}'s tiling of a workspace, window limits wait until Tiling active is on. Native leaves {1}'s tiling as it is.", [tilerOf(app!.desktopName), tilerOf(app!.desktopName)]);
+    }
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
@@ -411,12 +656,7 @@ class _PresetsPageState extends State<PresetsPage> {
         border: Border.all(color: scheme.outlineVariant),
         borderRadius: BorderRadius.circular(cornerSizes(context).small),
       ),
-      child: Text(
-        state['active'] == true
-            ? trf("Maprisma Theme {0} arranges the windows: window limits and overflow take effect there at once. Tiled and Floating switch {1}'s tiling; Native leaves it as it is.", [app!.can('panel') ? tr("applet in the panel") : tr("tray service"), tilerOf(app!.desktopName)])
-            : trf("Tiling is off (All Workspaces): layouts switch {0}'s tiling of a workspace, window limits wait until Tiling active is on. Native leaves {1}'s tiling as it is.", [tilerOf(app!.desktopName), tilerOf(app!.desktopName)]),
-        style: textRole(Theme.of(context).textTheme.bodySmall),
-      ),
+      child: Text(text, style: textRole(Theme.of(context).textTheme.bodySmall)),
     );
   }
 
@@ -438,6 +678,7 @@ class _PresetsPageState extends State<PresetsPage> {
                     group = i;
                     zoomed = null;
                     conflict = null;
+                    _clearDrag();
                     if (selected != 0 && groupOf(selected) != i) selected = _groups[i].$1;
                   });
                   loadWallpapers();
@@ -466,6 +707,7 @@ class _PresetsPageState extends State<PresetsPage> {
       selected = ws;
       conflict = null;
       highlight = null;
+      _clearDrag();
       if (ws > 0) group = groupOf(ws);
     });
     loadWallpapers();
@@ -604,6 +846,22 @@ class _PresetsPageState extends State<PresetsPage> {
       addWindow(ws, -1);
       return KeyEventResult.handled;
     }
+    if (tab == 0 && hasPresetLayouts && hasSplits) {
+      final preset = presetOf(ws);
+      final cap = limitOf(ws);
+      if (hasDivider(preset, cap)) {
+        if (char == '[' || key == LogicalKeyboardKey.bracketLeft || char == ']' || key == LogicalKeyboardKey.bracketRight) {
+          final delta = (char == '[' || key == LogicalKeyboardKey.bracketLeft) ? -0.05 : 0.05;
+          final base = activeSplitOf(ws) ?? (preset == 'columns' ? 1 / 3 : 0.5);
+          setSplit(ws, clampSplit(preset, base + delta));
+          return KeyEventResult.handled;
+        }
+        if (key == LogicalKeyboardKey.home) {
+          resetSplit(ws);
+          return KeyEventResult.handled;
+        }
+      }
+    }
     final count = pictureOf(ws).rects.length;
     if ((key == LogicalKeyboardKey.arrowLeft || key == LogicalKeyboardKey.arrowRight) && count > 0) {
       setState(() => highlight = highlight == null
@@ -612,6 +870,24 @@ class _PresetsPageState extends State<PresetsPage> {
       return KeyEventResult.handled;
     }
     if ((key == LogicalKeyboardKey.arrowUp || key == LogicalKeyboardKey.arrowDown) && tab == 0) {
+      if (hasPresetLayouts) {
+        final cap = limitOf(ws);
+        final compatible = [
+          for (final p in presetNames)
+            if (isPresetCompatibleWithCap(p, cap)) p,
+        ];
+        final cur = presetOf(ws);
+        final i = compatible.indexOf(cur);
+        final step = key == LogicalKeyboardKey.arrowDown ? 1 : -1;
+        final next = compatible[(i == -1 ? 0 : i + step) % compatible.length];
+        if (ws == 0) {
+          setWs(0, {'defaultLimit': cap, 'defaultPreset': next}, trf("Default: {0}", [presetLabel(next, cap: cap)]),
+              tiling: true);
+        } else {
+          setWs(ws, {'preset': next}, trf("Workspace {0}: {1}", [ws, presetLabel(next, cap: cap)]), tiling: true);
+        }
+        return KeyEventResult.handled;
+      }
       final i = _modes.indexOf(modeOf(ws));
       final next = _modes[(i + (key == LogicalKeyboardKey.arrowDown ? 1 : -1)) % _modes.length];
       if (ws == 0) {
@@ -621,9 +897,18 @@ class _PresetsPageState extends State<PresetsPage> {
       }
       return KeyEventResult.handled;
     }
-    if (key == LogicalKeyboardKey.escape && zoomed != null) {
-      setState(() => zoomed = null);
-      return KeyEventResult.handled;
+    if (key == LogicalKeyboardKey.escape) {
+      if (_draggingDivider || _dragSplit != null) {
+        setState(() {
+          _dragCancelled = true;
+          _clearDrag();
+        });
+        return KeyEventResult.handled;
+      }
+      if (zoomed != null) {
+        setState(() => zoomed = null);
+        return KeyEventResult.handled;
+      }
     }
     return KeyEventResult.ignored;
   }
@@ -636,6 +921,13 @@ class _PresetsPageState extends State<PresetsPage> {
     final limit = limitOf(ws);
     final plus = tab == 1 ? appsOf(ws).length < 64 : limit < 4;
     final minus = tab == 0 && limit > 1;
+    final preset = hasPresetLayouts ? presetOf(ws) : modeOf(ws);
+    final canSplit = hasPresetLayouts && hasSplits && tab == 0 && hasDivider(preset, limit);
+    final currentSplit = canSplit ? activeSplitOf(ws) : null;
+    final divider = canSplit ? presetDivider(preset, limit, split: currentSplit) : null;
+    final activeIdx = hasPresetLayouts
+        ? ((preset == 'floating' || preset == 'master-right') && pic.rects.isNotEmpty ? pic.rects.length - 1 : 0)
+        : (modeOf(ws) == 'floating' ? pic.rects.length - 1 : 0);
     return Focus(
       focusNode: focus,
       onKeyEvent: (_, e) => previewKey(ws, e),
@@ -643,13 +935,30 @@ class _PresetsPageState extends State<PresetsPage> {
         listenable: focus,
         builder: (context, _) => AspectRatio(
           aspectRatio: 16 / 9,
-          child: LayoutBuilder(builder: (context, box) {
+          child: LayoutBuilder(builder: (previewContext, box) {
             final w = box.maxWidth, h = box.maxHeight;
             final k = math.max(1.0, w / 272);
             final bar = math.max(7.0, (h * 0.055).roundToDouble());
             final top = bar + 2 * k;
+            final areaH = math.max(1.0, h - top);
             final r = math.max(10.0, 9 * k);
-            final cy = top + (h - top) / 2;
+            final cy = top + areaH / 2;
+
+            void updateDividerFromGlobal(Offset globalPos) {
+              if (_dragCancelled) return;
+              final renderBox = previewContext.findRenderObject() as RenderBox?;
+              if (renderBox == null) return;
+              final local = renderBox.globalToLocal(globalPos);
+              final u = (local.dx / w).clamp(0.0, 1.0);
+              final v = ((local.dy - top) / areaH).clamp(0.0, 1.0);
+              final next = splitFromPointer(preset, u, v);
+              setState(() {
+                _dragWs = ws;
+                _dragSplit = next;
+                _draggingDivider = true;
+              });
+            }
+
             return Stack(
               children: [
                 Positioned.fill(
@@ -672,12 +981,91 @@ class _PresetsPageState extends State<PresetsPage> {
                           allLabel: ws == 0 ? tr("All workspaces · default") : '',
                           highlight: focus.hasFocus ? highlight : null,
                           focused: focus.hasFocus,
-                          activeIndex: modeOf(ws) == 'floating' ? pic.rects.length - 1 : 0,
+                          activeIndex: activeIdx,
+                          divider: divider,
+                          dividerHot: _dividerHot,
+                          dividerDragging: _draggingDivider && _dragWs == ws,
+                          dragLabel: _draggingDivider && _dragWs == ws ? splitLabel(preset, _dragSplit) : null,
                         ),
                       ),
                     ]),
                   ),
                 ),
+                if (divider != null)
+                  for (var i = 0; i < divider.positions.length; i++)
+                    Positioned(
+                      key: ValueKey('split-divider-$i'),
+                      left: divider.vertical
+                          ? (divider.positions[i] * w - 8).clamp(0.0, math.max(0.0, w - 16))
+                          : divider.start * w,
+                      top: divider.vertical
+                          ? top + divider.start * areaH
+                          : (top + divider.positions[i] * areaH - 8).clamp(top, math.max(top, h - 16)),
+                      width: divider.vertical ? 16 : (divider.end - divider.start) * w,
+                      height: divider.vertical ? (divider.end - divider.start) * areaH : 16,
+                      child: Semantics(
+                        label: tr("Split ratio divider"),
+                        child: MouseRegion(
+                          cursor: divider.vertical ? SystemMouseCursors.resizeColumn : SystemMouseCursors.resizeRow,
+                          onEnter: (_) => setState(() => _dividerHot = true),
+                          onExit: (_) => setState(() => _dividerHot = false),
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onDoubleTap: busy ? null : () => resetSplit(ws),
+                            onHorizontalDragStart: busy || !divider.vertical
+                                ? null
+                                : (d) {
+                                    _dragCancelled = false;
+                                    updateDividerFromGlobal(d.globalPosition);
+                                  },
+                            onHorizontalDragUpdate:
+                                busy || !divider.vertical ? null : (d) => updateDividerFromGlobal(d.globalPosition),
+                            onHorizontalDragEnd: busy || !divider.vertical
+                                ? null
+                                : (_) {
+                                    if (_dragCancelled) {
+                                      _dragCancelled = false;
+                                      return;
+                                    }
+                                    final committed = _dragWs == ws ? _dragSplit : null;
+                                    setState(() => _draggingDivider = false);
+                                    if (committed != null) setSplit(ws, committed);
+                                  },
+                            onHorizontalDragCancel: !divider.vertical
+                                ? null
+                                : () => setState(() {
+                                      _dragCancelled = false;
+                                      _clearDrag();
+                                    }),
+                            onVerticalDragStart: busy || divider.vertical
+                                ? null
+                                : (d) {
+                                    _dragCancelled = false;
+                                    updateDividerFromGlobal(d.globalPosition);
+                                  },
+                            onVerticalDragUpdate:
+                                busy || divider.vertical ? null : (d) => updateDividerFromGlobal(d.globalPosition),
+                            onVerticalDragEnd: busy || divider.vertical
+                                ? null
+                                : (_) {
+                                    if (_dragCancelled) {
+                                      _dragCancelled = false;
+                                      return;
+                                    }
+                                    final committed = _dragWs == ws ? _dragSplit : null;
+                                    setState(() => _draggingDivider = false);
+                                    if (committed != null) setSplit(ws, committed);
+                                  },
+                            onVerticalDragCancel: divider.vertical
+                                ? null
+                                : () => setState(() {
+                                      _dragCancelled = false;
+                                      _clearDrag();
+                                    }),
+                          ),
+                        ),
+                      ),
+                    ),
                 if (minus)
                   Positioned(
                     left: 3,
@@ -719,7 +1107,9 @@ class _PresetsPageState extends State<PresetsPage> {
       Text(
         tab == 1
             ? tr("Tab to the preview: + adds an app.")
-            : tr("Tab to the preview: + and − change the limit, ↑/↓ the layout, ←/→ choose a window."),
+            : (hasPresetLayouts && hasSplits
+                ? tr("Tab to the preview: + and − change the limit, ↑/↓ the layout, [ and ] the split, Home resets split, ←/→ choose a window.")
+                : tr("Tab to the preview: + and − change the limit, ↑/↓ the layout, ←/→ choose a window.")),
         style: Theme.of(context).textTheme.labelSmall!.copyWith(color: scheme.onSurfaceVariant.withValues(alpha: .75)),
       ),
     ]);
@@ -837,10 +1227,69 @@ class _PresetsPageState extends State<PresetsPage> {
     );
   }
 
-  /// The LAYOUT PRESET tiles: COSMIC's choices, drawn for [cap] windows.
+  /// The LAYOUT PRESET tiles: all 9 Workspace Presets on Hyprland, or COSMIC/KDE's 3 choices.
   Widget layoutChoices(int ws, int cap, String? chosen, double width) {
     final scheme = Theme.of(context).colorScheme;
     final colors = colorsOf(ws);
+    if (hasPresetLayouts) {
+      final tileW = ((width - 2 * 8) / 3 - 10).clamp(64.0, 150.0);
+      return Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final preset in presetNames) () {
+            final compatible = isPresetCompatibleWithCap(preset, cap);
+            final selectedTile = preset == chosen;
+            final label = presetLabel(preset, cap: cap);
+            final rects = presetRects(preset, _presetPreviewCount(preset, cap));
+            final tile = Tooltip(
+              message: compatible ? presetHint(preset) : presetCapRequirement(preset),
+              child: Semantics(
+                selected: selectedTile,
+                enabled: compatible,
+                button: true,
+                label: label,
+                child: Material(
+                  color: selectedTile ? scheme.surfaceContainerHigh : Colors.transparent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(cornerSizes(context).control),
+                    side: BorderSide(
+                      color: selectedTile ? scheme.onSurface.withValues(alpha: .85) : scheme.outlineVariant,
+                      width: selectedTile ? 1.5 : 1,
+                    ),
+                  ),
+                  child: InkWell(
+                    onTap: busy || !compatible ? null : () => pickPreset(ws, preset),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(4, 4, 4, 4),
+                      child: SizedBox(
+                        width: tileW,
+                        child: Column(children: [
+                          AspectRatio(
+                            aspectRatio: 16 / 9,
+                            child: CustomPaint(
+                              painter: LayoutPicture(colors, rects, preset == 'none'),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: textRole(Theme.of(context).textTheme.labelSmall),
+                          ),
+                        ]),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+            return compatible ? tile : Opacity(opacity: 0.4, child: tile);
+          }(),
+        ],
+      );
+    }
     final tileW = ((width - 3 * 6) / 4 - 10).clamp(64.0, 150.0);
     return Wrap(
       spacing: 8,
@@ -888,6 +1337,56 @@ class _PresetsPageState extends State<PresetsPage> {
     );
   }
 
+  /// Split ratio slider + Even split reset button for split-capable presets on Hyprland.
+  Widget splitControls(int ws) {
+    final preset = presetOf(ws);
+    final activeSplit = activeSplitOf(ws);
+    final (minSplit, maxSplit) = splitRange(preset);
+    final evenVal = preset == 'columns' ? 0.33 : 0.5;
+    final sliderVal = (activeSplit ?? (preset == 'columns' ? 1 / 3 : 0.5)).clamp(minSplit, maxSplit);
+    final canReset = ws == 0
+        ? defaultSplit != null
+        : (activeSplit != null && (activeSplit - evenVal).abs() > 0.005) ||
+            (ownSplitOf(ws) != null && defaultSplit == null);
+    return groupCard(title: tr("Split ratio"), [
+      Row(children: [
+        Text(splitLabel(preset, activeSplit), style: Theme.of(context).textTheme.bodyMedium),
+        const Spacer(),
+        action(
+          tr("Even split"),
+          Icons.balance,
+          canReset ? () => resetSplit(ws) : null,
+          tooltip: tr("Reset split ratio to even"),
+        ),
+      ]),
+      Slider(
+        value: sliderVal,
+        min: minSplit,
+        max: maxSplit,
+        onChangeStart: busy ? null : (_) => _dragCancelled = false,
+        onChanged: busy
+            ? null
+            : (v) {
+                if (_dragCancelled) return;
+                setState(() {
+                  _dragWs = ws;
+                  _dragSplit = snapSplit(preset, v);
+                });
+              },
+        onChangeEnd: busy
+            ? null
+            : (v) {
+                if (_dragCancelled) {
+                  _dragCancelled = false;
+                  return;
+                }
+                setSplit(ws, snapSplit(preset, v));
+              },
+      ),
+      hint(tr("Drag the divider in the preview, use [ and ], or double-click to reset.")),
+    ]);
+  }
+
   Widget action(String label, IconData icon, VoidCallback? onTap, {String tooltip = '', bool destructive = false}) {
     final scheme = Theme.of(context).colorScheme;
     final button = OutlinedButton.icon(
@@ -921,6 +1420,8 @@ class _PresetsPageState extends State<PresetsPage> {
   List<Widget> layoutControls(int ws, double width) {
     if (ws == 0) {
       final cap = globalCap;
+      final defaultChosen = hasPresetLayouts ? ownPresetOf(0) : defaults['$cap'] as String?;
+      final showSplit = hasPresetLayouts && hasSplits && hasDivider(presetOf(0), cap);
       return [
         if (app!.can('windows') && app!.can('tiling')) groupCard([
           toggle(tr("Tiling active"), tr("Window limits with overflow to the next workspace with room"),
@@ -934,9 +1435,13 @@ class _PresetsPageState extends State<PresetsPage> {
           ]),
         ]),
         if (app!.can('tiling')) groupCard(title: tr("Default layout preset"), [
-          layoutChoices(0, cap, defaults['$cap'] as String?, width),
-          hint(trf("For {0} on workspaces without a layout of their own. Click again to remove it (Native).", [windows(cap)])),
+          layoutChoices(0, cap, defaultChosen, width),
+          hint(hasPresetLayouts
+              ? trf("For {0} on workspaces without a layout of their own. Click again to reset to {1}.",
+                  [windows(cap), presetLabel(builtinDefaultPreset(cap), cap: cap)])
+              : trf("For {0} on workspaces without a layout of their own. Click again to remove it (Native).", [windows(cap)])),
         ]),
+        if (showSplit) splitControls(0),
         if (app!.can('tiling') && app!.can('windows')) groupCard(title: tr("Preset & App Preset management (all workspaces)"), [
           Wrap(spacing: 8, runSpacing: 8, children: [
             action(tr("Reset All to Default"), Icons.undo,
@@ -957,14 +1462,27 @@ class _PresetsPageState extends State<PresetsPage> {
       ];
     }
     final cap = limitOf(ws);
-    final own = modes['$ws'] as String?;
-    final fallback = defaults['$cap'] as String?;
+    final activePreset = hasPresetLayouts ? presetOf(ws) : null;
+    final unlimited = activePreset != null && _isUnlimitedPreset(activePreset);
+    final own = hasPresetLayouts ? ownPresetOf(ws) : modes['$ws'] as String?;
+    final fallback = hasPresetLayouts
+        ? (defaultPresets['$cap'] as String? ?? builtinDefaultPreset(cap))
+        : defaults['$cap'] as String?;
+    final showSplit = hasPresetLayouts && hasSplits && hasDivider(activePreset!, cap);
     return [
       if (app!.can('windows')) groupCard(title: tr("Window limit"), [
         choiceRow([
           for (var n = 1; n <= 4; n++)
-            (label: '$n', on: cap == n, tap: () => setLimit(ws, n), tooltip: trf("Set Workspace {0} limit to {1}", [ws, windows(n)])),
+            (
+              label: '$n',
+              on: !unlimited && cap == n,
+              tap: () => setLimit(ws, n),
+              tooltip: trf("Set Workspace {0} limit to {1}", [ws, windows(n)]),
+            ),
         ]),
+        if (unlimited)
+          hint(trf("{0} has no window limit. Choose a limit to switch back to tiling.",
+              [presetLabel(activePreset, cap: cap)])),
         if (caps.containsKey('$ws')) ...[
           const SizedBox(height: 8),
           action(trf("Reset Limit to Default ({0})", [globalCap]), Icons.undo,
@@ -972,7 +1490,7 @@ class _PresetsPageState extends State<PresetsPage> {
         ],
       ]),
       if (app!.can('tiling')) groupCard(title: tr("Layout preset"), [
-        if (cap <= 1)
+        if (cap <= 1 && !unlimited)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: hint(tr("Keeps one window on this workspace. Newly opened windows move to the next workspace with room.")),
@@ -981,11 +1499,26 @@ class _PresetsPageState extends State<PresetsPage> {
         if (own != null)
           hint(tr("Click again or Reset to remove preset."))
         else if (fallback != null)
-          hint(trf("Uses the default for {0}: {1}.", [windows(cap), modeLabel(fallback)])),
+          hint(trf("Uses the default for {0}: {1}.",
+              [windows(cap), hasPresetLayouts ? presetLabel(fallback, cap: cap) : modeLabel(fallback)])),
         const SizedBox(height: 8),
-        action(tr("Reset Workspace to Default"), Icons.undo,
-            () => setWs(ws, {'mode': null, if (app!.can('windows')) 'limit': null}, trf("Workspace {0} reset to the default", [ws]), tiling: true)),
+        action(
+          tr("Reset Workspace to Default"),
+          Icons.undo,
+          () => setWs(
+            ws,
+            {
+              'mode': null,
+              if (hasPresetLayouts) 'preset': null,
+              if (hasSplits) 'split': null,
+              if (app!.can('windows')) 'limit': null,
+            },
+            trf("Workspace {0} reset to the default", [ws]),
+            tiling: true,
+          ),
+        ),
       ]),
+      if (showSplit) splitControls(ws),
       lookControls(ws),
     ];
   }
@@ -1433,7 +1966,11 @@ class _PresetsPageState extends State<PresetsPage> {
     final ws = p['workspaces'] as Map?;
     final layoutCount = ws == null
         ? 0
-        : {...(ws['workspaceCaps'] as Map? ?? {}).keys, ...(ws['workspaceModes'] as Map? ?? {}).keys}.length;
+        : {
+            ...(ws['workspaceCaps'] as Map? ?? {}).keys,
+            ...(ws['workspaceModes'] as Map? ?? {}).keys,
+            ...(ws['workspacePresets'] as Map? ?? {}).keys,
+          }.length;
     final appCount = (ws?['workspaceLayouts'] as Map? ?? {}).length;
     final small = Theme.of(context).textTheme.bodySmall!.copyWith(color: scheme.onSurfaceVariant);
     return Container(
@@ -1486,12 +2023,37 @@ class _PresetsPageState extends State<PresetsPage> {
     final hasApps = hasWorkspaces && app!.can('windows');
     final effectiveTab = !hasWorkspaces || (tab == 1 && !hasApps) ? 2 : tab;
     final z = hasWorkspaces && app!.can('tiling') ? zoomed : null;
+    final dragging = _draggingDivider || _dragSplit != null;
     return PopScope(
-      canPop: z == null,
+      canPop: z == null && !dragging,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && zoomed != null) setState(() => zoomed = null);
+        if (!didPop) {
+          if (_draggingDivider || _dragSplit != null) {
+            setState(() {
+              _dragCancelled = true;
+              _clearDrag();
+            });
+          } else if (zoomed != null) {
+            setState(() => zoomed = null);
+          }
+        }
       },
-      child: SubPage(
+      child: Focus(
+        canRequestFocus: false,
+        skipTraversal: true,
+        onKeyEvent: (_, e) {
+          if (e is KeyDownEvent &&
+              e.logicalKey == LogicalKeyboardKey.escape &&
+              (_draggingDivider || _dragSplit != null)) {
+            setState(() {
+              _dragCancelled = true;
+              _clearDrag();
+            });
+            return KeyEventResult.handled;
+          }
+          return KeyEventResult.ignored;
+        },
+        child: SubPage(
         title: tr("Presets"),
         body: Stack(
           children: [
@@ -1527,6 +2089,7 @@ class _PresetsPageState extends State<PresetsPage> {
             if (z != null) zoomOverlay(z),
           ],
         ),
+      ),
       ),
     );
   }
@@ -1616,6 +2179,10 @@ class LookPainter extends CustomPainter {
     required this.highlight,
     required this.focused,
     required this.activeIndex,
+    this.divider,
+    this.dividerHot = false,
+    this.dividerDragging = false,
+    this.dragLabel,
   });
   final Map colors;
   final List<Rect> rects;
@@ -1623,6 +2190,10 @@ class LookPainter extends CustomPainter {
   final String allLabel;
   final int? highlight;
   final int activeIndex;
+  final DividerInfo? divider;
+  final bool dividerHot;
+  final bool dividerDragging;
+  final String? dragLabel;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1705,6 +2276,64 @@ class LookPainter extends CustomPainter {
         canvas.drawRect(
             Rect.fromLTWH(rect.left + pad, y, math.max(4, (rect.width - 2 * pad) * part), line * 0.8), text);
         y += line * 2.6;
+      }
+    }
+    if (divider != null) {
+      final div = divider!;
+      final active = dividerHot || dividerDragging;
+      final linePaint = Paint()
+        ..color = accent.withValues(alpha: active ? 0.95 : 0.6)
+        ..strokeWidth = (active ? 2.5 : 1.5) * k
+        ..strokeCap = StrokeCap.round;
+      final gripPaint = Paint()..color = accent.withValues(alpha: active ? 1.0 : 0.85);
+      for (final pos in div.positions) {
+        if (div.vertical) {
+          final x = pos * width;
+          final y1 = top + div.start * areaH;
+          final y2 = top + div.end * areaH;
+          canvas.drawLine(Offset(x, y1), Offset(x, y2), linePaint);
+          final gripH = math.max(12.0 * k, (y2 - y1) * 0.22);
+          final gripW = (active ? 5.0 : 3.5) * k;
+          canvas.drawRRect(
+            RRect.fromRectAndRadius(
+              Rect.fromCenter(center: Offset(x, (y1 + y2) / 2), width: gripW, height: gripH),
+              Radius.circular(gripW / 2),
+            ),
+            gripPaint,
+          );
+        } else {
+          final y = top + pos * areaH;
+          final x1 = div.start * width;
+          final x2 = div.end * width;
+          canvas.drawLine(Offset(x1, y), Offset(x2, y), linePaint);
+          final gripW = math.max(12.0 * k, (x2 - x1) * 0.22);
+          final gripH = (active ? 5.0 : 3.5) * k;
+          canvas.drawRRect(
+            RRect.fromRectAndRadius(
+              Rect.fromCenter(center: Offset((x1 + x2) / 2, y), width: gripW, height: gripH),
+              Radius.circular(gripH / 2),
+            ),
+            gripPaint,
+          );
+        }
+      }
+      if (dividerDragging && dragLabel != null && dragLabel!.isNotEmpty) {
+        final painter = TextPainter(
+          text: TextSpan(
+            text: dragLabel,
+            style: TextStyle(color: bg, fontSize: math.max(10, 10 * k), fontWeight: FontWeight.bold),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        final pad = 6 * k;
+        final tw = painter.width + 2 * pad, th = painter.height + pad;
+        final pill = RRect.fromRectAndRadius(
+          Rect.fromCenter(center: Offset(width / 2, top + areaH / 2), width: tw, height: th),
+          Radius.circular(th / 2),
+        );
+        canvas.drawRRect(pill, Paint()..color = accent.withValues(alpha: 0.95));
+        painter.paint(canvas, Offset(pill.left + pad, pill.top + pad / 2));
+        painter.dispose();
       }
     }
     if (allLabel.isNotEmpty) {
