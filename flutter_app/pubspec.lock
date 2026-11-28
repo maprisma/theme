@@ -252,11 +252,11 @@ packages:
     dependency: "direct main"
     description:
       path: "packages/maprisma_core_kit"
-      ref: "39c68c8b9dba8d0cc1aa7b3703832ce8f67dc85e"
-      resolved-ref: "39c68c8b9dba8d0cc1aa7b3703832ce8f67dc85e"
+      ref: "2249436538eff4c0925bfbc007000e3eaf095591"
+      resolved-ref: "2249436538eff4c0925bfbc007000e3eaf095591"
       url: "https://github.com/maprisma/maprisma-kit.git"
     source: git
-    version: "0.1.0"
+    version: "0.2.0"
   maprisma_theme_core:
     dependency: "direct main"
     description:
@@ -268,11 +268,11 @@ packages:
     dependency: "direct main"
     description:
       path: "packages/maprisma_ui"
-      ref: "39c68c8b9dba8d0cc1aa7b3703832ce8f67dc85e"
-      resolved-ref: "39c68c8b9dba8d0cc1aa7b3703832ce8f67dc85e"
+      ref: "2249436538eff4c0925bfbc007000e3eaf095591"
+      resolved-ref: "2249436538eff4c0925bfbc007000e3eaf095591"
       url: "https://github.com/maprisma/maprisma-kit.git"
     source: git
-    version: "0.1.0"
+    version: "0.2.0"
   matcher:
     dependency: transitive
     description:

@@ -16,7 +16,7 @@ dependencies:
   maprisma_core_kit:
     git:
       url: https://github.com/maprisma/maprisma-kit.git
-      ref: 39c68c8b9dba8d0cc1aa7b3703832ce8f67dc85e # v0.1.0
+      ref: 2249436538eff4c0925bfbc007000e3eaf095591 # v0.2.0
       path: packages/maprisma_core_kit
 dev_dependencies:
   test: ^1.29.0
